@@ -107,49 +107,49 @@ public class ClosureService
         {
             try
             {
-                await using var connection = new SqlConnection(_dbService.ConnectionString);
+                await using var connection = _dbService.CreateConnection();
                 await connection.OpenAsync();
 
                 var salesQuery = @"
                     SELECT 
                         COUNT(*) AS SalesCount,
-                        ISNULL(SUM(GrandTotal), 0) AS TotalRevenue,
-                        ISNULL(SUM(CASE WHEN PaymentType = N'Nakit' THEN GrandTotal ELSE 0 END), 0) AS TotalCash,
-                        ISNULL(SUM(CASE WHEN PaymentType = N'Kredi Kartı' OR PaymentType = N'Kart' THEN GrandTotal ELSE 0 END), 0) AS TotalCreditCard,
-                        ISNULL(SUM(CASE WHEN PaymentType = N'Veresiye' THEN GrandTotal ELSE 0 END), 0) AS TotalOnAccount,
-                        ISNULL(SUM(CostTotal), 0) AS TotalCost
+                        COALESCE(SUM(GrandTotal), 0) AS TotalRevenue,
+                        COALESCE(SUM(CASE WHEN PaymentType = 'Nakit' THEN GrandTotal ELSE 0 END), 0) AS TotalCash,
+                        COALESCE(SUM(CASE WHEN PaymentType = 'Kredi Kartı' OR PaymentType = 'Kart' THEN GrandTotal ELSE 0 END), 0) AS TotalCreditCard,
+                        COALESCE(SUM(CASE WHEN PaymentType = 'Veresiye' THEN GrandTotal ELSE 0 END), 0) AS TotalOnAccount,
+                        COALESCE(SUM(CostTotal), 0) AS TotalCost
                     FROM Sales 
                     WHERE CAST(SaleDate AS DATE) = @TargetDate" +
                     (sinceTime.HasValue ? " AND SaleDate > @SinceTime" : "");
 
-                await using (var cmd = new SqlCommand(salesQuery, connection))
+                await using (var cmd = connection.CreateCommand(salesQuery))
                 {
-                    cmd.Parameters.AddWithValue("@TargetDate", targetDate.Date);
-                    if (sinceTime.HasValue) cmd.Parameters.AddWithValue("@SinceTime", sinceTime.Value);
+                    cmd.AddParam("TargetDate", targetDate.Date);
+                    if (sinceTime.HasValue) cmd.AddParam("SinceTime", sinceTime.Value);
 
                     await using var reader = await cmd.ExecuteReaderAsync();
                     if (await reader.ReadAsync())
                     {
-                        summary.SalesCount = reader.GetInt32(0);
-                        summary.TotalRevenue = reader.GetDecimal(1);
-                        summary.TotalCash = reader.GetDecimal(2);
-                        summary.TotalCreditCard = reader.GetDecimal(3);
-                        summary.TotalOnAccount = reader.GetDecimal(4);
-                        summary.TotalCost = reader.GetDecimal(5);
+                        summary.SalesCount = Convert.ToInt32(reader.GetValue(0));
+                        summary.TotalRevenue = Convert.ToDecimal(reader.GetValue(1));
+                        summary.TotalCash = Convert.ToDecimal(reader.GetValue(2));
+                        summary.TotalCreditCard = Convert.ToDecimal(reader.GetValue(3));
+                        summary.TotalOnAccount = Convert.ToDecimal(reader.GetValue(4));
+                        summary.TotalCost = Convert.ToDecimal(reader.GetValue(5));
                         summary.TotalProfit = summary.TotalRevenue - summary.TotalCost;
                     }
                 }
 
                 var expenseQuery = @"
-                    SELECT ISNULL(SUM(Amount), 0) 
+                    SELECT COALESCE(SUM(Amount), 0) 
                     FROM Expenses 
                     WHERE CAST(ExpenseDate AS DATE) = @TargetDate" +
                     (sinceTime.HasValue ? " AND ExpenseDate > @SinceTime" : "");
 
-                await using (var cmdExp = new SqlCommand(expenseQuery, connection))
+                await using (var cmdExp = connection.CreateCommand(expenseQuery))
                 {
-                    cmdExp.Parameters.AddWithValue("@TargetDate", targetDate.Date);
-                    if (sinceTime.HasValue) cmdExp.Parameters.AddWithValue("@SinceTime", sinceTime.Value);
+                    cmdExp.AddParam("TargetDate", targetDate.Date);
+                    if (sinceTime.HasValue) cmdExp.AddParam("SinceTime", sinceTime.Value);
 
                     var expResult = await cmdExp.ExecuteScalarAsync();
                     if (expResult != null && expResult != DBNull.Value)
@@ -207,13 +207,13 @@ public class ClosureService
         // 1. Yerel JSON dosyasına kaydet
         await SaveToLocalJsonAsync(closure);
 
-        // 2. SQL Server bağlıysa veritabanına ekle
+        // 2. Veritabanı bağlıysa veritabanına ekle
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
             try
             {
-                await using var connection = new SqlConnection(_dbService.ConnectionString);
+                await using var connection = _dbService.CreateConnection();
                 await connection.OpenAsync();
 
                 var insertSql = @"
@@ -221,29 +221,29 @@ public class ClosureService
                     VALUES (@ClosureDate, @ClosedAt, @TotalRevenue, @TotalCash, @TotalCreditCard, @TotalOnAccount, @TotalCost, @TotalProfit, @TotalExpenses, @SalesCount, @Notes, @ZReportCash, @ZReportCredit, @CashDiff, @CreditDiff, @CashExpense, @CreditExpense, @VatAmount, @PocketCash, @PocketCredit, @IbanAmount, @ExpectedBankPayment);
                     SELECT SCOPE_IDENTITY();";
 
-                await using var cmd = new SqlCommand(insertSql, connection);
-                cmd.Parameters.AddWithValue("@ClosureDate", closure.ClosureDate.Date);
-                cmd.Parameters.AddWithValue("@ClosedAt", closure.ClosedAt);
-                cmd.Parameters.AddWithValue("@TotalRevenue", closure.TotalRevenue);
-                cmd.Parameters.AddWithValue("@TotalCash", closure.TotalCash);
-                cmd.Parameters.AddWithValue("@TotalCreditCard", closure.TotalCreditCard);
-                cmd.Parameters.AddWithValue("@TotalOnAccount", closure.TotalOnAccount);
-                cmd.Parameters.AddWithValue("@TotalCost", closure.TotalCost);
-                cmd.Parameters.AddWithValue("@TotalProfit", closure.TotalProfit);
-                cmd.Parameters.AddWithValue("@TotalExpenses", closure.TotalExpenses);
-                cmd.Parameters.AddWithValue("@SalesCount", closure.SalesCount);
-                cmd.Parameters.AddWithValue("@Notes", (object?)closure.Notes ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@ZReportCash", closure.ZReportCash);
-                cmd.Parameters.AddWithValue("@ZReportCredit", closure.ZReportCredit);
-                cmd.Parameters.AddWithValue("@CashDiff", closure.CashDiff);
-                cmd.Parameters.AddWithValue("@CreditDiff", closure.CreditDiff);
-                cmd.Parameters.AddWithValue("@CashExpense", closure.CashExpense);
-                cmd.Parameters.AddWithValue("@CreditExpense", closure.CreditExpense);
-                cmd.Parameters.AddWithValue("@VatAmount", closure.VatAmount);
-                cmd.Parameters.AddWithValue("@PocketCash", closure.PocketCash);
-                cmd.Parameters.AddWithValue("@PocketCredit", closure.PocketCredit);
-                cmd.Parameters.AddWithValue("@IbanAmount", closure.IbanAmount);
-                cmd.Parameters.AddWithValue("@ExpectedBankPayment", closure.ExpectedBankPayment);
+                await using var cmd = connection.CreateCommand(insertSql);
+                cmd.AddParam("ClosureDate", closure.ClosureDate.Date);
+                cmd.AddParam("ClosedAt", closure.ClosedAt);
+                cmd.AddParam("TotalRevenue", closure.TotalRevenue);
+                cmd.AddParam("TotalCash", closure.TotalCash);
+                cmd.AddParam("TotalCreditCard", closure.TotalCreditCard);
+                cmd.AddParam("TotalOnAccount", closure.TotalOnAccount);
+                cmd.AddParam("TotalCost", closure.TotalCost);
+                cmd.AddParam("TotalProfit", closure.TotalProfit);
+                cmd.AddParam("TotalExpenses", closure.TotalExpenses);
+                cmd.AddParam("SalesCount", closure.SalesCount);
+                cmd.AddParam("Notes", closure.Notes);
+                cmd.AddParam("ZReportCash", closure.ZReportCash);
+                cmd.AddParam("ZReportCredit", closure.ZReportCredit);
+                cmd.AddParam("CashDiff", closure.CashDiff);
+                cmd.AddParam("CreditDiff", closure.CreditDiff);
+                cmd.AddParam("CashExpense", closure.CashExpense);
+                cmd.AddParam("CreditExpense", closure.CreditExpense);
+                cmd.AddParam("VatAmount", closure.VatAmount);
+                cmd.AddParam("PocketCash", closure.PocketCash);
+                cmd.AddParam("PocketCredit", closure.PocketCredit);
+                cmd.AddParam("IbanAmount", closure.IbanAmount);
+                cmd.AddParam("ExpectedBankPayment", closure.ExpectedBankPayment);
 
                 var newId = await cmd.ExecuteScalarAsync();
                 if (newId != null && newId != DBNull.Value)
@@ -282,21 +282,21 @@ public class ClosureService
         {
             try
             {
-                await using var connection = new SqlConnection(_dbService.ConnectionString);
+                await using var connection = _dbService.CreateConnection();
                 await connection.OpenAsync();
 
                 var sql = @"
                     SELECT 
                         Id, ClosureDate, ClosedAt, TotalRevenue, TotalCash, TotalCreditCard, 
                         TotalOnAccount, TotalCost, TotalProfit, TotalExpenses, SalesCount, Notes,
-                        ISNULL(ZReportCash, 0), ISNULL(ZReportCredit, 0), ISNULL(CashDiff, 0), 
-                        ISNULL(CreditDiff, 0), ISNULL(CashExpense, 0), ISNULL(CreditExpense, 0), 
-                        ISNULL(VatAmount, 0), ISNULL(PocketCash, 0), ISNULL(PocketCredit, 0), 
-                        ISNULL(IbanAmount, 0), ISNULL(ExpectedBankPayment, 0), 
+                        COALESCE(ZReportCash, 0), COALESCE(ZReportCredit, 0), COALESCE(CashDiff, 0), 
+                        COALESCE(CreditDiff, 0), COALESCE(CashExpense, 0), COALESCE(CreditExpense, 0), 
+                        COALESCE(VatAmount, 0), COALESCE(PocketCash, 0), COALESCE(PocketCredit, 0), 
+                        COALESCE(IbanAmount, 0), COALESCE(ExpectedBankPayment, 0), 
                         Source, SourceSheet, SourceRow 
                     FROM Closures 
                     ORDER BY ClosureDate DESC, ClosedAt DESC, Id DESC";
-                await using var cmd = new SqlCommand(sql, connection);
+                await using var cmd = connection.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 while (await reader.ReadAsync())
@@ -388,16 +388,16 @@ public class ClosureService
             {
                 try
                 {
-                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
                     var sql = "DELETE FROM Closures WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@Id", closureId);
+                    await using var cmd = conn.CreateCommand(sql);
+                    cmd.AddParam("Id", closureId);
                     await cmd.ExecuteNonQueryAsync();
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[ClosureService] SQL Gün sonu silme hatası: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[ClosureService] DB Gün sonu silme hatası: {ex.Message}");
                 }
             }
 
@@ -433,12 +433,12 @@ public class ClosureService
             {
                 try
                 {
-                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
                     var sql = "UPDATE Closures SET Notes = @Notes WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@Notes", (object?)notes ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Id", closureId);
+                    await using var cmd = conn.CreateCommand(sql);
+                    cmd.AddParam("Notes", notes);
+                    cmd.AddParam("Id", closureId);
                     await cmd.ExecuteNonQueryAsync();
                 }
                 catch { }

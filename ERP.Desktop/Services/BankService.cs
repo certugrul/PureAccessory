@@ -941,13 +941,13 @@ public class BankService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<BankAccount>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = @"SELECT Id, BankName, AccountName, Iban, AccountNumber, Branch, Currency, OpeningBalance, CurrentBalance, 
                                    ActualBalance, PosCommissionRate, PosValourDays, IsDefault, IsActive, CreatedAt,
                                    AccountType, CreditLimit, AvailableLimit, CurrentDebt, CutoffDay, DueDay, CardNumberLast4 
                             FROM BankAccounts";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1003,53 +1003,81 @@ public class BankService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var b in accounts)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM BankAccounts WHERE Id = @id)
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM BankAccounts WHERE Id = @id");
+                    checkCmd.AddParam("id", b.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"
                             UPDATE BankAccounts 
                             SET BankName=@bn, AccountName=@an, Iban=@iban, AccountNumber=@accNo, Branch=@br, Currency=@cur, 
                                 OpeningBalance=@opBal, CurrentBalance=@curBal, ActualBalance=@actBal, PosCommissionRate=@rate, 
                                 PosValourDays=@days, IsDefault=@def, IsActive=@act, AccountType=@atype, CreditLimit=@clim, 
                                 AvailableLimit=@alim, CurrentDebt=@cdebt, CutoffDay=@cday, DueDay=@dday, CardNumberLast4=@last4 
-                            WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT BankAccounts ON;
+                            WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("id", b.Id);
+                        cmd.AddParam("bn", b.BankName);
+                        cmd.AddParam("an", b.AccountName);
+                        cmd.AddParam("iban", b.Iban);
+                        cmd.AddParam("accNo", b.AccountNumber);
+                        cmd.AddParam("br", b.Branch);
+                        cmd.AddParam("cur", b.Currency);
+                        cmd.AddParam("opBal", b.OpeningBalance);
+                        cmd.AddParam("curBal", b.CurrentBalance);
+                        cmd.AddParam("actBal", b.ActualBalance);
+                        cmd.AddParam("rate", b.PosCommissionRate);
+                        cmd.AddParam("days", b.PosValourDays);
+                        cmd.AddParam("def", b.IsDefault);
+                        cmd.AddParam("act", b.IsActive);
+                        cmd.AddParam("atype", b.AccountType);
+                        cmd.AddParam("clim", b.CreditLimit);
+                        cmd.AddParam("alim", b.AvailableLimit);
+                        cmd.AddParam("cdebt", b.CurrentDebt);
+                        cmd.AddParam("cday", b.CutoffDay);
+                        cmd.AddParam("dday", b.DueDay);
+                        cmd.AddParam("last4", b.CardNumberLast4);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"
                             INSERT INTO BankAccounts (Id, BankName, AccountName, Iban, AccountNumber, Branch, Currency, 
                                                       OpeningBalance, CurrentBalance, ActualBalance, PosCommissionRate, 
                                                       PosValourDays, IsDefault, IsActive, CreatedAt, AccountType, CreditLimit, 
                                                       AvailableLimit, CurrentDebt, CutoffDay, DueDay, CardNumberLast4)
                             VALUES (@id, @bn, @an, @iban, @accNo, @br, @cur, @opBal, @curBal, @actBal, @rate, @days, 
-                                    @def, @act, @created, @atype, @clim, @alim, @cdebt, @cday, @dday, @last4);
-                            SET IDENTITY_INSERT BankAccounts OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", b.Id);
-                    cmd.Parameters.AddWithValue("@bn", b.BankName);
-                    cmd.Parameters.AddWithValue("@an", b.AccountName);
-                    cmd.Parameters.AddWithValue("@iban", (object?)b.Iban ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@accNo", (object?)b.AccountNumber ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@br", (object?)b.Branch ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@cur", b.Currency);
-                    cmd.Parameters.AddWithValue("@opBal", b.OpeningBalance);
-                    cmd.Parameters.AddWithValue("@curBal", b.CurrentBalance);
-                    cmd.Parameters.AddWithValue("@actBal", b.ActualBalance);
-                    cmd.Parameters.AddWithValue("@rate", b.PosCommissionRate);
-                    cmd.Parameters.AddWithValue("@days", b.PosValourDays);
-                    cmd.Parameters.AddWithValue("@def", b.IsDefault);
-                    cmd.Parameters.AddWithValue("@act", b.IsActive);
-                    cmd.Parameters.AddWithValue("@created", b.CreatedAt);
-                    cmd.Parameters.AddWithValue("@atype", b.AccountType);
-                    cmd.Parameters.AddWithValue("@clim", b.CreditLimit);
-                    cmd.Parameters.AddWithValue("@alim", b.AvailableLimit);
-                    cmd.Parameters.AddWithValue("@cdebt", b.CurrentDebt);
-                    cmd.Parameters.AddWithValue("@cday", (object?)b.CutoffDay ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@dday", (object?)b.DueDay ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@last4", (object?)b.CardNumberLast4 ?? DBNull.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                                    @def, @act, @created, @atype, @clim, @alim, @cdebt, @cday, @dday, @last4);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", b.Id);
+                        cmd.AddParam("bn", b.BankName);
+                        cmd.AddParam("an", b.AccountName);
+                        cmd.AddParam("iban", b.Iban);
+                        cmd.AddParam("accNo", b.AccountNumber);
+                        cmd.AddParam("br", b.Branch);
+                        cmd.AddParam("cur", b.Currency);
+                        cmd.AddParam("opBal", b.OpeningBalance);
+                        cmd.AddParam("curBal", b.CurrentBalance);
+                        cmd.AddParam("actBal", b.ActualBalance);
+                        cmd.AddParam("rate", b.PosCommissionRate);
+                        cmd.AddParam("days", b.PosValourDays);
+                        cmd.AddParam("def", b.IsDefault);
+                        cmd.AddParam("act", b.IsActive);
+                        cmd.AddParam("created", b.CreatedAt);
+                        cmd.AddParam("atype", b.AccountType);
+                        cmd.AddParam("clim", b.CreditLimit);
+                        cmd.AddParam("alim", b.AvailableLimit);
+                        cmd.AddParam("cdebt", b.CurrentDebt);
+                        cmd.AddParam("cday", b.CutoffDay);
+                        cmd.AddParam("dday", b.DueDay);
+                        cmd.AddParam("last4", b.CardNumberLast4);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -1067,10 +1095,10 @@ public class BankService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<BankTransaction>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = "SELECT Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, [User] FROM BankTransactions ORDER BY CreatedAt DESC";
-                await using var cmd = new SqlCommand(sql, conn);
+                var sql = "SELECT Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, \"User\" FROM BankTransactions ORDER BY CreatedAt DESC";
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1118,34 +1146,36 @@ public class BankService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var t in transactions)
                 {
-                    var sql = @"
-                        IF NOT EXISTS (SELECT 1 FROM BankTransactions WHERE Id = @id)
-                        BEGIN
-                            SET IDENTITY_INSERT BankTransactions ON;
-                            INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, [User])
-                            VALUES (@id, @created, @baid, @baname, @type, @dir, @inflow, @outflow, @bal, @desc, @pm, @refId, @refType, @user);
-                            SET IDENTITY_INSERT BankTransactions OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", t.Id);
-                    cmd.Parameters.AddWithValue("@created", t.CreatedAt);
-                    cmd.Parameters.AddWithValue("@baid", t.BankAccountId);
-                    cmd.Parameters.AddWithValue("@baname", t.BankAccountName);
-                    cmd.Parameters.AddWithValue("@type", t.TransactionType);
-                    cmd.Parameters.AddWithValue("@dir", t.Direction);
-                    cmd.Parameters.AddWithValue("@inflow", t.Inflow);
-                    cmd.Parameters.AddWithValue("@outflow", t.Outflow);
-                    cmd.Parameters.AddWithValue("@bal", t.BalanceAfter);
-                    cmd.Parameters.AddWithValue("@desc", (object?)t.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@pm", t.PaymentMethod);
-                    cmd.Parameters.AddWithValue("@refId", (object?)t.ReferenceId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@refType", (object?)t.ReferenceType ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@user", t.User);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM BankTransactions WHERE Id = @id");
+                    checkCmd.AddParam("id", t.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (!exists)
+                    {
+                        var insertSql = @"
+                            INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
+                            VALUES (@id, @created, @baid, @baname, @type, @dir, @inflow, @outflow, @bal, @desc, @pm, @refId, @refType, @user);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", t.Id);
+                        cmd.AddParam("created", t.CreatedAt);
+                        cmd.AddParam("baid", t.BankAccountId);
+                        cmd.AddParam("baname", t.BankAccountName);
+                        cmd.AddParam("type", t.TransactionType);
+                        cmd.AddParam("dir", t.Direction);
+                        cmd.AddParam("inflow", t.Inflow);
+                        cmd.AddParam("outflow", t.Outflow);
+                        cmd.AddParam("bal", t.BalanceAfter);
+                        cmd.AddParam("desc", t.Description);
+                        cmd.AddParam("pm", t.PaymentMethod);
+                        cmd.AddParam("refId", t.ReferenceId);
+                        cmd.AddParam("refType", t.ReferenceType);
+                        cmd.AddParam("user", t.User);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -1164,10 +1194,10 @@ public class BankService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<PosTransaction>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description FROM PosTransactions ORDER BY SaleDate DESC";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1215,36 +1245,52 @@ public class BankService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var p in posTransactions)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM PosTransactions WHERE Id = @id)
-                            UPDATE PosTransactions SET Status=@stat, ActualPaymentDate=@actDate, ActualPaidAmount=@actPaid, CommissionRate=@rate, CommissionAmount=@camt, NetAmount=@net, ExpectedDate=@expDate, BankAccountId=@baid, BankAccountName=@baname, Description=@desc WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT PosTransactions ON;
-                            INSERT INTO PosTransactions (Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description)
-                            VALUES (@id, @sid, @sdate, @gross, @rate, @camt, @net, @expDate, @actDate, @actPaid, @baid, @baname, @stat, @desc);
-                            SET IDENTITY_INSERT PosTransactions OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", p.Id);
-                    cmd.Parameters.AddWithValue("@sid", (object?)p.SaleId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@sdate", p.SaleDate);
-                    cmd.Parameters.AddWithValue("@gross", p.GrossAmount);
-                    cmd.Parameters.AddWithValue("@rate", p.CommissionRate);
-                    cmd.Parameters.AddWithValue("@camt", p.CommissionAmount);
-                    cmd.Parameters.AddWithValue("@net", p.NetAmount);
-                    cmd.Parameters.AddWithValue("@expDate", p.ExpectedDate);
-                    cmd.Parameters.AddWithValue("@actDate", (object?)p.ActualPaymentDate ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@actPaid", (object?)p.ActualPaidAmount ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@baid", (object?)p.BankAccountId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@baname", (object?)p.BankAccountName ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@stat", p.Status);
-                    cmd.Parameters.AddWithValue("@desc", (object?)p.Description ?? DBNull.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM PosTransactions WHERE Id = @id");
+                    checkCmd.AddParam("id", p.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"UPDATE PosTransactions SET Status=@stat, ActualPaymentDate=@actDate, ActualPaidAmount=@actPaid, CommissionRate=@rate, CommissionAmount=@camt, NetAmount=@net, ExpectedDate=@expDate, BankAccountId=@baid, BankAccountName=@baname, Description=@desc WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("id", p.Id);
+                        cmd.AddParam("stat", p.Status);
+                        cmd.AddParam("actDate", p.ActualPaymentDate);
+                        cmd.AddParam("actPaid", p.ActualPaidAmount);
+                        cmd.AddParam("rate", p.CommissionRate);
+                        cmd.AddParam("camt", p.CommissionAmount);
+                        cmd.AddParam("net", p.NetAmount);
+                        cmd.AddParam("expDate", p.ExpectedDate);
+                        cmd.AddParam("baid", p.BankAccountId);
+                        cmd.AddParam("baname", p.BankAccountName);
+                        cmd.AddParam("desc", p.Description);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"INSERT INTO PosTransactions (Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description)
+                                          VALUES (@id, @sid, @sdate, @gross, @rate, @camt, @net, @expDate, @actDate, @actPaid, @baid, @baname, @stat, @desc);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", p.Id);
+                        cmd.AddParam("sid", p.SaleId);
+                        cmd.AddParam("sdate", p.SaleDate);
+                        cmd.AddParam("gross", p.GrossAmount);
+                        cmd.AddParam("rate", p.CommissionRate);
+                        cmd.AddParam("camt", p.CommissionAmount);
+                        cmd.AddParam("net", p.NetAmount);
+                        cmd.AddParam("expDate", p.ExpectedDate);
+                        cmd.AddParam("actDate", p.ActualPaymentDate);
+                        cmd.AddParam("actPaid", p.ActualPaidAmount);
+                        cmd.AddParam("baid", p.BankAccountId);
+                        cmd.AddParam("baname", p.BankAccountName);
+                        cmd.AddParam("stat", p.Status);
+                        cmd.AddParam("desc", p.Description);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }

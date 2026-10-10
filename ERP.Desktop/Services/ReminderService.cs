@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
+using System.Data.Common;
 
 namespace ERP.Desktop.Services;
 
@@ -154,10 +154,10 @@ public class ReminderService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<GeneralExpense>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, Title, Category, MonthlyAmount, DayOfMonth, Notes, IsActive FROM GeneralExpenses WHERE IsActive = 1 ORDER BY DayOfMonth ASC";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -195,29 +195,41 @@ public class ReminderService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var exp in list)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM GeneralExpenses WHERE Id = @id)
-                            UPDATE GeneralExpenses SET Title=@t, Category=@c, MonthlyAmount=@amt, DayOfMonth=@dom, Notes=@notes, IsActive=@act WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT GeneralExpenses ON;
-                            INSERT INTO GeneralExpenses (Id, Title, Category, MonthlyAmount, DayOfMonth, Notes, IsActive)
-                            VALUES (@id, @t, @c, @amt, @dom, @notes, @act);
-                            SET IDENTITY_INSERT GeneralExpenses OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", exp.Id);
-                    cmd.Parameters.AddWithValue("@t", exp.Title);
-                    cmd.Parameters.AddWithValue("@c", exp.Category);
-                    cmd.Parameters.AddWithValue("@amt", exp.MonthlyAmount);
-                    cmd.Parameters.AddWithValue("@dom", exp.DayOfMonth);
-                    cmd.Parameters.AddWithValue("@notes", (object?)exp.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@act", exp.IsActive);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM GeneralExpenses WHERE Id = @id");
+                    checkCmd.AddParam("id", exp.Id);
+                    int exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+
+                    if (exists > 0)
+                    {
+                        var updSql = "UPDATE GeneralExpenses SET Title=@t, Category=@c, MonthlyAmount=@amt, DayOfMonth=@dom, Notes=@notes, IsActive=@act WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updSql);
+                        cmd.AddParam("id", exp.Id);
+                        cmd.AddParam("t", exp.Title);
+                        cmd.AddParam("c", exp.Category);
+                        cmd.AddParam("amt", exp.MonthlyAmount);
+                        cmd.AddParam("dom", exp.DayOfMonth);
+                        cmd.AddParam("notes", (object?)exp.Description ?? DBNull.Value);
+                        cmd.AddParam("act", exp.IsActive);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insSql = @"INSERT INTO GeneralExpenses (Id, Title, Category, MonthlyAmount, DayOfMonth, Notes, IsActive)
+                                       VALUES (@id, @t, @c, @amt, @dom, @notes, @act);";
+                        await using var cmd = conn.CreateCommand(insSql);
+                        cmd.AddParam("id", exp.Id);
+                        cmd.AddParam("t", exp.Title);
+                        cmd.AddParam("c", exp.Category);
+                        cmd.AddParam("amt", exp.MonthlyAmount);
+                        cmd.AddParam("dom", exp.DayOfMonth);
+                        cmd.AddParam("notes", (object?)exp.Description ?? DBNull.Value);
+                        cmd.AddParam("act", exp.IsActive);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -542,7 +554,7 @@ public class ReminderService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<FinancialReminder>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = @"
                     SELECT Id, Title, Category, ReminderType, GeneralExpenseId, DebtId, Amount, MinPayment, AccruedInterest, 
@@ -551,7 +563,7 @@ public class ReminderService
                     FROM FinancialReminders
                     ORDER BY DueDate ASC";
 
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -606,56 +618,87 @@ public class ReminderService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var r in list)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM FinancialReminders WHERE Id = @id)
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM FinancialReminders WHERE Id = @id");
+                    checkCmd.AddParam("id", r.Id);
+                    int exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+
+                    if (exists > 0)
+                    {
+                        var updSql = @"
                             UPDATE FinancialReminders 
                             SET Title=@t, Category=@c, ReminderType=@rtype, GeneralExpenseId=@geid, DebtId=@did, Amount=@amt, 
                                 MinPayment=@min, AccruedInterest=@aint, TaxAmount=@tax, PrincipalPaid=@ppaid, CurrentTotalDebt=@ctot, 
                                 InterestStartDate=@isdate, DayOfMonth=@dom, DueDate=@ddate, IsRecurringMonthly=@rec, Status=@stat, 
                                 PaidDate=@pdate, PaidFrom=@pfrom, BankAccountId=@baid, InvoiceNo=@invno, RemainingDebtAfter=@rem, 
                                 Description=@desc, IsDeleted=@del 
-                            WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT FinancialReminders ON;
+                            WHERE Id=@id;";
+                        await using var cmd = conn.CreateCommand(updSql);
+                        cmd.AddParam("id", r.Id);
+                        cmd.AddParam("t", r.Title);
+                        cmd.AddParam("c", r.Category);
+                        cmd.AddParam("rtype", r.ReminderType);
+                        cmd.AddParam("geid", (object?)r.GeneralExpenseId ?? DBNull.Value);
+                        cmd.AddParam("did", (object?)r.DebtId ?? DBNull.Value);
+                        cmd.AddParam("amt", r.Amount);
+                        cmd.AddParam("min", (object?)r.MinPayment ?? DBNull.Value);
+                        cmd.AddParam("aint", (object?)r.AccruedInterest ?? DBNull.Value);
+                        cmd.AddParam("tax", (object?)r.TaxAmount ?? DBNull.Value);
+                        cmd.AddParam("ppaid", (object?)r.PrincipalPaid ?? DBNull.Value);
+                        cmd.AddParam("ctot", (object?)r.CurrentTotalDebt ?? DBNull.Value);
+                        cmd.AddParam("isdate", (object?)r.InterestStartDate ?? DBNull.Value);
+                        cmd.AddParam("dom", r.DayOfMonth);
+                        cmd.AddParam("ddate", r.DueDate);
+                        cmd.AddParam("rec", r.IsRecurringMonthly);
+                        cmd.AddParam("stat", r.Status);
+                        cmd.AddParam("pdate", (object?)r.PaidDate ?? DBNull.Value);
+                        cmd.AddParam("pfrom", (object?)r.PaidFrom ?? DBNull.Value);
+                        cmd.AddParam("baid", (object?)r.BankAccountId ?? DBNull.Value);
+                        cmd.AddParam("invno", (object?)r.InvoiceNo ?? DBNull.Value);
+                        cmd.AddParam("rem", (object?)r.RemainingDebtAfter ?? DBNull.Value);
+                        cmd.AddParam("desc", (object?)r.Description ?? DBNull.Value);
+                        cmd.AddParam("del", r.IsDeleted);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insSql = @"
                             INSERT INTO FinancialReminders (Id, Title, Category, ReminderType, GeneralExpenseId, DebtId, Amount, 
                                                             MinPayment, AccruedInterest, TaxAmount, PrincipalPaid, CurrentTotalDebt, 
                                                             InterestStartDate, DayOfMonth, DueDate, IsRecurringMonthly, Status, 
                                                             PaidDate, PaidFrom, BankAccountId, InvoiceNo, RemainingDebtAfter, Description, IsDeleted)
                             VALUES (@id, @t, @c, @rtype, @geid, @did, @amt, @min, @aint, @tax, @ppaid, @ctot, @isdate, 
-                                    @dom, @ddate, @rec, @stat, @pdate, @pfrom, @baid, @invno, @rem, @desc, @del);
-                            SET IDENTITY_INSERT FinancialReminders OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", r.Id);
-                    cmd.Parameters.AddWithValue("@t", r.Title);
-                    cmd.Parameters.AddWithValue("@c", r.Category);
-                    cmd.Parameters.AddWithValue("@rtype", r.ReminderType);
-                    cmd.Parameters.AddWithValue("@geid", (object?)r.GeneralExpenseId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@did", (object?)r.DebtId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@amt", r.Amount);
-                    cmd.Parameters.AddWithValue("@min", (object?)r.MinPayment ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@aint", (object?)r.AccruedInterest ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@tax", (object?)r.TaxAmount ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@ppaid", (object?)r.PrincipalPaid ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@ctot", (object?)r.CurrentTotalDebt ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@isdate", (object?)r.InterestStartDate ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@dom", r.DayOfMonth);
-                    cmd.Parameters.AddWithValue("@ddate", r.DueDate);
-                    cmd.Parameters.AddWithValue("@rec", r.IsRecurringMonthly);
-                    cmd.Parameters.AddWithValue("@stat", r.Status);
-                    cmd.Parameters.AddWithValue("@pdate", (object?)r.PaidDate ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@pfrom", (object?)r.PaidFrom ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@baid", (object?)r.BankAccountId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@invno", (object?)r.InvoiceNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@rem", (object?)r.RemainingDebtAfter ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@desc", (object?)r.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@del", r.IsDeleted);
-                    await cmd.ExecuteNonQueryAsync();
+                                    @dom, @ddate, @rec, @stat, @pdate, @pfrom, @baid, @invno, @rem, @desc, @del);";
+                        await using var cmd = conn.CreateCommand(insSql);
+                        cmd.AddParam("id", r.Id);
+                        cmd.AddParam("t", r.Title);
+                        cmd.AddParam("c", r.Category);
+                        cmd.AddParam("rtype", r.ReminderType);
+                        cmd.AddParam("geid", (object?)r.GeneralExpenseId ?? DBNull.Value);
+                        cmd.AddParam("did", (object?)r.DebtId ?? DBNull.Value);
+                        cmd.AddParam("amt", r.Amount);
+                        cmd.AddParam("min", (object?)r.MinPayment ?? DBNull.Value);
+                        cmd.AddParam("aint", (object?)r.AccruedInterest ?? DBNull.Value);
+                        cmd.AddParam("tax", (object?)r.TaxAmount ?? DBNull.Value);
+                        cmd.AddParam("ppaid", (object?)r.PrincipalPaid ?? DBNull.Value);
+                        cmd.AddParam("ctot", (object?)r.CurrentTotalDebt ?? DBNull.Value);
+                        cmd.AddParam("isdate", (object?)r.InterestStartDate ?? DBNull.Value);
+                        cmd.AddParam("dom", r.DayOfMonth);
+                        cmd.AddParam("ddate", r.DueDate);
+                        cmd.AddParam("rec", r.IsRecurringMonthly);
+                        cmd.AddParam("stat", r.Status);
+                        cmd.AddParam("pdate", (object?)r.PaidDate ?? DBNull.Value);
+                        cmd.AddParam("pfrom", (object?)r.PaidFrom ?? DBNull.Value);
+                        cmd.AddParam("baid", (object?)r.BankAccountId ?? DBNull.Value);
+                        cmd.AddParam("invno", (object?)r.InvoiceNo ?? DBNull.Value);
+                        cmd.AddParam("rem", (object?)r.RemainingDebtAfter ?? DBNull.Value);
+                        cmd.AddParam("desc", (object?)r.Description ?? DBNull.Value);
+                        cmd.AddParam("del", r.IsDeleted);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }

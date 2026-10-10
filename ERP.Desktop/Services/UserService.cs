@@ -152,13 +152,13 @@ public class UserService
                         _cachedUsers = list;
                         SaveAllToLocalJson(list);
 
-                        // SQL Server'dan sil
+                        // Veritabanından sil
                         try
                         {
-                            using var conn = new SqlConnection(_dbService.ConnectionString);
+                            using var conn = _dbService.CreateConnection();
                             conn.Open();
-                            using var cmd = new SqlCommand("DELETE FROM Users WHERE Id = @id", conn);
-                            cmd.Parameters.AddWithValue("@id", userId);
+                            using var cmd = conn.CreateCommand("DELETE FROM Users WHERE Id = @id");
+                            cmd.AddParam("id", userId);
                             cmd.ExecuteNonQuery();
                         }
                         catch { }
@@ -193,11 +193,11 @@ public class UserService
 
                         try
                         {
-                            using var conn = new SqlConnection(_dbService.ConnectionString);
+                            using var conn = _dbService.CreateConnection();
                             conn.Open();
-                            using var cmd = new SqlCommand("UPDATE Users SET PinCode = @pin WHERE Id = @id", conn);
-                            cmd.Parameters.AddWithValue("@pin", user.PinCode);
-                            cmd.Parameters.AddWithValue("@id", userId);
+                            using var cmd = conn.CreateCommand("UPDATE Users SET PinCode = @pin WHERE Id = @id");
+                            cmd.AddParam("pin", user.PinCode);
+                            cmd.AddParam("id", userId);
                             cmd.ExecuteNonQuery();
                         }
                         catch { }
@@ -216,10 +216,10 @@ public class UserService
 
     private List<AppUser>? LoadFromSqlServer()
     {
-        using var conn = new SqlConnection(_dbService.ConnectionString);
+        using var conn = _dbService.CreateConnection();
         conn.Open();
 
-        using var cmd = new SqlCommand("SELECT Id, Username, FullName, Role, PinCode, IsActive, CreatedAt, PermissionsJson FROM Users", conn);
+        using var cmd = conn.CreateCommand("SELECT Id, Username, FullName, Role, PinCode, IsActive, CreatedAt, PermissionsJson FROM Users");
         using var reader = cmd.ExecuteReader();
 
         var result = new List<AppUser>();
@@ -297,11 +297,11 @@ public class UserService
     {
         try
         {
-            using var conn = new SqlConnection(_dbService.ConnectionString);
+            using var conn = _dbService.CreateConnection();
             conn.Open();
 
-            var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Users WHERE Id = @id", conn);
-            checkCmd.Parameters.AddWithValue("@id", user.Id);
+            using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Users WHERE Id = @id");
+            checkCmd.AddParam("id", user.Id);
             int exists = Convert.ToInt32(checkCmd.ExecuteScalar());
 
             string permJson = JsonSerializer.Serialize(user);
@@ -311,14 +311,14 @@ public class UserService
                 var updateSql = @"UPDATE Users 
                                   SET Username = @u, FullName = @fn, Role = @role, PinCode = @pin, IsActive = @act, PermissionsJson = @perm 
                                   WHERE Id = @id";
-                using var cmd = new SqlCommand(updateSql, conn);
-                cmd.Parameters.AddWithValue("@id", user.Id);
-                cmd.Parameters.AddWithValue("@u", user.Username);
-                cmd.Parameters.AddWithValue("@fn", user.FullName);
-                cmd.Parameters.AddWithValue("@role", user.Role);
-                cmd.Parameters.AddWithValue("@pin", user.PinCode);
-                cmd.Parameters.AddWithValue("@act", user.IsActive);
-                cmd.Parameters.AddWithValue("@perm", permJson);
+                using var cmd = conn.CreateCommand(updateSql);
+                cmd.AddParam("id", user.Id);
+                cmd.AddParam("u", user.Username);
+                cmd.AddParam("fn", user.FullName);
+                cmd.AddParam("role", user.Role);
+                cmd.AddParam("pin", user.PinCode);
+                cmd.AddParam("act", user.IsActive);
+                cmd.AddParam("perm", permJson);
                 cmd.ExecuteNonQuery();
             }
             else
@@ -327,21 +327,21 @@ public class UserService
                                   INSERT INTO Users (Id, Username, FullName, Role, PinCode, IsActive, CreatedAt, PermissionsJson)
                                   VALUES (@id, @u, @fn, @role, @pin, @act, @created, @perm);
                                   SET IDENTITY_INSERT Users OFF;";
-                using var cmd = new SqlCommand(insertSql, conn);
-                cmd.Parameters.AddWithValue("@id", user.Id);
-                cmd.Parameters.AddWithValue("@u", user.Username);
-                cmd.Parameters.AddWithValue("@fn", user.FullName);
-                cmd.Parameters.AddWithValue("@role", user.Role);
-                cmd.Parameters.AddWithValue("@pin", user.PinCode);
-                cmd.Parameters.AddWithValue("@act", user.IsActive);
-                cmd.Parameters.AddWithValue("@created", user.CreatedAt);
-                cmd.Parameters.AddWithValue("@perm", permJson);
+                using var cmd = conn.CreateCommand(insertSql);
+                cmd.AddParam("id", user.Id);
+                cmd.AddParam("u", user.Username);
+                cmd.AddParam("fn", user.FullName);
+                cmd.AddParam("role", user.Role);
+                cmd.AddParam("pin", user.PinCode);
+                cmd.AddParam("act", user.IsActive);
+                cmd.AddParam("created", user.CreatedAt);
+                cmd.AddParam("perm", permJson);
                 cmd.ExecuteNonQuery();
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[UserService] SQL Server'a kaydedilemedi: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[UserService] Veritabanına kaydedilemedi: {ex.Message}");
         }
     }
 

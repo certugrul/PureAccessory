@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
-using Microsoft.Data.SqlClient;
+using System.Data.Common;
 
 namespace ERP.Desktop.Views;
 
@@ -122,12 +122,12 @@ public partial class DebtsView : Page
             decimal totalAccruedInterest = 0;
             decimal totalAccruedTax = 0;
 
-            await using var conn = new SqlConnection(_dbService.ConnectionString);
+            await using var conn = _dbService.CreateConnection();
             await conn.OpenAsync();
 
             foreach (var debt in _allDebts.Where(d => d.IsActive && !d.IsCompleted && d.PrincipalAmount > 0))
             {
-                await using var tran = conn.BeginTransaction();
+                await using var tran = await conn.BeginTransactionAsync();
                 try
                 {
                     var accrual = await _interestEngine.AccrueInterestAsync(debt.Id, DateTime.Today, conn, tran, AuthService.CurrentUser?.FullName ?? "Yönetici");
@@ -342,7 +342,7 @@ public partial class DebtsView : Page
         try
         {
             var list = new List<DebtTransaction>();
-            await using var conn = new SqlConnection(_dbService.ConnectionString);
+            await using var conn = _dbService.CreateConnection();
             await conn.OpenAsync();
             var sql = @"
                 SELECT TOP 100 Id, DebtId, TransactionDate, TransactionType, Amount, PrincipalChange, InterestChange, TaxChange, 
@@ -350,7 +350,7 @@ public partial class DebtsView : Page
                 FROM DebtTransactions
                 ORDER BY TransactionDate DESC, Id DESC";
 
-            await using var cmd = new SqlCommand(sql, conn);
+            await using var cmd = conn.CreateCommand(sql);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -383,14 +383,14 @@ public partial class DebtsView : Page
         try
         {
             var list = new List<FinancialAuditLog>();
-            await using var conn = new SqlConnection(_dbService.ConnectionString);
+            await using var conn = _dbService.CreateConnection();
             await conn.OpenAsync();
             var sql = @"
                 SELECT TOP 100 Id, ActionType, EntityName, EntityId, BankAccountId, DebtId, OldValue, NewValue, Description, UserId, UserName, CreatedAt
                 FROM FinancialAuditLogs
                 ORDER BY CreatedAt DESC, Id DESC";
 
-            await using var cmd = new SqlCommand(sql, conn);
+            await using var cmd = conn.CreateCommand(sql);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {

@@ -1,7 +1,7 @@
+using System.Data.Common;
 using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -30,7 +30,7 @@ public class DebtService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
                 var sql = @"
@@ -47,8 +47,8 @@ public class DebtService
                     WHERE (@all = 1 OR d.IsActive = 1)
                     ORDER BY d.Status ASC, d.DayOfMonth ASC";
 
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@all", includeInactive ? 1 : 0);
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("all", includeInactive ? 1 : 0);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -113,7 +113,7 @@ public class DebtService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
                 var sql = @"
@@ -129,8 +129,8 @@ public class DebtService
                     LEFT JOIN BankAccounts b ON d.BankAccountId = b.Id
                     WHERE d.Id = @id";
 
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@id", id);
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("id", id);
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
@@ -186,9 +186,9 @@ public class DebtService
 
     public async Task<FinancialDebt> SaveOrUpdateDebtAsync(FinancialDebt debt, string userName = "Yönetici")
     {
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
-        await using var tran = conn.BeginTransaction();
+        await using var tran = await conn.BeginTransactionAsync();
 
         try
         {
@@ -212,29 +212,29 @@ public class DebtService
                     OUTPUT INSERTED.Id
                     VALUES (@t, @cred, @dtype, @baid, @tot, @rem, @prin, @aint, @atax, @min, @rate, @lrate, @inst, @tinst, @rinst, @dom, @sdate, @calc, @cutoff, @stat, @notes, @act);";
 
-                await using var cmd = new SqlCommand(sql, conn, tran);
-                cmd.Parameters.AddWithValue("@t", debt.Title);
-                cmd.Parameters.AddWithValue("@cred", debt.Creditor);
-                cmd.Parameters.AddWithValue("@dtype", debt.DebtType);
-                cmd.Parameters.AddWithValue("@baid", (object?)debt.BankAccountId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@tot", debt.TotalAmount);
-                cmd.Parameters.AddWithValue("@rem", debt.RemainingAmount);
-                cmd.Parameters.AddWithValue("@prin", debt.PrincipalAmount);
-                cmd.Parameters.AddWithValue("@aint", debt.AccruedInterest);
-                cmd.Parameters.AddWithValue("@atax", debt.AccruedTax);
-                cmd.Parameters.AddWithValue("@min", debt.MinPaymentAmount);
-                cmd.Parameters.AddWithValue("@rate", debt.InterestRate);
-                cmd.Parameters.AddWithValue("@lrate", debt.LateInterestRate);
-                cmd.Parameters.AddWithValue("@inst", debt.InstallmentAmount);
-                cmd.Parameters.AddWithValue("@tinst", debt.TotalInstallments);
-                cmd.Parameters.AddWithValue("@rinst", debt.RemainingInstallments);
-                cmd.Parameters.AddWithValue("@dom", debt.DayOfMonth);
-                cmd.Parameters.AddWithValue("@sdate", debt.StartDate);
-                cmd.Parameters.AddWithValue("@calc", (object?)debt.LastInterestCalculationDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@cutoff", (object?)debt.CutoffDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@stat", debt.Status);
-                cmd.Parameters.AddWithValue("@notes", (object?)debt.Notes ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@act", debt.IsActive);
+                await using var cmd = conn.CreateCommand(sql, tran);
+                cmd.AddParam("t", debt.Title);
+                cmd.AddParam("cred", debt.Creditor);
+                cmd.AddParam("dtype", debt.DebtType);
+                cmd.AddParam("baid", (object?)debt.BankAccountId ?? DBNull.Value);
+                cmd.AddParam("tot", debt.TotalAmount);
+                cmd.AddParam("rem", debt.RemainingAmount);
+                cmd.AddParam("prin", debt.PrincipalAmount);
+                cmd.AddParam("aint", debt.AccruedInterest);
+                cmd.AddParam("atax", debt.AccruedTax);
+                cmd.AddParam("min", debt.MinPaymentAmount);
+                cmd.AddParam("rate", debt.InterestRate);
+                cmd.AddParam("lrate", debt.LateInterestRate);
+                cmd.AddParam("inst", debt.InstallmentAmount);
+                cmd.AddParam("tinst", debt.TotalInstallments);
+                cmd.AddParam("rinst", debt.RemainingInstallments);
+                cmd.AddParam("dom", debt.DayOfMonth);
+                cmd.AddParam("sdate", debt.StartDate);
+                cmd.AddParam("calc", (object?)debt.LastInterestCalculationDate ?? DBNull.Value);
+                cmd.AddParam("cutoff", (object?)debt.CutoffDate ?? DBNull.Value);
+                cmd.AddParam("stat", debt.Status);
+                cmd.AddParam("notes", (object?)debt.Notes ?? DBNull.Value);
+                cmd.AddParam("act", debt.IsActive);
 
                 debt.Id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
@@ -242,12 +242,12 @@ public class DebtService
                 var transSql = @"
                     INSERT INTO DebtTransactions (DebtId, TransactionDate, TransactionType, Amount, PrincipalChange, InterestChange, TaxChange, PreviousBalance, NewBalance, Description, ReferenceType)
                     VALUES (@did, @dt, 'Borç Başlangıcı', @amt, @prin, 0, 0, 0, @amt, @desc, 'INIT');";
-                await using var transCmd = new SqlCommand(transSql, conn, tran);
-                transCmd.Parameters.AddWithValue("@did", debt.Id);
-                transCmd.Parameters.AddWithValue("@dt", debt.StartDate);
-                transCmd.Parameters.AddWithValue("@amt", debt.TotalAmount);
-                transCmd.Parameters.AddWithValue("@prin", debt.PrincipalAmount);
-                transCmd.Parameters.AddWithValue("@desc", $"Borç / Kredi kaydı açıldı ({debt.Title})");
+                await using var transCmd = conn.CreateCommand(transSql, tran);
+                transCmd.AddParam("did", debt.Id);
+                transCmd.AddParam("dt", debt.StartDate);
+                transCmd.AddParam("amt", debt.TotalAmount);
+                transCmd.AddParam("prin", debt.PrincipalAmount);
+                transCmd.AddParam("desc", $"Borç / Kredi kaydı açıldı ({debt.Title})");
                 await transCmd.ExecuteNonQueryAsync();
 
                 await _auditService.LogAsync("INSERT", "FinancialDebt", debt.Id, $"Yeni borç açıldı: {debt.Title} (₺{debt.TotalAmount:N2})", null, debt.TotalAmount.ToString(), debt.BankAccountId, debt.Id, null, userName, conn, tran);
@@ -263,30 +263,30 @@ public class DebtService
                         LastInterestCalculationDate = @calc, CutoffDate = @cutoff, Status = @stat, Notes = @notes, IsActive = @act
                     WHERE Id = @id;";
 
-                await using var cmd = new SqlCommand(sql, conn, tran);
-                cmd.Parameters.AddWithValue("@id", debt.Id);
-                cmd.Parameters.AddWithValue("@t", debt.Title);
-                cmd.Parameters.AddWithValue("@cred", debt.Creditor);
-                cmd.Parameters.AddWithValue("@dtype", debt.DebtType);
-                cmd.Parameters.AddWithValue("@baid", (object?)debt.BankAccountId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@tot", debt.TotalAmount);
-                cmd.Parameters.AddWithValue("@rem", debt.RemainingAmount);
-                cmd.Parameters.AddWithValue("@prin", debt.PrincipalAmount);
-                cmd.Parameters.AddWithValue("@aint", debt.AccruedInterest);
-                cmd.Parameters.AddWithValue("@atax", debt.AccruedTax);
-                cmd.Parameters.AddWithValue("@min", debt.MinPaymentAmount);
-                cmd.Parameters.AddWithValue("@rate", debt.InterestRate);
-                cmd.Parameters.AddWithValue("@lrate", debt.LateInterestRate);
-                cmd.Parameters.AddWithValue("@inst", debt.InstallmentAmount);
-                cmd.Parameters.AddWithValue("@tinst", debt.TotalInstallments);
-                cmd.Parameters.AddWithValue("@rinst", debt.RemainingInstallments);
-                cmd.Parameters.AddWithValue("@dom", debt.DayOfMonth);
-                cmd.Parameters.AddWithValue("@sdate", debt.StartDate);
-                cmd.Parameters.AddWithValue("@calc", (object?)debt.LastInterestCalculationDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@cutoff", (object?)debt.CutoffDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@stat", debt.Status);
-                cmd.Parameters.AddWithValue("@notes", (object?)debt.Notes ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@act", debt.IsActive);
+                await using var cmd = conn.CreateCommand(sql, tran);
+                cmd.AddParam("id", debt.Id);
+                cmd.AddParam("t", debt.Title);
+                cmd.AddParam("cred", debt.Creditor);
+                cmd.AddParam("dtype", debt.DebtType);
+                cmd.AddParam("baid", (object?)debt.BankAccountId ?? DBNull.Value);
+                cmd.AddParam("tot", debt.TotalAmount);
+                cmd.AddParam("rem", debt.RemainingAmount);
+                cmd.AddParam("prin", debt.PrincipalAmount);
+                cmd.AddParam("aint", debt.AccruedInterest);
+                cmd.AddParam("atax", debt.AccruedTax);
+                cmd.AddParam("min", debt.MinPaymentAmount);
+                cmd.AddParam("rate", debt.InterestRate);
+                cmd.AddParam("lrate", debt.LateInterestRate);
+                cmd.AddParam("inst", debt.InstallmentAmount);
+                cmd.AddParam("tinst", debt.TotalInstallments);
+                cmd.AddParam("rinst", debt.RemainingInstallments);
+                cmd.AddParam("dom", debt.DayOfMonth);
+                cmd.AddParam("sdate", debt.StartDate);
+                cmd.AddParam("calc", (object?)debt.LastInterestCalculationDate ?? DBNull.Value);
+                cmd.AddParam("cutoff", (object?)debt.CutoffDate ?? DBNull.Value);
+                cmd.AddParam("stat", debt.Status);
+                cmd.AddParam("notes", (object?)debt.Notes ?? DBNull.Value);
+                cmd.AddParam("act", debt.IsActive);
                 await cmd.ExecuteNonQueryAsync();
 
                 await _auditService.LogAsync("UPDATE", "FinancialDebt", debt.Id, $"Borç güncellendi: {debt.Title}", null, debt.RemainingAmount.ToString(), debt.BankAccountId, debt.Id, null, userName, conn, tran);
@@ -304,15 +304,15 @@ public class DebtService
 
     public async Task<bool> DeleteDebtAsync(int id, string userName = "Yönetici")
     {
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
-        await using var tran = conn.BeginTransaction();
+        await using var tran = await conn.BeginTransactionAsync();
 
         try
         {
             var sql = "UPDATE FinancialDebts SET IsActive = 0, Status = 'İptal / Silindi' WHERE Id = @id";
-            await using var cmd = new SqlCommand(sql, conn, tran);
-            cmd.Parameters.AddWithValue("@id", id);
+            await using var cmd = conn.CreateCommand(sql, tran);
+            cmd.AddParam("id", id);
             int rows = await cmd.ExecuteNonQueryAsync();
 
             await _auditService.LogAsync("DELETE", "FinancialDebt", id, $"Borç silindi / pasife alındı (Id: {id})", null, null, null, id, null, userName, conn, tran);
@@ -330,7 +330,7 @@ public class DebtService
     public async Task<List<DebtTransaction>> GetDebtTransactionsAsync(int debtId)
     {
         var list = new List<DebtTransaction>();
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
 
         var sql = @"
@@ -340,8 +340,8 @@ public class DebtService
             WHERE DebtId = @did
             ORDER BY TransactionDate DESC, Id DESC";
 
-        await using var cmd = new SqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@did", debtId);
+        await using var cmd = conn.CreateCommand(sql);
+        cmd.AddParam("did", debtId);
 
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -371,7 +371,7 @@ public class DebtService
     public async Task<List<InterestAccrual>> GetInterestAccrualsAsync(int debtId)
     {
         var list = new List<InterestAccrual>();
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
 
         var sql = @"
@@ -380,8 +380,8 @@ public class DebtService
             WHERE DebtId = @did
             ORDER BY ToDate DESC, Id DESC";
 
-        await using var cmd = new SqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@did", debtId);
+        await using var cmd = conn.CreateCommand(sql);
+        cmd.AddParam("did", debtId);
 
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -410,7 +410,7 @@ public class DebtService
     public async Task<List<Payment>> GetPaymentsAsync(int debtId)
     {
         var list = new List<Payment>();
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
 
         var sql = @"
@@ -419,8 +419,8 @@ public class DebtService
             WHERE DebtId = @did
             ORDER BY PaymentDate DESC, Id DESC";
 
-        await using var cmd = new SqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@did", debtId);
+        await using var cmd = conn.CreateCommand(sql);
+        cmd.AddParam("did", debtId);
 
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -444,7 +444,7 @@ public class DebtService
     public async Task<DebtSummaryDto> GetDebtSummaryAsync()
     {
         var summary = new DebtSummaryDto();
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
 
         var sql = @"
@@ -459,7 +459,7 @@ public class DebtService
             FROM FinancialDebts
             WHERE IsActive = 1 AND Status != 'Tamamlandı / Kapandı'";
 
-        await using var cmd = new SqlCommand(sql, conn);
+        await using var cmd = conn.CreateCommand(sql);
         await using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
@@ -499,9 +499,9 @@ public class DebtService
         if (paymentAmount <= 0)
             throw new ArgumentException("Ödeme tutarı 0'dan büyük olmalıdır.");
 
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        await using var conn = _dbService.CreateConnection();
         await conn.OpenAsync();
-        await using var tran = conn.BeginTransaction();
+        await using var tran = await conn.BeginTransactionAsync();
 
         try
         {
@@ -514,9 +514,9 @@ public class DebtService
                 WHERE Id = @id";
 
             FinancialDebt debt;
-            await using (var cmd = new SqlCommand(selectSql, conn, tran))
+            await using (var cmd = conn.CreateCommand(selectSql, tran))
             {
-                cmd.Parameters.AddWithValue("@id", debtId);
+                cmd.AddParam("id", debtId);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync())
                     throw new Exception("Ödeme yapılacak borç kaydı bulunamadı.");
@@ -548,8 +548,8 @@ public class DebtService
                 await _interestEngine.AccrueInterestAsync(debtId, paymentDate, conn, tran, userName);
 
                 // Güncellenmiş faiz/vergi tutarlarını yeniden oku
-                await using var refreshCmd = new SqlCommand("SELECT PrincipalAmount, AccruedInterest, AccruedTax, RemainingAmount FROM FinancialDebts WHERE Id = @id", conn, tran);
-                refreshCmd.Parameters.AddWithValue("@id", debtId);
+                await using var refreshCmd = conn.CreateCommand("SELECT PrincipalAmount, AccruedInterest, AccruedTax, RemainingAmount FROM FinancialDebts WHERE Id = @id", tran);
+                refreshCmd.AddParam("id", debtId);
                 await using var refReader = await refreshCmd.ExecuteReaderAsync();
                 if (await refReader.ReadAsync())
                 {
@@ -573,14 +573,14 @@ public class DebtService
                 OUTPUT INSERTED.Id
                 VALUES (@did, @baid, @pdate, @paid, @ptype, @notes, @user, GETDATE());";
 
-            await using var payCmd = new SqlCommand(paySql, conn, tran);
-            payCmd.Parameters.AddWithValue("@did", debtId);
-            payCmd.Parameters.AddWithValue("@baid", (object?)fromBankAccountId ?? DBNull.Value);
-            payCmd.Parameters.AddWithValue("@pdate", paymentDate);
-            payCmd.Parameters.AddWithValue("@paid", paymentAmount);
-            payCmd.Parameters.AddWithValue("@ptype", paymentType);
-            payCmd.Parameters.AddWithValue("@notes", (object?)notes ?? DBNull.Value);
-            payCmd.Parameters.AddWithValue("@user", userName);
+            await using var payCmd = conn.CreateCommand(paySql, tran);
+            payCmd.AddParam("did", debtId);
+            payCmd.AddParam("baid", (object?)fromBankAccountId ?? DBNull.Value);
+            payCmd.AddParam("pdate", paymentDate);
+            payCmd.AddParam("paid", paymentAmount);
+            payCmd.AddParam("ptype", paymentType);
+            payCmd.AddParam("notes", (object?)notes ?? DBNull.Value);
+            payCmd.AddParam("user", userName);
 
             long paymentId = Convert.ToInt64(await payCmd.ExecuteScalarAsync());
 
@@ -589,14 +589,14 @@ public class DebtService
                 INSERT INTO PaymentAllocations (PaymentId, DebtId, AllocatedInterest, AllocatedTax, AllocatedExpense, AllocatedPrincipal, RemainingPrincipalAfter, CreatedAt)
                 VALUES (@pid, @did, @aint, @atax, @aexp, @aprin, @remPrin, GETDATE());";
 
-            await using var allocCmd = new SqlCommand(allocSql, conn, tran);
-            allocCmd.Parameters.AddWithValue("@pid", paymentId);
-            allocCmd.Parameters.AddWithValue("@did", debtId);
-            allocCmd.Parameters.AddWithValue("@aint", breakdown.ToInterest);
-            allocCmd.Parameters.AddWithValue("@atax", breakdown.ToTax);
-            allocCmd.Parameters.AddWithValue("@aexp", breakdown.ToExpense);
-            allocCmd.Parameters.AddWithValue("@aprin", breakdown.ToPrincipal);
-            allocCmd.Parameters.AddWithValue("@remPrin", breakdown.RemainingPrincipal);
+            await using var allocCmd = conn.CreateCommand(allocSql, tran);
+            allocCmd.AddParam("pid", paymentId);
+            allocCmd.AddParam("did", debtId);
+            allocCmd.AddParam("aint", breakdown.ToInterest);
+            allocCmd.AddParam("atax", breakdown.ToTax);
+            allocCmd.AddParam("aexp", breakdown.ToExpense);
+            allocCmd.AddParam("aprin", breakdown.ToPrincipal);
+            allocCmd.AddParam("remPrin", breakdown.RemainingPrincipal);
             await allocCmd.ExecuteNonQueryAsync();
 
             // 6. FinancialDebts güncelle
@@ -618,14 +618,14 @@ public class DebtService
                     Status = @stat
                 WHERE Id = @id;";
 
-            await using var updCmd = new SqlCommand(updateDebtSql, conn, tran);
-            updCmd.Parameters.AddWithValue("@prin", isFullyClosed ? 0m : breakdown.RemainingPrincipal);
-            updCmd.Parameters.AddWithValue("@aint", isFullyClosed ? 0m : breakdown.RemainingInterest);
-            updCmd.Parameters.AddWithValue("@atax", isFullyClosed ? 0m : breakdown.RemainingTax);
-            updCmd.Parameters.AddWithValue("@rem", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
-            updCmd.Parameters.AddWithValue("@rinst", newRemainingInstallments);
-            updCmd.Parameters.AddWithValue("@stat", newStatus);
-            updCmd.Parameters.AddWithValue("@id", debtId);
+            await using var updCmd = conn.CreateCommand(updateDebtSql, tran);
+            updCmd.AddParam("prin", isFullyClosed ? 0m : breakdown.RemainingPrincipal);
+            updCmd.AddParam("aint", isFullyClosed ? 0m : breakdown.RemainingInterest);
+            updCmd.AddParam("atax", isFullyClosed ? 0m : breakdown.RemainingTax);
+            updCmd.AddParam("rem", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
+            updCmd.AddParam("rinst", newRemainingInstallments);
+            updCmd.AddParam("stat", newStatus);
+            updCmd.AddParam("id", debtId);
             await updCmd.ExecuteNonQueryAsync();
 
             // 7. Bağlı banka hesabı (Kredi Kartı veya KMH) güncellenmesi: Borç azalır, limit açılır
@@ -637,9 +637,9 @@ public class DebtService
                         AvailableLimit = AvailableLimit + @paid
                     WHERE Id = @baid;";
 
-                await using var cardCmd = new SqlCommand(cardUpdSql, conn, tran);
-                cardCmd.Parameters.AddWithValue("@paid", paymentAmount);
-                cardCmd.Parameters.AddWithValue("@baid", debt.BankAccountId.Value);
+                await using var cardCmd = conn.CreateCommand(cardUpdSql, tran);
+                cardCmd.AddParam("paid", paymentAmount);
+                cardCmd.AddParam("baid", debt.BankAccountId.Value);
                 await cardCmd.ExecuteNonQueryAsync();
             }
 
@@ -651,9 +651,9 @@ public class DebtService
                 var getBankSql = "SELECT BankName, AccountName, CurrentBalance FROM BankAccounts WITH (UPDLOCK) WHERE Id = @baid";
                 string bName = "", aName = "";
                 decimal curBal = 0;
-                await using (var bCmd = new SqlCommand(getBankSql, conn, tran))
+                await using (var bCmd = conn.CreateCommand(getBankSql, tran))
                 {
-                    bCmd.Parameters.AddWithValue("@baid", fromBankAccountId.Value);
+                    bCmd.AddParam("baid", fromBankAccountId.Value);
                     await using var bReader = await bCmd.ExecuteReaderAsync();
                     if (await bReader.ReadAsync())
                     {
@@ -668,25 +668,25 @@ public class DebtService
 
                 // BankAccounts bakiyesini güncelle
                 var updBankSql = "UPDATE BankAccounts SET CurrentBalance = @newBal WHERE Id = @baid";
-                await using var updBankCmd = new SqlCommand(updBankSql, conn, tran);
-                updBankCmd.Parameters.AddWithValue("@newBal", newBal);
-                updBankCmd.Parameters.AddWithValue("@baid", fromBankAccountId.Value);
+                await using var updBankCmd = conn.CreateCommand(updBankSql, tran);
+                updBankCmd.AddParam("newBal", newBal);
+                updBankCmd.AddParam("baid", fromBankAccountId.Value);
                 await updBankCmd.ExecuteNonQueryAsync();
 
                 // BankTransactions işlem kaydı ekle
                 var bankTransSql = @"
-                    INSERT INTO BankTransactions (CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, [User])
+                    INSERT INTO BankTransactions (CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
                     VALUES (@dt, @baid, @baname, 'Borç / Finansman Ödemesi', 'Çıkış', 0, @outflow, @bal, @desc, 'Havale/EFT', @refId, 'DEBT_PAYMENT', @user);";
 
-                await using var btCmd = new SqlCommand(bankTransSql, conn, tran);
-                btCmd.Parameters.AddWithValue("@dt", paymentDate);
-                btCmd.Parameters.AddWithValue("@baid", fromBankAccountId.Value);
-                btCmd.Parameters.AddWithValue("@baname", $"{bName} - {aName}");
-                btCmd.Parameters.AddWithValue("@outflow", paymentAmount);
-                btCmd.Parameters.AddWithValue("@bal", newBal);
-                btCmd.Parameters.AddWithValue("@desc", $"{debt.Title} ödemesi (Anapara: ₺{breakdown.ToPrincipal:N2}, Faiz: ₺{breakdown.ToInterest:N2}, Vergi: ₺{breakdown.ToTax:N2})");
-                btCmd.Parameters.AddWithValue("@refId", paymentId);
-                btCmd.Parameters.AddWithValue("@user", userName);
+                await using var btCmd = conn.CreateCommand(bankTransSql, tran);
+                btCmd.AddParam("dt", paymentDate);
+                btCmd.AddParam("baid", fromBankAccountId.Value);
+                btCmd.AddParam("baname", $"{bName} - {aName}");
+                btCmd.AddParam("outflow", paymentAmount);
+                btCmd.AddParam("bal", newBal);
+                btCmd.AddParam("desc", $"{debt.Title} ödemesi (Anapara: ₺{breakdown.ToPrincipal:N2}, Faiz: ₺{breakdown.ToInterest:N2}, Vergi: ₺{breakdown.ToTax:N2})");
+                btCmd.AddParam("refId", paymentId);
+                btCmd.AddParam("user", userName);
                 await btCmd.ExecuteNonQueryAsync();
             }
 
@@ -705,15 +705,15 @@ public class DebtService
                     TaxAmount = @taxPaid
                 WHERE DebtId = @did AND (Status = 'Bekliyor' OR IsPaid = 0) AND IsDeleted = 0 AND DueDate <= @pdate";
 
-            await using var updRemCmd = new SqlCommand(updRemSql, conn, tran);
-            updRemCmd.Parameters.AddWithValue("@pdate", paymentDate);
-            updRemCmd.Parameters.AddWithValue("@pfrom", paidFromDesc);
-            updRemCmd.Parameters.AddWithValue("@baid", (object?)fromBankAccountId ?? DBNull.Value);
-            updRemCmd.Parameters.AddWithValue("@remAfter", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
-            updRemCmd.Parameters.AddWithValue("@prinPaid", breakdown.ToPrincipal);
-            updRemCmd.Parameters.AddWithValue("@aintPaid", breakdown.ToInterest);
-            updRemCmd.Parameters.AddWithValue("@taxPaid", breakdown.ToTax);
-            updRemCmd.Parameters.AddWithValue("@did", debtId);
+            await using var updRemCmd = conn.CreateCommand(updRemSql, tran);
+            updRemCmd.AddParam("pdate", paymentDate);
+            updRemCmd.AddParam("pfrom", paidFromDesc);
+            updRemCmd.AddParam("baid", (object?)fromBankAccountId ?? DBNull.Value);
+            updRemCmd.AddParam("remAfter", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
+            updRemCmd.AddParam("prinPaid", breakdown.ToPrincipal);
+            updRemCmd.AddParam("aintPaid", breakdown.ToInterest);
+            updRemCmd.AddParam("taxPaid", breakdown.ToTax);
+            updRemCmd.AddParam("did", debtId);
             await updRemCmd.ExecuteNonQueryAsync();
 
             // 10. DebtTransactions hareket kaydı ekle
@@ -721,17 +721,17 @@ public class DebtService
                 INSERT INTO DebtTransactions (DebtId, TransactionDate, TransactionType, Amount, PrincipalChange, InterestChange, TaxChange, PreviousBalance, NewBalance, Description, ReferenceId, ReferenceType)
                 VALUES (@did, @dt, 'Ödeme', @amt, @pchange, @ichange, @tchange, @prev, @new, @desc, @refId, 'PAYMENT');";
 
-            await using var dtCmd = new SqlCommand(dtTransSql, conn, tran);
-            dtCmd.Parameters.AddWithValue("@did", debtId);
-            dtCmd.Parameters.AddWithValue("@dt", paymentDate);
-            dtCmd.Parameters.AddWithValue("@amt", paymentAmount);
-            dtCmd.Parameters.AddWithValue("@pchange", -breakdown.ToPrincipal);
-            dtCmd.Parameters.AddWithValue("@ichange", -breakdown.ToInterest);
-            dtCmd.Parameters.AddWithValue("@tchange", -breakdown.ToTax);
-            dtCmd.Parameters.AddWithValue("@prev", debt.RemainingAmount);
-            dtCmd.Parameters.AddWithValue("@new", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
-            dtCmd.Parameters.AddWithValue("@desc", $"{paymentType} ödeme yapıldı ({paidFromDesc}). Dağıtım: Anapara ₺{breakdown.ToPrincipal:N2}, Faiz ₺{breakdown.ToInterest:N2}, Vergi ₺{breakdown.ToTax:N2}");
-            dtCmd.Parameters.AddWithValue("@refId", paymentId);
+            await using var dtCmd = conn.CreateCommand(dtTransSql, tran);
+            dtCmd.AddParam("did", debtId);
+            dtCmd.AddParam("dt", paymentDate);
+            dtCmd.AddParam("amt", paymentAmount);
+            dtCmd.AddParam("pchange", -breakdown.ToPrincipal);
+            dtCmd.AddParam("ichange", -breakdown.ToInterest);
+            dtCmd.AddParam("tchange", -breakdown.ToTax);
+            dtCmd.AddParam("prev", debt.RemainingAmount);
+            dtCmd.AddParam("new", isFullyClosed ? 0m : breakdown.RemainingTotalDebt);
+            dtCmd.AddParam("desc", $"{paymentType} ödeme yapıldı ({paidFromDesc}). Dağıtım: Anapara ₺{breakdown.ToPrincipal:N2}, Faiz ₺{breakdown.ToInterest:N2}, Vergi ₺{breakdown.ToTax:N2}");
+            dtCmd.AddParam("refId", paymentId);
             await dtCmd.ExecuteNonQueryAsync();
 
             // 11. Audit Log kaydı

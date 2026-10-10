@@ -1,8 +1,8 @@
+using System.Data.Common;
 using System.Windows;
 using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Views;
 
@@ -29,7 +29,7 @@ public partial class InterestRatesWindow : Window
         try
         {
             var list = new List<InterestRate>();
-            await using var conn = new SqlConnection(_dbService.ConnectionString);
+            await using var conn = _dbService.CreateConnection();
             await conn.OpenAsync();
 
             var sql = @"
@@ -38,7 +38,7 @@ public partial class InterestRatesWindow : Window
                 WHERE IsActive = 1
                 ORDER BY AccountType ASC, InterestType ASC, EffectiveDate DESC";
 
-            await using var cmd = new SqlCommand(sql, conn);
+            await using var cmd = conn.CreateCommand(sql);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -81,9 +81,9 @@ public partial class InterestRatesWindow : Window
 
         try
         {
-            await using var conn = new SqlConnection(_dbService.ConnectionString);
+            await using var conn = _dbService.CreateConnection();
             await conn.OpenAsync();
-            await using var tran = conn.BeginTransaction();
+            await using var tran = await conn.BeginTransactionAsync();
 
             // Geçmiş oranı sonlandır (eğer varsa)
             var endOldSql = @"
@@ -91,11 +91,11 @@ public partial class InterestRatesWindow : Window
                 SET EndDate = @endDate 
                 WHERE AccountType = @atype AND InterestType = @itype AND (EndDate IS NULL OR EndDate > @endDate)";
 
-            await using (var endCmd = new SqlCommand(endOldSql, conn, tran))
+            await using (var endCmd = conn.CreateCommand(endOldSql, tran))
             {
-                endCmd.Parameters.AddWithValue("@endDate", effectiveDate.AddDays(-1));
-                endCmd.Parameters.AddWithValue("@atype", accountType);
-                endCmd.Parameters.AddWithValue("@itype", interestType);
+                endCmd.AddParam("endDate", effectiveDate.AddDays(-1));
+                endCmd.AddParam("atype", accountType);
+                endCmd.AddParam("itype", interestType);
                 await endCmd.ExecuteNonQueryAsync();
             }
 
@@ -104,12 +104,12 @@ public partial class InterestRatesWindow : Window
                 INSERT INTO InterestRates (AccountType, InterestType, Rate, EffectiveDate, BsmvRate, KkdfRate, IsActive, CreatedAt)
                 VALUES (@atype, @itype, @rate, @effDate, 5.00, 15.00, 1, GETDATE());";
 
-            await using (var insCmd = new SqlCommand(insSql, conn, tran))
+            await using (var insCmd = conn.CreateCommand(insSql, tran))
             {
-                insCmd.Parameters.AddWithValue("@atype", accountType);
-                insCmd.Parameters.AddWithValue("@itype", interestType);
-                insCmd.Parameters.AddWithValue("@rate", rate);
-                insCmd.Parameters.AddWithValue("@effDate", effectiveDate);
+                insCmd.AddParam("atype", accountType);
+                insCmd.AddParam("itype", interestType);
+                insCmd.AddParam("rate", rate);
+                insCmd.AddParam("effDate", effectiveDate);
                 await insCmd.ExecuteNonQueryAsync();
             }
 

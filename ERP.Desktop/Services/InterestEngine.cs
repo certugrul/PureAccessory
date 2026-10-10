@@ -1,5 +1,5 @@
+using System.Data.Common;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -48,14 +48,14 @@ public class InterestEngine
         string interestType,
         DateTime date,
         int? bankAccountId = null,
-        SqlConnection? existingConn = null,
-        SqlTransaction? existingTran = null)
+        DbConnection? existingConn = null,
+        DbTransaction? existingTran = null)
     {
         bool closeConn = false;
         var conn = existingConn;
         if (conn == null)
         {
-            conn = new SqlConnection(_dbService.ConnectionString);
+            conn = _dbService.CreateConnection();
             await conn.OpenAsync();
             closeConn = true;
         }
@@ -73,11 +73,11 @@ public class InterestEngine
                   AND IsActive = 1
                 ORDER BY BankAccountId DESC, EffectiveDate DESC";
 
-            await using var cmd = new SqlCommand(sql, conn, existingTran);
-            cmd.Parameters.AddWithValue("@atype", accountType);
-            cmd.Parameters.AddWithValue("@itype", interestType);
-            cmd.Parameters.AddWithValue("@dt", date);
-            cmd.Parameters.AddWithValue("@baid", (object?)bankAccountId ?? DBNull.Value);
+            await using var cmd = conn.CreateCommand(sql, existingTran);
+            cmd.AddParam("atype", accountType);
+            cmd.AddParam("itype", interestType);
+            cmd.AddParam("dt", date);
+            cmd.AddParam("baid", bankAccountId);
 
             await using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -127,22 +127,22 @@ public class InterestEngine
     }
 
     /// <summary>
-    /// Borç için faiz tahakkukunu idempotently hesaplar ve SQL Server'a kaydeder.
+    /// Borç için faiz tahakkukunu idempotently hesaplar ve veritabanına kaydeder.
     /// DİKKAT: Faiz tahakkuku Banka Bakiyesini DÜŞMEZ. Sadece borç ve faiz tutarını artırır.
     /// </summary>
     public async Task<InterestAccrual?> AccrueInterestAsync(
         int debtId,
         DateTime toDate,
-        SqlConnection conn,
-        SqlTransaction tran,
+        DbConnection conn,
+        DbTransaction tran,
         string userName = "Sistem")
     {
         // 1. Borç bilgisini al
         var debtSql = @"SELECT Id, Title, DebtType, BankAccountId, PrincipalAmount, RemainingAmount, AccruedInterest, AccruedTax, 
                                InterestRate, LastInterestCalculationDate, StartDate 
                         FROM FinancialDebts WHERE Id = @id";
-        await using var debtCmd = new SqlCommand(debtSql, conn, tran);
-        debtCmd.Parameters.AddWithValue("@id", debtId);
+        await using var debtCmd = conn.CreateCommand(debtSql, tran);
+        debtCmd.AddParam("id", debtId);
 
         decimal principal = 0;
         decimal accruedInt = 0;
@@ -194,20 +194,20 @@ public class InterestEngine
         var accrualSql = @"
             INSERT INTO InterestAccruals (DebtId, FromDate, ToDate, Days, Rate, PrincipalAmount, CalculatedInterest, BsmvAmount, KkdfAmount, TotalTax, TotalAccrual, IsApplied, CreatedAt)
             OUTPUT INSERTED.Id
-            VALUES (@did, @fdate, @tdate, @days, @rate, @prin, @cint, @bsmv, @kkdf, @ttax, @tot, 1, GETDATE());";
+            VALUES (@did, @fdate, @tdate, @days, @rate, @prin, @cint, @bsmv, @kkdf, @ttax, @tot, 1, CURRENT_TIMESTAMP);";
 
-        await using var accrualCmd = new SqlCommand(accrualSql, conn, tran);
-        accrualCmd.Parameters.AddWithValue("@did", debtId);
-        accrualCmd.Parameters.AddWithValue("@fdate", fromDate);
-        accrualCmd.Parameters.AddWithValue("@tdate", toDate);
-        accrualCmd.Parameters.AddWithValue("@days", days);
-        accrualCmd.Parameters.AddWithValue("@rate", rateVal);
-        accrualCmd.Parameters.AddWithValue("@prin", principal);
-        accrualCmd.Parameters.AddWithValue("@cint", netInt);
-        accrualCmd.Parameters.AddWithValue("@bsmv", bsmv);
-        accrualCmd.Parameters.AddWithValue("@kkdf", kkdf);
-        accrualCmd.Parameters.AddWithValue("@ttax", totTax);
-        accrualCmd.Parameters.AddWithValue("@tot", totalAccrual);
+        await using var accrualCmd = conn.CreateCommand(accrualSql, tran);
+        accrualCmd.AddParam("did", debtId);
+        accrualCmd.AddParam("fdate", fromDate);
+        accrualCmd.AddParam("tdate", toDate);
+        accrualCmd.AddParam("days", days);
+        accrualCmd.AddParam("rate", rateVal);
+        accrualCmd.AddParam("prin", principal);
+        accrualCmd.AddParam("cint", netInt);
+        accrualCmd.AddParam("bsmv", bsmv);
+        accrualCmd.AddParam("kkdf", kkdf);
+        accrualCmd.AddParam("ttax", totTax);
+        accrualCmd.AddParam("tot", totalAccrual);
 
         long accrualId = Convert.ToInt64(await accrualCmd.ExecuteScalarAsync());
 
@@ -224,12 +224,12 @@ public class InterestEngine
                 LastInterestCalculationDate = @calcDate
             WHERE Id = @id;";
 
-        await using var updateDebtCmd = new SqlCommand(updateDebtSql, conn, tran);
-        updateDebtCmd.Parameters.AddWithValue("@aint", newAccruedInt);
-        updateDebtCmd.Parameters.AddWithValue("@atax", newAccruedTax);
-        updateDebtCmd.Parameters.AddWithValue("@rem", newRemaining);
-        updateDebtCmd.Parameters.AddWithValue("@calcDate", toDate);
-        updateDebtCmd.Parameters.AddWithValue("@id", debtId);
+        await using var updateDebtCmd = conn.CreateCommand(updateDebtSql, tran);
+        updateDebtCmd.AddParam("aint", newAccruedInt);
+        updateDebtCmd.AddParam("atax", newAccruedTax);
+        updateDebtCmd.AddParam("rem", newRemaining);
+        updateDebtCmd.AddParam("calcDate", toDate);
+        updateDebtCmd.AddParam("id", debtId);
         await updateDebtCmd.ExecuteNonQueryAsync();
 
         // 5. DebtTransactions hareket kaydı ekle
@@ -237,16 +237,16 @@ public class InterestEngine
             INSERT INTO DebtTransactions (DebtId, TransactionDate, TransactionType, Amount, PrincipalChange, InterestChange, TaxChange, PreviousBalance, NewBalance, Description, ReferenceId, ReferenceType)
             VALUES (@did, @dt, 'Faiz Tahakkuku', @amt, 0, @intChange, @taxChange, @prev, @new, @desc, @refId, 'INTEREST_ACCRUAL');";
 
-        await using var transCmd = new SqlCommand(transSql, conn, tran);
-        transCmd.Parameters.AddWithValue("@did", debtId);
-        transCmd.Parameters.AddWithValue("@dt", toDate);
-        transCmd.Parameters.AddWithValue("@amt", totalAccrual);
-        transCmd.Parameters.AddWithValue("@intChange", netInt);
-        transCmd.Parameters.AddWithValue("@taxChange", totTax);
-        transCmd.Parameters.AddWithValue("@prev", principal + accruedInt + accruedTax);
-        transCmd.Parameters.AddWithValue("@new", newRemaining);
-        transCmd.Parameters.AddWithValue("@desc", $"{days} günlük faiz tahakkuku (%{rateVal:N2} oran, Net Faiz: ₺{netInt:N2}, Vergi: ₺{totTax:N2})");
-        transCmd.Parameters.AddWithValue("@refId", accrualId);
+        await using var transCmd = conn.CreateCommand(transSql, tran);
+        transCmd.AddParam("did", debtId);
+        transCmd.AddParam("dt", toDate);
+        transCmd.AddParam("amt", totalAccrual);
+        transCmd.AddParam("intChange", netInt);
+        transCmd.AddParam("taxChange", totTax);
+        transCmd.AddParam("prev", principal + accruedInt + accruedTax);
+        transCmd.AddParam("new", newRemaining);
+        transCmd.AddParam("desc", $"{days} günlük faiz tahakkuku (%{rateVal:N2} oran, Net Faiz: ₺{netInt:N2}, Vergi: ₺{totTax:N2})");
+        transCmd.AddParam("refId", accrualId);
         await transCmd.ExecuteNonQueryAsync();
 
         return new InterestAccrual

@@ -283,10 +283,10 @@ public class CariService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<CariAccount>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, Code, Name, Type, Phone, Email, Address, TaxNo, TaxOffice, Balance, IsActive, CreatedAt FROM CariAccounts";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -332,34 +332,50 @@ public class CariService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var c in list)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM CariAccounts WHERE Id = @id)
-                            UPDATE CariAccounts SET Code=@code, Name=@name, Type=@type, Phone=@phone, Email=@email, Address=@addr, TaxNo=@taxNo, TaxOffice=@taxOff, Balance=@bal, IsActive=@act WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT CariAccounts ON;
-                            INSERT INTO CariAccounts (Id, Code, Name, Type, Phone, Email, Address, TaxNo, TaxOffice, Balance, IsActive, CreatedAt)
-                            VALUES (@id, @code, @name, @type, @phone, @email, @addr, @taxNo, @taxOff, @bal, @act, @created);
-                            SET IDENTITY_INSERT CariAccounts OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", c.Id);
-                    cmd.Parameters.AddWithValue("@code", c.Code);
-                    cmd.Parameters.AddWithValue("@name", c.Name);
-                    cmd.Parameters.AddWithValue("@type", c.Type);
-                    cmd.Parameters.AddWithValue("@phone", (object?)c.Phone ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@email", (object?)c.Email ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@addr", (object?)c.Address ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@taxNo", (object?)c.TaxNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@taxOff", (object?)c.TaxOffice ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@bal", c.Balance);
-                    cmd.Parameters.AddWithValue("@act", c.IsActive);
-                    cmd.Parameters.AddWithValue("@created", c.CreatedAt);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CariAccounts WHERE Id = @id");
+                    checkCmd.AddParam("id", c.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"UPDATE CariAccounts SET Code=@code, Name=@name, Type=@type, Phone=@phone, Email=@email, Address=@addr, TaxNo=@taxNo, TaxOffice=@taxOff, Balance=@bal, IsActive=@act WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("id", c.Id);
+                        cmd.AddParam("code", c.Code);
+                        cmd.AddParam("name", c.Name);
+                        cmd.AddParam("type", c.Type);
+                        cmd.AddParam("phone", c.Phone);
+                        cmd.AddParam("email", c.Email);
+                        cmd.AddParam("addr", c.Address);
+                        cmd.AddParam("taxNo", c.TaxNo);
+                        cmd.AddParam("taxOff", c.TaxOffice);
+                        cmd.AddParam("bal", c.Balance);
+                        cmd.AddParam("act", c.IsActive);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"INSERT INTO CariAccounts (Id, Code, Name, Type, Phone, Email, Address, TaxNo, TaxOffice, Balance, IsActive, CreatedAt)
+                                          VALUES (@id, @code, @name, @type, @phone, @email, @addr, @taxNo, @taxOff, @bal, @act, @created);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", c.Id);
+                        cmd.AddParam("code", c.Code);
+                        cmd.AddParam("name", c.Name);
+                        cmd.AddParam("type", c.Type);
+                        cmd.AddParam("phone", c.Phone);
+                        cmd.AddParam("email", c.Email);
+                        cmd.AddParam("addr", c.Address);
+                        cmd.AddParam("taxNo", c.TaxNo);
+                        cmd.AddParam("taxOff", c.TaxOffice);
+                        cmd.AddParam("bal", c.Balance);
+                        cmd.AddParam("act", c.IsActive);
+                        cmd.AddParam("created", c.CreatedAt);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -376,13 +392,13 @@ public class CariService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<CariTransaction>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = @"SELECT ct.Id, ct.CariAccountId, ISNULL(ca.Name, 'Cari #' + CAST(ct.CariAccountId AS VARCHAR)), ct.CreatedAt, ct.TransactionType, ct.DocumentNo, ct.Debit, ct.Credit, ct.BalanceAfter, ct.Description, ct.InvoiceId, ct.SaleId, ct.PaymentMethod
+                var sql = @"SELECT ct.Id, ct.CariAccountId, COALESCE(ca.Name, 'Cari') AS AccountName, ct.CreatedAt, ct.TransactionType, ct.DocumentNo, ct.Debit, ct.Credit, ct.BalanceAfter, ct.Description, ct.InvoiceId, ct.SaleId, ct.PaymentMethod
                             FROM CariTransactions ct
                             LEFT JOIN CariAccounts ca ON ct.CariAccountId = ca.Id
                             ORDER BY ct.CreatedAt DESC";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -429,32 +445,33 @@ public class CariService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var t in list)
                 {
-                    var sql = @"
-                        IF NOT EXISTS (SELECT 1 FROM CariTransactions WHERE Id = @id)
-                        BEGIN
-                            SET IDENTITY_INSERT CariTransactions ON;
-                            INSERT INTO CariTransactions (Id, CariAccountId, CreatedAt, TransactionType, DocumentNo, Debit, Credit, BalanceAfter, Description, InvoiceId, SaleId, PaymentMethod)
-                            VALUES (@id, @cid, @created, @type, @doc, @deb, @cred, @bal, @desc, @invId, @saleId, @pm);
-                            SET IDENTITY_INSERT CariTransactions OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", t.Id);
-                    cmd.Parameters.AddWithValue("@cid", t.CariAccountId);
-                    cmd.Parameters.AddWithValue("@created", t.CreatedAt);
-                    cmd.Parameters.AddWithValue("@type", t.TransactionType);
-                    cmd.Parameters.AddWithValue("@doc", (object?)t.DocumentNo ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@deb", t.Debit);
-                    cmd.Parameters.AddWithValue("@cred", t.Credit);
-                    cmd.Parameters.AddWithValue("@bal", t.BalanceAfter);
-                    cmd.Parameters.AddWithValue("@desc", (object?)t.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@invId", (object?)t.InvoiceId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@saleId", (object?)t.SaleId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@pm", (object?)t.PaymentMethod ?? DBNull.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CariTransactions WHERE Id = @id");
+                    checkCmd.AddParam("id", t.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (!exists)
+                    {
+                        var insertSql = @"INSERT INTO CariTransactions (Id, CariAccountId, CreatedAt, TransactionType, DocumentNo, Debit, Credit, BalanceAfter, Description, InvoiceId, SaleId, PaymentMethod)
+                                          VALUES (@id, @cid, @created, @type, @doc, @deb, @cred, @bal, @desc, @invId, @saleId, @pm);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", t.Id);
+                        cmd.AddParam("cid", t.CariAccountId);
+                        cmd.AddParam("created", t.CreatedAt);
+                        cmd.AddParam("type", t.TransactionType);
+                        cmd.AddParam("doc", t.DocumentNo);
+                        cmd.AddParam("deb", t.Debit);
+                        cmd.AddParam("cred", t.Credit);
+                        cmd.AddParam("bal", t.BalanceAfter);
+                        cmd.AddParam("desc", t.Description);
+                        cmd.AddParam("invId", t.InvoiceId);
+                        cmd.AddParam("saleId", t.SaleId);
+                        cmd.AddParam("pm", t.PaymentMethod);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }

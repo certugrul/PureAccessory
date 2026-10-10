@@ -62,7 +62,7 @@ public class ProductService
         {
             try
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = @"
                     SELECT p.Id, p.Code, p.Name, p.Barcode, p.PurchasePrice, p.SalePrice, p.VatRate,
@@ -76,7 +76,7 @@ public class ProductService
                     WHERE p.IsActive = 1
                     ORDER BY p.Id ASC";
 
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 var dbList = new List<Product>();
@@ -108,7 +108,7 @@ public class ProductService
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ProductService] SQL Ürün sorgulama hatası: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ProductService] DB Ürün sorgulama hatası: {ex.Message}");
             }
         }
 
@@ -362,41 +362,56 @@ public class ProductService
         }
         catch { }
 
-        // SQL Server bağlıysa orada da güncelle/ekle
+        // Veritabanı bağlıysa orada da güncelle/ekle
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
             try
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
-                var mergeSql = @"
-                    IF EXISTS (SELECT 1 FROM Products WHERE Id = @Id)
-                    BEGIN
+                using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Products WHERE Id = @Id");
+                checkCmd.AddParam("Id", product.Id);
+                var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                if (exists)
+                {
+                    var updateSql = @"
                         UPDATE Products 
                         SET Code = @Code, Name = @Name, Barcode = @Barcode, 
                             PurchasePrice = @PurchasePrice, SalePrice = @SalePrice, 
                             VatRate = @VatRate, IsActive = 1
-                        WHERE Id = @Id
-                    END
-                    ELSE
-                    BEGIN
+                        WHERE Id = @Id";
+                    await using var cmd = conn.CreateCommand(updateSql);
+                    cmd.AddParam("Id", product.Id);
+                    cmd.AddParam("Code", product.Code);
+                    cmd.AddParam("Name", product.Name);
+                    cmd.AddParam("Barcode", product.Barcode);
+                    cmd.AddParam("PurchasePrice", product.PurchasePrice);
+                    cmd.AddParam("SalePrice", product.SalePrice);
+                    cmd.AddParam("VatRate", product.VatRate);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    var insertSql = @"
                         INSERT INTO Products (Code, Name, Barcode, PurchasePrice, SalePrice, VatRate, IsActive)
-                        VALUES (@Code, @Name, @Barcode, @PurchasePrice, @SalePrice, @VatRate, 1)
-                    END";
-
-                await using var cmd = new SqlCommand(mergeSql, conn);
-                cmd.Parameters.AddWithValue("@Id", product.Id);
-                cmd.Parameters.AddWithValue("@Code", product.Code);
-                cmd.Parameters.AddWithValue("@Name", product.Name);
-                cmd.Parameters.AddWithValue("@Barcode", (object?)product.Barcode ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@PurchasePrice", product.PurchasePrice);
-                cmd.Parameters.AddWithValue("@SalePrice", product.SalePrice);
-                cmd.Parameters.AddWithValue("@VatRate", product.VatRate);
-                await cmd.ExecuteNonQueryAsync();
+                        VALUES (@Code, @Name, @Barcode, @PurchasePrice, @SalePrice, @VatRate, 1)";
+                    await using var cmd = conn.CreateCommand(insertSql);
+                    cmd.AddParam("Code", product.Code);
+                    cmd.AddParam("Name", product.Name);
+                    cmd.AddParam("Barcode", product.Barcode);
+                    cmd.AddParam("PurchasePrice", product.PurchasePrice);
+                    cmd.AddParam("SalePrice", product.SalePrice);
+                    cmd.AddParam("VatRate", product.VatRate);
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProductService] Ürün kaydetme DB hatası: {ex.Message}");
+            }
         }
 
         InvalidateCache();
@@ -437,17 +452,17 @@ public class ProductService
             catch { }
             InvalidateCache();
 
-            // SQL Server bağlıysa pasife al
+            // Veritabanı bağlıysa pasife al
             bool dbConnected = await _dbService.TestConnectionAsync();
             if (dbConnected)
             {
                 try
                 {
-                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
                     var sql = "UPDATE Products SET IsActive = 0 WHERE Id = @Id";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@Id", productId);
+                    await using var cmd = conn.CreateCommand(sql);
+                    cmd.AddParam("Id", productId);
                     await cmd.ExecuteNonQueryAsync();
                 }
                 catch { }

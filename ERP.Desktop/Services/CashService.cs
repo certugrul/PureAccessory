@@ -162,25 +162,14 @@ public class CashService
         {
             try
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = @"
-                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Expenses')
-                    BEGIN
-                        CREATE TABLE Expenses (
-                            Id BIGINT PRIMARY KEY IDENTITY(1,1),
-                            Category NVARCHAR(100) NOT NULL,
-                            Amount DECIMAL(18,2) NOT NULL,
-                            Description NVARCHAR(500) NULL,
-                            ExpenseDate DATETIME2 NOT NULL DEFAULT GETDATE()
-                        );
-                    END
-                    INSERT INTO Expenses (Category, Amount, Description, ExpenseDate) VALUES (@cat, @amt, @desc, @date);";
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@cat", "Genel Masraf");
-                cmd.Parameters.AddWithValue("@amt", amount);
-                cmd.Parameters.AddWithValue("@desc", description);
-                cmd.Parameters.AddWithValue("@date", date);
+                var sql = "INSERT INTO Expenses (Category, Amount, Description, ExpenseDate) VALUES (@cat, @amt, @desc, @date);";
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("cat", "Genel Masraf");
+                cmd.AddParam("amt", amount);
+                cmd.AddParam("desc", description);
+                cmd.AddParam("date", date);
                 await cmd.ExecuteNonQueryAsync();
             }
             catch { }
@@ -283,10 +272,10 @@ public class CashService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<CashSession>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes FROM CashSessions ORDER BY SessionDate DESC, Id DESC";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -329,29 +318,41 @@ public class CashService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var s in sessions)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM CashSessions WHERE Id = @id)
-                            UPDATE CashSessions SET SessionDate=@date, OpenedAt=@opened, OpeningCash=@cash, ClosedAt=@closed, Status=@stat, Notes=@notes WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT CashSessions ON;
-                            INSERT INTO CashSessions (Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes)
-                            VALUES (@id, @date, @opened, @cash, @closed, @stat, @notes);
-                            SET IDENTITY_INSERT CashSessions OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", s.Id);
-                    cmd.Parameters.AddWithValue("@date", s.SessionDate.Date);
-                    cmd.Parameters.AddWithValue("@opened", s.OpenedAt);
-                    cmd.Parameters.AddWithValue("@cash", s.OpeningCash);
-                    cmd.Parameters.AddWithValue("@closed", (object?)s.ClosedAt ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@stat", s.Status);
-                    cmd.Parameters.AddWithValue("@notes", (object?)s.Notes ?? DBNull.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CashSessions WHERE Id = @id");
+                    checkCmd.AddParam("id", s.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"UPDATE CashSessions SET SessionDate=@date, OpenedAt=@opened, OpeningCash=@cash, ClosedAt=@closed, Status=@stat, Notes=@notes WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("id", s.Id);
+                        cmd.AddParam("date", s.SessionDate.Date);
+                        cmd.AddParam("opened", s.OpenedAt);
+                        cmd.AddParam("cash", s.OpeningCash);
+                        cmd.AddParam("closed", s.ClosedAt);
+                        cmd.AddParam("stat", s.Status);
+                        cmd.AddParam("notes", s.Notes);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"INSERT INTO CashSessions (Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes)
+                                          VALUES (@id, @date, @opened, @cash, @closed, @stat, @notes);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", s.Id);
+                        cmd.AddParam("date", s.SessionDate.Date);
+                        cmd.AddParam("opened", s.OpenedAt);
+                        cmd.AddParam("cash", s.OpeningCash);
+                        cmd.AddParam("closed", s.ClosedAt);
+                        cmd.AddParam("stat", s.Status);
+                        cmd.AddParam("notes", s.Notes);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -373,10 +374,10 @@ public class CashService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<CashTransaction>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions ORDER BY CreatedAt DESC";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -420,35 +421,29 @@ public class CashService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var t in transactions)
                 {
-                    var sql = @"
-                        IF NOT EXISTS (SELECT 1 FROM CashAccounts WHERE Id = 1)
-                        BEGIN
-                            SET IDENTITY_INSERT CashAccounts ON;
-                            INSERT INTO CashAccounts (Id, Name, Balance) VALUES (1, 'Merkez Kasa', 0);
-                            SET IDENTITY_INSERT CashAccounts OFF;
-                        END
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CashTransactions WHERE Id = @id");
+                    checkCmd.AddParam("id", t.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
 
-                        IF NOT EXISTS (SELECT 1 FROM CashTransactions WHERE Id = @id)
-                        BEGIN
-                            SET IDENTITY_INSERT CashTransactions ON;
-                            INSERT INTO CashTransactions (Id, SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId)
-                            VALUES (@id, @sid, 1, @type, @amt, @desc, @created, @sdt, @sdid);
-                            SET IDENTITY_INSERT CashTransactions OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", t.Id);
-                    cmd.Parameters.AddWithValue("@sid", (object?)t.SessionId ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@type", t.Type);
-                    cmd.Parameters.AddWithValue("@amt", t.Amount);
-                    cmd.Parameters.AddWithValue("@desc", (object?)t.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@created", t.CreatedAt);
-                    cmd.Parameters.AddWithValue("@sdt", (object?)t.SourceDocumentType ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@sdid", (object?)t.SourceDocumentId ?? DBNull.Value);
-                    await cmd.ExecuteNonQueryAsync();
+                    if (!exists)
+                    {
+                        var insertSql = @"INSERT INTO CashTransactions (Id, SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId)
+                                          VALUES (@id, @sid, 1, @type, @amt, @desc, @created, @sdt, @sdid);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", t.Id);
+                        cmd.AddParam("sid", t.SessionId);
+                        cmd.AddParam("type", t.Type);
+                        cmd.AddParam("amt", t.Amount);
+                        cmd.AddParam("desc", t.Description);
+                        cmd.AddParam("created", t.CreatedAt);
+                        cmd.AddParam("sdt", t.SourceDocumentType);
+                        cmd.AddParam("sdid", t.SourceDocumentId);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -462,6 +457,7 @@ public class CashService
         }
         catch { }
     }
+
     public async Task CloseTodaySessionAsync(DateTime? date = null, DateTime? closedAt = null)
     {
         var targetDate = (date ?? DateTime.Today).Date;

@@ -1,5 +1,5 @@
+using System.Data.Common;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -23,14 +23,14 @@ public class FinancialAuditService
         int? debtId = null,
         int? userId = null,
         string userName = "Sistem",
-        SqlConnection? existingConn = null,
-        SqlTransaction? existingTran = null)
+        DbConnection? existingConn = null,
+        DbTransaction? existingTran = null)
     {
         bool closeConn = false;
         var conn = existingConn;
         if (conn == null)
         {
-            conn = new SqlConnection(_dbService.ConnectionString);
+            conn = _dbService.CreateConnection();
             await conn.OpenAsync();
             closeConn = true;
         }
@@ -39,19 +39,19 @@ public class FinancialAuditService
         {
             var sql = @"
                 INSERT INTO FinancialAuditLogs (ActionType, EntityName, EntityId, BankAccountId, DebtId, OldValue, NewValue, Description, UserId, UserName, CreatedAt)
-                VALUES (@act, @ent, @entId, @baid, @did, @old, @new, @desc, @uid, @uname, GETDATE());";
+                VALUES (@act, @ent, @entId, @baid, @did, @old, @new, @desc, @uid, @uname, CURRENT_TIMESTAMP);";
 
-            await using var cmd = new SqlCommand(sql, conn, existingTran);
-            cmd.Parameters.AddWithValue("@act", actionType);
-            cmd.Parameters.AddWithValue("@ent", entityName);
-            cmd.Parameters.AddWithValue("@entId", (object?)entityId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@baid", (object?)bankAccountId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@did", (object?)debtId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@old", (object?)oldValue ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@new", (object?)newValue ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@desc", description);
-            cmd.Parameters.AddWithValue("@uid", (object?)userId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@uname", userName);
+            await using var cmd = conn.CreateCommand(sql, existingTran);
+            cmd.AddParam("act", actionType);
+            cmd.AddParam("ent", entityName);
+            cmd.AddParam("entId", entityId);
+            cmd.AddParam("baid", bankAccountId);
+            cmd.AddParam("did", debtId);
+            cmd.AddParam("old", oldValue);
+            cmd.AddParam("new", newValue);
+            cmd.AddParam("desc", description);
+            cmd.AddParam("uid", userId);
+            cmd.AddParam("uname", userName);
 
             await cmd.ExecuteNonQueryAsync();
         }

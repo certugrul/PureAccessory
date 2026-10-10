@@ -155,7 +155,7 @@ public class SalesService
         {
             try
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
                 var saleSql = @"
@@ -163,17 +163,17 @@ public class SalesService
                     VALUES (@WarehouseId, @SaleDate, @SubTotal, @VatTotal, @GrandTotal, @CostTotal, @PaymentType, @DiscountTotal, @CashAmount, @CardAmount);
                     SELECT SCOPE_IDENTITY();";
 
-                await using var cmd = new SqlCommand(saleSql, conn);
-                cmd.Parameters.AddWithValue("@WarehouseId", defaultWh.Id);
-                cmd.Parameters.AddWithValue("@SaleDate", sale.SaleDate);
-                cmd.Parameters.AddWithValue("@SubTotal", sale.SubTotal);
-                cmd.Parameters.AddWithValue("@VatTotal", sale.VatTotal);
-                cmd.Parameters.AddWithValue("@GrandTotal", sale.GrandTotal);
-                cmd.Parameters.AddWithValue("@CostTotal", sale.CostTotal);
-                cmd.Parameters.AddWithValue("@PaymentType", sale.PaymentType);
-                cmd.Parameters.AddWithValue("@DiscountTotal", sale.DiscountTotal);
-                cmd.Parameters.AddWithValue("@CashAmount", sale.CashAmount);
-                cmd.Parameters.AddWithValue("@CardAmount", sale.CardAmount);
+                await using var cmd = conn.CreateCommand(saleSql);
+                cmd.AddParam("WarehouseId", defaultWh.Id);
+                cmd.AddParam("SaleDate", sale.SaleDate);
+                cmd.AddParam("SubTotal", sale.SubTotal);
+                cmd.AddParam("VatTotal", sale.VatTotal);
+                cmd.AddParam("GrandTotal", sale.GrandTotal);
+                cmd.AddParam("CostTotal", sale.CostTotal);
+                cmd.AddParam("PaymentType", sale.PaymentType);
+                cmd.AddParam("DiscountTotal", sale.DiscountTotal);
+                cmd.AddParam("CashAmount", sale.CashAmount);
+                cmd.AddParam("CardAmount", sale.CardAmount);
 
                 var generatedId = await cmd.ExecuteScalarAsync();
                 if (generatedId != null && generatedId != DBNull.Value)
@@ -186,14 +186,14 @@ public class SalesService
                             INSERT INTO SaleItems (SaleId, ProductId, Quantity, UnitPrice, VatRate, UnitCost, DiscountAmount)
                             VALUES (@SaleId, @ProductId, @Quantity, @UnitPrice, @VatRate, @UnitCost, @DiscountAmount);";
 
-                        await using var itemCmd = new SqlCommand(itemSql, conn);
-                        itemCmd.Parameters.AddWithValue("@SaleId", sale.Id);
-                        itemCmd.Parameters.AddWithValue("@ProductId", item.ProductId);
-                        itemCmd.Parameters.AddWithValue("@Quantity", item.Quantity);
-                        itemCmd.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
-                        itemCmd.Parameters.AddWithValue("@VatRate", item.VatRate);
-                        itemCmd.Parameters.AddWithValue("@UnitCost", item.UnitCost);
-                        itemCmd.Parameters.AddWithValue("@DiscountAmount", item.DiscountAmount);
+                        await using var itemCmd = conn.CreateCommand(itemSql);
+                        itemCmd.AddParam("SaleId", sale.Id);
+                        itemCmd.AddParam("ProductId", item.ProductId);
+                        itemCmd.AddParam("Quantity", item.Quantity);
+                        itemCmd.AddParam("UnitPrice", item.UnitPrice);
+                        itemCmd.AddParam("VatRate", item.VatRate);
+                        itemCmd.AddParam("UnitCost", item.UnitCost);
+                        itemCmd.AddParam("DiscountAmount", item.DiscountAmount);
                         await itemCmd.ExecuteNonQueryAsync();
                     }
 
@@ -305,14 +305,14 @@ public class SalesService
             if (await _dbService.TestConnectionAsync())
             {
                 var sales = new List<Sale>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
                 var saleSql = @"SELECT Id, WarehouseId, SaleDate, SubTotal, VatTotal, GrandTotal, CostTotal, PaymentType,
-                                       ISNULL(CashAmount, 0), ISNULL(CardAmount, 0)
+                                       COALESCE(CashAmount, 0), COALESCE(CardAmount, 0)
                                 FROM Sales 
                                 ORDER BY SaleDate DESC, Id DESC";
-                await using (var cmd = new SqlCommand(saleSql, conn))
+                await using (var cmd = conn.CreateCommand(saleSql))
                 await using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -347,11 +347,11 @@ public class SalesService
                 if (sales.Count > 0)
                 {
                     var itemsSql = @"SELECT si.Id, si.SaleId, si.ProductId, si.Quantity, si.UnitPrice, si.VatRate, si.UnitCost,
-                                            ISNULL(p.Name, 'Ürün #' + CAST(si.ProductId AS VARCHAR)) AS ProductName,
-                                            ISNULL(p.Code, '') AS ProductCode
+                                            COALESCE(p.Name, 'Ürün') AS ProductName,
+                                            COALESCE(p.Code, '') AS ProductCode
                                      FROM SaleItems si
                                      LEFT JOIN Products p ON si.ProductId = p.Id";
-                    await using var itemCmd = new SqlCommand(itemsSql, conn);
+                    await using var itemCmd = conn.CreateCommand(itemsSql);
                     await using var itemReader = await itemCmd.ExecuteReaderAsync();
 
                     var itemsBySale = new Dictionary<long, List<SaleItem>>();
@@ -472,57 +472,57 @@ public class SalesService
                 }
             }
 
-            // 2. SQL Server bağlıysa veritabanından temizle
+            // 2. Veritabanı bağlıysa veritabanından temizle
             if (await _dbService.TestConnectionAsync())
             {
                 try
                 {
-                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
 
                     // Kasa hareketlerini sil (bu satışla ilgili olanlar)
                     var delCashSql = "DELETE FROM CashTransactions WHERE Description LIKE @Pattern";
-                    await using (var cmdCash = new SqlCommand(delCashSql, conn))
+                    await using (var cmdCash = conn.CreateCommand(delCashSql))
                     {
-                        cmdCash.Parameters.AddWithValue("@Pattern", $"%Satış #{saleId}%");
+                        cmdCash.AddParam("Pattern", $"%Satış #{saleId}%");
                         await cmdCash.ExecuteNonQueryAsync();
                     }
 
                     // POS hareketlerini sil
                     var delPosSql = "DELETE FROM PosTransactions WHERE Description LIKE @Pattern";
-                    await using (var cmdPos = new SqlCommand(delPosSql, conn))
+                    await using (var cmdPos = conn.CreateCommand(delPosSql))
                     {
-                        cmdPos.Parameters.AddWithValue("@Pattern", $"%Satış #{saleId}%");
+                        cmdPos.AddParam("Pattern", $"%Satış #{saleId}%");
                         await cmdPos.ExecuteNonQueryAsync();
                     }
 
                     // Cari hareketleri sil (veresiye ise)
                     var delCariSql = "DELETE FROM CariTransactions WHERE DocumentNo = @DocNo";
-                    await using (var cmdCari = new SqlCommand(delCariSql, conn))
+                    await using (var cmdCari = conn.CreateCommand(delCariSql))
                     {
-                        cmdCari.Parameters.AddWithValue("@DocNo", $"Satış #{saleId}");
+                        cmdCari.AddParam("DocNo", $"Satış #{saleId}");
                         await cmdCari.ExecuteNonQueryAsync();
                     }
 
                     // Satış Kalemlerini sil
                     var delItemsSql = "DELETE FROM SaleItems WHERE SaleId = @SaleId";
-                    await using (var cmdItems = new SqlCommand(delItemsSql, conn))
+                    await using (var cmdItems = conn.CreateCommand(delItemsSql))
                     {
-                        cmdItems.Parameters.AddWithValue("@SaleId", saleId);
+                        cmdItems.AddParam("SaleId", saleId);
                         await cmdItems.ExecuteNonQueryAsync();
                     }
 
                     // Satışı sil
                     var delSaleSql = "DELETE FROM Sales WHERE Id = @SaleId";
-                    await using (var cmdSale = new SqlCommand(delSaleSql, conn))
+                    await using (var cmdSale = conn.CreateCommand(delSaleSql))
                     {
-                        cmdSale.Parameters.AddWithValue("@SaleId", saleId);
+                        cmdSale.AddParam("SaleId", saleId);
                         await cmdSale.ExecuteNonQueryAsync();
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[SalesService] SQL satış silme hatası: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[SalesService] DB satış silme hatası: {ex.Message}");
                 }
             }
 

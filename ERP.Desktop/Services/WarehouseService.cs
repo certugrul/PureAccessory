@@ -587,10 +587,10 @@ public class WarehouseService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<Warehouse>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, Code, Name, Location, Description, IsDefault, IsActive, CreatedAt FROM Warehouses WHERE IsActive = 1";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -632,30 +632,42 @@ public class WarehouseService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var w in list)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM Warehouses WHERE Id = @id)
-                            UPDATE Warehouses SET Code=@code, Name=@name, Location=@loc, Description=@desc, IsDefault=@def, IsActive=@act WHERE Id=@id
-                        ELSE
-                        BEGIN
-                            SET IDENTITY_INSERT Warehouses ON;
-                            INSERT INTO Warehouses (Id, Code, Name, Location, Description, IsDefault, IsActive, CreatedAt)
-                            VALUES (@id, @code, @name, @loc, @desc, @def, @act, @created);
-                            SET IDENTITY_INSERT Warehouses OFF;
-                        END";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@id", w.Id);
-                    cmd.Parameters.AddWithValue("@code", w.Code);
-                    cmd.Parameters.AddWithValue("@name", w.Name);
-                    cmd.Parameters.AddWithValue("@loc", (object?)w.Location ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@desc", (object?)w.Description ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@def", w.IsDefault);
-                    cmd.Parameters.AddWithValue("@act", w.IsActive);
-                    cmd.Parameters.AddWithValue("@created", w.CreatedAt);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Warehouses WHERE Id = @id");
+                    checkCmd.AddParam("id", w.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"UPDATE Warehouses SET Code=@code, Name=@name, Location=@loc, Description=@desc, IsDefault=@def, IsActive=@act WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("id", w.Id);
+                        cmd.AddParam("code", w.Code);
+                        cmd.AddParam("name", w.Name);
+                        cmd.AddParam("loc", w.Location);
+                        cmd.AddParam("desc", w.Description);
+                        cmd.AddParam("def", w.IsDefault);
+                        cmd.AddParam("act", w.IsActive);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"INSERT INTO Warehouses (Id, Code, Name, Location, Description, IsDefault, IsActive, CreatedAt)
+                                          VALUES (@id, @code, @name, @loc, @desc, @def, @act, @created);";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("id", w.Id);
+                        cmd.AddParam("code", w.Code);
+                        cmd.AddParam("name", w.Name);
+                        cmd.AddParam("loc", w.Location);
+                        cmd.AddParam("desc", w.Description);
+                        cmd.AddParam("def", w.IsDefault);
+                        cmd.AddParam("act", w.IsActive);
+                        cmd.AddParam("created", w.CreatedAt);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -672,10 +684,10 @@ public class WarehouseService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<WarehouseStock>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = "SELECT Id, WarehouseId, ProductId, Quantity FROM WarehouseStocks";
-                await using var cmd = new SqlCommand(sql, conn);
+                await using var cmd = conn.CreateCommand(sql);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -713,20 +725,33 @@ public class WarehouseService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var s in list)
                 {
-                    var sql = @"
-                        IF EXISTS (SELECT 1 FROM WarehouseStocks WHERE WarehouseId = @wid AND ProductId = @pid)
-                            UPDATE WarehouseStocks SET Quantity = @qty WHERE WarehouseId = @wid AND ProductId = @pid
-                        ELSE
-                            INSERT INTO WarehouseStocks (WarehouseId, ProductId, Quantity) VALUES (@wid, @pid, @qty)";
-                    await using var cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@wid", s.WarehouseId);
-                    cmd.Parameters.AddWithValue("@pid", s.ProductId);
-                    cmd.Parameters.AddWithValue("@qty", s.Quantity);
-                    await cmd.ExecuteNonQueryAsync();
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM WarehouseStocks WHERE WarehouseId = @wid AND ProductId = @pid");
+                    checkCmd.AddParam("wid", s.WarehouseId);
+                    checkCmd.AddParam("pid", s.ProductId);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = "UPDATE WarehouseStocks SET Quantity = @qty WHERE WarehouseId = @wid AND ProductId = @pid";
+                        await using var cmd = conn.CreateCommand(updateSql);
+                        cmd.AddParam("wid", s.WarehouseId);
+                        cmd.AddParam("pid", s.ProductId);
+                        cmd.AddParam("qty", s.Quantity);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = "INSERT INTO WarehouseStocks (WarehouseId, ProductId, Quantity) VALUES (@wid, @pid, @qty)";
+                        await using var cmd = conn.CreateCommand(insertSql);
+                        cmd.AddParam("wid", s.WarehouseId);
+                        cmd.AddParam("pid", s.ProductId);
+                        cmd.AddParam("qty", s.Quantity);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
                 }
             }
         }
@@ -756,19 +781,19 @@ public class WarehouseService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 var sql = @"INSERT INTO StockMovements (WarehouseId, ProductId, Type, Quantity, Description, DocumentNo, Category, CreatedAt)
                             VALUES (@wid, @pid, @type, @qty, @desc, @doc, @cat, @created)";
-                await using var cmd = new SqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("@wid", movement.WarehouseId);
-                cmd.Parameters.AddWithValue("@pid", movement.ProductId);
-                cmd.Parameters.AddWithValue("@type", movement.MovementType);
-                cmd.Parameters.AddWithValue("@qty", movement.Quantity);
-                cmd.Parameters.AddWithValue("@desc", (object?)movement.Description ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@doc", (object?)movement.DocumentNo ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@cat", DBNull.Value);
-                cmd.Parameters.AddWithValue("@created", movement.CreatedAt);
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("wid", movement.WarehouseId);
+                cmd.AddParam("pid", movement.ProductId);
+                cmd.AddParam("type", movement.MovementType);
+                cmd.AddParam("qty", movement.Quantity);
+                cmd.AddParam("desc", movement.Description);
+                cmd.AddParam("doc", movement.DocumentNo);
+                cmd.AddParam("cat", DBNull.Value);
+                cmd.AddParam("created", movement.CreatedAt);
                 await cmd.ExecuteNonQueryAsync();
             }
         }

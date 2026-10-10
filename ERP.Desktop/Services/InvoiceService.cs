@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
+using System.Data.Common;
 
 namespace ERP.Desktop.Services;
 
@@ -245,13 +245,13 @@ public class InvoiceService
             if (await _dbService.TestConnectionAsync())
             {
                 var list = new List<Invoice>();
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
                 var sql = @"SELECT Id, InvoiceNo, Type, InvoiceDate, SupplierOrCustomer, TaxNo, WarehouseId, WarehouseName, SubTotal, VatTotal, GrandTotal, PaymentType, PaymentStatus, BankAccountId, BankAccountName, CurrentAccountName, Notes, CariAccountId, PaidAmount, RemainingAmount
                             FROM Invoices
                             ORDER BY InvoiceDate DESC, Id DESC";
-                await using (var cmd = new SqlCommand(sql, conn))
+                await using (var cmd = conn.CreateCommand(sql))
                 await using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -286,7 +286,7 @@ public class InvoiceService
                 {
                     var itemsSql = @"SELECT Id, InvoiceId, ProductId, ProductCode, ProductName, Barcode, Quantity, UnitPrice, VatRate, LineTotal
                                      FROM InvoiceItems";
-                    await using var itemCmd = new SqlCommand(itemsSql, conn);
+                    await using var itemCmd = conn.CreateCommand(itemsSql);
                     await using var itemReader = await itemCmd.ExecuteReaderAsync();
 
                     var itemsByInv = new Dictionary<long, List<InvoiceItem>>();
@@ -345,54 +345,52 @@ public class InvoiceService
         {
             if (await _dbService.TestConnectionAsync())
             {
-                await using var conn = new SqlConnection(_dbService.ConnectionString);
+                await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
                 foreach (var inv in list)
                 {
-                    var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Invoices WHERE Id = @id", conn);
-                    checkCmd.Parameters.AddWithValue("@id", inv.Id);
+                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Invoices WHERE Id = @id");
+                    checkCmd.AddParam("id", inv.Id);
                     int exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
 
                     if (exists == 0)
                     {
-                        var insSql = @"SET IDENTITY_INSERT Invoices ON;
-                                       INSERT INTO Invoices (Id, InvoiceNo, Type, InvoiceDate, SupplierOrCustomer, TaxNo, WarehouseId, WarehouseName, SubTotal, VatTotal, GrandTotal, PaymentType, PaymentStatus, BankAccountId, BankAccountName, CurrentAccountName, Notes, CreatedAt)
-                                       VALUES (@id, @no, @t, @date, @soc, @tax, @wid, @wn, @sub, @vat, @grand, @ptype, @pstat, @baid, @baname, @caname, @notes, GETDATE());
-                                       SET IDENTITY_INSERT Invoices OFF;";
-                        var cmd = new SqlCommand(insSql, conn);
-                        cmd.Parameters.AddWithValue("@id", inv.Id);
-                        cmd.Parameters.AddWithValue("@no", inv.InvoiceNo);
-                        cmd.Parameters.AddWithValue("@t", inv.Type);
-                        cmd.Parameters.AddWithValue("@date", inv.InvoiceDate);
-                        cmd.Parameters.AddWithValue("@soc", inv.SupplierOrCustomer);
-                        cmd.Parameters.AddWithValue("@tax", (object?)inv.TaxNo ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@wid", inv.WarehouseId);
-                        cmd.Parameters.AddWithValue("@wn", inv.WarehouseName);
-                        cmd.Parameters.AddWithValue("@sub", inv.SubTotal);
-                        cmd.Parameters.AddWithValue("@vat", inv.VatTotal);
-                        cmd.Parameters.AddWithValue("@grand", inv.GrandTotal);
-                        cmd.Parameters.AddWithValue("@ptype", inv.PaymentType);
-                        cmd.Parameters.AddWithValue("@pstat", inv.PaymentStatus);
-                        cmd.Parameters.AddWithValue("@baid", (object?)inv.BankAccountId ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@baname", (object?)inv.BankAccountName ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@caname", (object?)inv.CurrentAccountName ?? DBNull.Value);
-                        cmd.Parameters.AddWithValue("@notes", (object?)inv.Notes ?? DBNull.Value);
+                        var insSql = @"INSERT INTO Invoices (Id, InvoiceNo, Type, InvoiceDate, SupplierOrCustomer, TaxNo, WarehouseId, WarehouseName, SubTotal, VatTotal, GrandTotal, PaymentType, PaymentStatus, BankAccountId, BankAccountName, CurrentAccountName, Notes, CreatedAt)
+                                       VALUES (@id, @no, @t, @date, @soc, @tax, @wid, @wn, @sub, @vat, @grand, @ptype, @pstat, @baid, @baname, @caname, @notes, GETDATE());";
+                        await using var cmd = conn.CreateCommand(insSql);
+                        cmd.AddParam("id", inv.Id);
+                        cmd.AddParam("no", inv.InvoiceNo);
+                        cmd.AddParam("t", inv.Type);
+                        cmd.AddParam("date", inv.InvoiceDate);
+                        cmd.AddParam("soc", inv.SupplierOrCustomer);
+                        cmd.AddParam("tax", (object?)inv.TaxNo ?? DBNull.Value);
+                        cmd.AddParam("wid", inv.WarehouseId);
+                        cmd.AddParam("wn", inv.WarehouseName);
+                        cmd.AddParam("sub", inv.SubTotal);
+                        cmd.AddParam("vat", inv.VatTotal);
+                        cmd.AddParam("grand", inv.GrandTotal);
+                        cmd.AddParam("ptype", inv.PaymentType);
+                        cmd.AddParam("pstat", inv.PaymentStatus);
+                        cmd.AddParam("baid", (object?)inv.BankAccountId ?? DBNull.Value);
+                        cmd.AddParam("baname", (object?)inv.BankAccountName ?? DBNull.Value);
+                        cmd.AddParam("caname", (object?)inv.CurrentAccountName ?? DBNull.Value);
+                        cmd.AddParam("notes", (object?)inv.Notes ?? DBNull.Value);
                         await cmd.ExecuteNonQueryAsync();
 
                         foreach (var item in inv.Items)
                         {
                             var itemSql = @"INSERT INTO InvoiceItems (InvoiceId, ProductId, ProductCode, ProductName, Barcode, Quantity, UnitPrice, VatRate, LineTotal)
                                             VALUES (@invid, @pid, @pc, @pn, @bc, @q, @up, @vat, @tot)";
-                            var iCmd = new SqlCommand(itemSql, conn);
-                            iCmd.Parameters.AddWithValue("@invid", inv.Id);
-                            iCmd.Parameters.AddWithValue("@pid", item.ProductId);
-                            iCmd.Parameters.AddWithValue("@pc", (object?)item.ProductCode ?? DBNull.Value);
-                            iCmd.Parameters.AddWithValue("@pn", item.ProductName);
-                            iCmd.Parameters.AddWithValue("@bc", (object?)item.Barcode ?? DBNull.Value);
-                            iCmd.Parameters.AddWithValue("@q", item.Quantity);
-                            iCmd.Parameters.AddWithValue("@up", item.UnitPrice);
-                            iCmd.Parameters.AddWithValue("@vat", item.VatRate);
-                            iCmd.Parameters.AddWithValue("@tot", item.LineTotal);
+                            await using var iCmd = conn.CreateCommand(itemSql);
+                            iCmd.AddParam("invid", inv.Id);
+                            iCmd.AddParam("pid", item.ProductId);
+                            iCmd.AddParam("pc", (object?)item.ProductCode ?? DBNull.Value);
+                            iCmd.AddParam("pn", item.ProductName);
+                            iCmd.AddParam("bc", (object?)item.Barcode ?? DBNull.Value);
+                            iCmd.AddParam("q", item.Quantity);
+                            iCmd.AddParam("up", item.UnitPrice);
+                            iCmd.AddParam("vat", item.VatRate);
+                            iCmd.AddParam("tot", item.LineTotal);
                             await iCmd.ExecuteNonQueryAsync();
                         }
                     }
