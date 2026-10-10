@@ -1,0 +1,140 @@
+<Window x:Class="ERP.Desktop.Views.PosBatchSettlementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Toplu POS Tahsilatı (Kabul Et)" Height="620" Width="680"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip" MinHeight="550" MinWidth="580">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık -->
+            <RowDefinition Height="Auto"/> <!-- Özet Kartı -->
+            <RowDefinition Height="*"/>    <!-- Fiş Listesi & Form -->
+            <RowDefinition Height="Auto"/> <!-- Butonlar -->
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="⚡ Toplu POS Tahsilatını Bankaya Aktar" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Bekleyen kredi kartı alacaklarınızı toplu olarak tek işlemle banka hesabınıza tahsil edin." FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Özet Kartı -->
+        <Border Grid.Row="1" Background="#EFF6FF" CornerRadius="10" Padding="16,12" Margin="0,0,0,14" BorderBrush="#BFDBFE" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Bekleyen Fiş Sayısı" FontSize="11" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtBatchCount" Text="0 Fiş" FontSize="18" FontWeight="Bold" Foreground="#1E3A8A" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Toplam Brüt Satış" FontSize="11" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtBatchGross" Text="₺0,00" FontSize="18" FontWeight="Bold" Foreground="#0F172A" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Toplam Komisyon" FontSize="11" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtBatchCommission" Text="-₺0,00" FontSize="18" FontWeight="Bold" Foreground="#DC2626" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="Toplu Net Alacak" FontSize="11" Foreground="#1E40AF" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtBatchNet" Text="₺0,00" FontSize="18" FontWeight="Bold" Foreground="#059669" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- İçerik: Form ve Fiş Listesi -->
+        <Grid Grid.Row="2" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Giriş Alanları -->
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Banka Hesabı -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Yatırılan Banka Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbAccounts" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayText"/>
+                </StackPanel>
+
+                <!-- Yatan Toplam Net Tutar -->
+                <StackPanel Grid.Column="1" Grid.ColumnSpan="2">
+                    <TextBlock Text="Toplu Yatan Net Tutar (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtTotalPaid" Height="36" Padding="10,6" FontSize="15" FontWeight="Bold" Background="White" BorderBrush="#CBD5E1" Foreground="#059669"/>
+                </StackPanel>
+
+                <!-- Tahsilat Tarihi -->
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="Banka Giriş Tarihi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                    <DatePicker x:Name="DpPaymentDate" Height="36" Background="White"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Tahsil Edilecek Fişlerin Listesi -->
+            <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="10" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Tahsil Edilecek Fiş Detayları:" FontWeight="SemiBold" Foreground="#475569" FontSize="12" Margin="4,0,0,6"/>
+                    <DataGrid x:Name="BatchPosGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                              Background="White" RowHeight="32" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                              BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Height" Value="28"/>
+                                <Setter Property="Padding" Value="6,0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Satış Tarihi" Binding="{Binding FormattedSaleDate}" Width="130"/>
+                            <DataGridTextColumn Header="Fiş No" Binding="{Binding SaleId}" Width="80"/>
+                            <DataGridTextColumn Header="Brüt Tutar" Binding="{Binding FormattedGross}" FontWeight="Bold" Width="110"/>
+                            <DataGridTextColumn Header="Komisyon (%)" Binding="{Binding FormattedCommissionRate}" Width="90"/>
+                            <DataGridTextColumn Header="Komisyon" Binding="{Binding FormattedCommission}" Foreground="#DC2626" Width="100"/>
+                            <DataGridTextColumn Header="Net Alacak" Binding="{Binding FormattedNet}" Foreground="#2563EB" FontWeight="Bold" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="#E2E8F0" Padding="0,14,0,0">
+            <Grid>
+                <TextBlock x:Name="TxtBottomHint" Text="Seçilen fişlerin durumu 'Ödendi' yapılacak ve banka bakiyeniz güncellenecektir."
+                           VerticalAlignment="Center" FontSize="11" Foreground="#64748B"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="İptal" Width="100" Height="40" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                    <Button x:Name="BtnConfirmBatch" Content="✅ Toplu Tahsilatı Onayla" Height="40" Padding="18,0" Background="#059669" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

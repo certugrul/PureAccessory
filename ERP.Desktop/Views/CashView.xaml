@@ -1,0 +1,222 @@
+<Page x:Class="ERP.Desktop.Views.CashView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#F8FAFC">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="10,5,10,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Başlık ve Kasa Durumu -->
+                <RowDefinition Height="Auto"/> <!-- Kasa Açılış Kartı (Başlangıç Nakiti) -->
+                <RowDefinition Height="Auto"/> <!-- Metrik Kartları -->
+                <RowDefinition Height="*"/>    <!-- Kasa Hareketleri Tablosu -->
+            </Grid.RowDefinitions>
+
+            <!-- ÜST PANEL -->
+            <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="20,16" Margin="0,0,0,15"
+                    BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Kasa Yönetimi" FontSize="24" FontWeight="Bold" Foreground="#0F172A"/>
+                        <TextBlock Text="Kasadaki toplam nakit, nakit satışlar, masraflar ve banka transferleri takibi" FontSize="13" Foreground="#64748B" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    
+                    <!-- Kasa Durum Rozeti -->
+                    <Border Grid.Column="1" x:Name="StatusBadge" Background="#FEF2F2" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
+                        <TextBlock x:Name="StatusText" Text="🔴 Gün Kapalı / Kasa Kapalı (Açılış Bekliyor)" FontSize="13" FontWeight="Bold" Foreground="#DC2626"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- KASA AÇILIŞ KARTI (BAŞLANGIÇ NAKİTİ GİRİŞİ) -->
+            <Border Grid.Row="1" x:Name="OpeningPanel" Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,15"
+                    BorderBrush="#3B82F6" BorderThickness="1.5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock x:Name="OpeningTitleText" Text="💵 Gün Açılışı &amp; Kasa Devir Nakiti" FontSize="16" FontWeight="Bold" Foreground="#1E293B"/>
+                        <TextBlock Text="Güne başlarken kasadaki devreden nakit tutarını onaylayarak gün açılışı yapın. (Kasa açılışı kasaya artı para eklemez, devreden nakiti belirler)." FontSize="13" Foreground="#64748B" Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Başlangıç Nakiti Input -->
+                        <TextBox x:Name="TxtOpeningCash" Grid.Column="0" Height="42" FontSize="18" FontWeight="Bold"
+                                 Padding="12,6" VerticalContentAlignment="Center" Text="0,00" ToolTip="Kasa devir / başlangıç nakit tutarı"/>
+
+                        <!-- Hızlı Tutar Butonları -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                            <Button Content="+250 ₺" Click="PresetCash_Click" Tag="250" Margin="0,0,6,0" Padding="10,6" Background="#F1F5F9" FontWeight="SemiBold" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="+500 ₺" Click="PresetCash_Click" Tag="500" Margin="0,0,6,0" Padding="10,6" Background="#F1F5F9" FontWeight="SemiBold" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="+1.000 ₺" Click="PresetCash_Click" Tag="1000" Margin="0,0,6,0" Padding="10,6" Background="#F1F5F9" FontWeight="SemiBold" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                        </StackPanel>
+
+                        <!-- Kasayı Aç & Kapat Butonları -->
+                        <StackPanel Grid.Column="3" Orientation="Horizontal">
+                            <Button x:Name="BtnCloseRegister" Content="🏁 Gün Bitişi &amp; Kasayı Kapat" Click="CloseRegister_Click"
+                                    Background="#DC2626" Foreground="White" FontSize="14" FontWeight="Bold"
+                                    Padding="18,10" BorderThickness="0" Margin="0,0,10,0" Cursor="Hand" Visibility="Collapsed">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button x:Name="BtnOpenRegister" Content="🌅 Gün Açılışı Yap (Kasayı Aç)" Click="OpenRegister_Click"
+                                    Background="#059669" Foreground="White" FontSize="15" FontWeight="Bold"
+                                    Padding="24,10" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- METRİK KARTLARI -->
+            <UniformGrid Grid.Row="2" Columns="4" Margin="0,0,0,15">
+                <!-- 1. Başlangıç Nakiti -->
+                <Border Background="White" CornerRadius="12" Margin="0,0,10,0" Padding="18" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Başlangıç Nakiti (Devir)" Foreground="#64748B" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CardOpeningText" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#1E293B" Margin="0,6,0,0"/>
+                        <TextBlock Text="Günün devreden açılış tutarı" FontSize="11" Foreground="#64748B" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 2. Günün Nakit Satışları -->
+                <Border Background="White" CornerRadius="12" Margin="5,0,5,0" Padding="18" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Günün Nakit Satışları" Foreground="#64748B" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CardCashSalesText" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#10B981" Margin="0,6,0,0"/>
+                        <TextBlock Text="Kasaya giren satışlar" FontSize="11" Foreground="#10B981" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 3. Diğer Giriş / Çıkışlar -->
+                <Border Background="White" CornerRadius="12" Margin="5,0,5,0" Padding="18" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="Günün Masraf &amp; Çıkışları" Foreground="#64748B" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CardManualText" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#64748B" Margin="0,6,0,0"/>
+                        <TextBlock Text="Masraflar ve banka aktarımları" FontSize="11" Foreground="#64748B" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 4. Kasadaki Toplam Mevcut Nakit -->
+                <Border Background="White" CornerRadius="12" Margin="10,0,0,0" Padding="18" BorderBrush="#2563EB" BorderThickness="1.5">
+                    <StackPanel>
+                        <TextBlock Text="Kasadaki Toplam Nakit" Foreground="#2563EB" FontSize="13" FontWeight="Bold"/>
+                        <TextBlock x:Name="CardTotalBalanceText" Text="₺0,00" FontSize="26" FontWeight="Bold" Foreground="#2563EB" Margin="0,6,0,0"/>
+                        <TextBlock Text="Kasada fiziksel bulunması gereken para" FontSize="11" Foreground="#64748B" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- HAREKETLER VE İŞLEM PANELİ -->
+            <Border Grid.Row="3" Background="White" CornerRadius="12" Padding="20" BorderBrush="#E2E8F0" BorderThickness="1" MinHeight="350">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Başlık & Aksiyon Butonları -->
+                    <Grid Grid.Row="0" Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Günün Kasa Hareket Dökümü" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+                            <TextBlock Text="Açılış, nakit satışlar, para girişleri ve kasadan yapılan çıkışlar" FontSize="12" Foreground="#64748B" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="➕ Para Ekle" Click="AddCashIn_Click" Margin="0,0,8,0" Padding="14,6"
+                                    Background="#EFF6FF" Foreground="#2563EB" FontWeight="SemiBold" BorderBrush="#BFDBFE" BorderThickness="1" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="➖ Masraf / Para Çık" Click="AddCashOut_Click" Margin="0,0,8,0" Padding="14,6"
+                                    Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold" BorderBrush="#FECACA" BorderThickness="1" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Content="🔄 Yenile" Click="Refresh_Click" Padding="12,6"
+                                    Background="#F1F5F9" Foreground="#334155" FontWeight="SemiBold" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Kasa Hareketleri DataGrid -->
+                    <DataGrid Grid.Row="1" x:Name="LedgerGrid" AutoGenerateColumns="False" Background="White"
+                              BorderBrush="#E2E8F0" BorderThickness="1" RowHeight="38" ColumnHeaderHeight="40"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="Padding" Value="10,0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                            </Style>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Padding" Value="10,0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridCell">
+                                            <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Saat" Binding="{Binding FormattedTime}" Width="110"/>
+                            <DataGridTextColumn Header="İşlem Türü" Binding="{Binding Type}" Width="150"/>
+                            <DataGridTextColumn Header="Açıklama" Binding="{Binding Description}" Width="*"/>
+                            <DataGridTextColumn Header="Tutar" Binding="{Binding FormattedAmount}" Width="140"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</Page>

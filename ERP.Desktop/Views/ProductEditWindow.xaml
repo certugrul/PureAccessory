@@ -1,0 +1,165 @@
+<Window x:Class="ERP.Desktop.Views.ProductEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ürün Tanımlama &amp; Düzenleme" Height="680" Width="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F8FAFC" ShowInTaskbar="False">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <Border Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <TextBlock x:Name="TitleText" Text="Yeni Ürün Ekle" FontSize="22" FontWeight="Bold" Foreground="#0F172A"/>
+                <TextBlock Text="Ürün detaylarını, fiyat, barkod, QR kod ve stok bilgilerini girin." FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- FORM ALANLARI -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,10,0">
+
+                <!-- 1. ÜRÜN KODU VE ADI -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="Ürün Kodu *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtCode" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Ürün Adı *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtName" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 2. BARKOD VE ÖZEL BARKOD ÜRETİCİ -->
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="Barkod (EAN-13 / Standart Barkod)" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtBarcode" Grid.Column="0" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"
+                                 ToolTip="Barkod okuyucuyla okutabilir, elle girebilir veya butondan otomatik üretebilirsiniz."/>
+
+                        <Button Grid.Column="1" Content="⚡ Özel Barkod Üret" Click="GenerateBarcode_Click" Margin="6,0,0,0" Padding="10,0"
+                                Background="#EFF6FF" Foreground="#2563EB" FontWeight="SemiBold" BorderBrush="#BFDBFE" BorderThickness="1" Cursor="Hand"
+                                ToolTip="Geçerli 13 haneli EAN-13 benzersiz barkod üretir">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button Grid.Column="2" Content="🖨️ Yazdır" Click="PrintBarcode_Click" Margin="6,0,0,0" Padding="10,0"
+                                Background="#F1F5F9" Foreground="#334155" FontWeight="SemiBold" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand"
+                                ToolTip="Bu ürün için PDF etiket / barkod baskısı al">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 3. QR KOD TANIMI -->
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="QR Kod Tanımı (Hızlı Satış İçin)" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtQrCode" Grid.Column="0" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" Content="⚡ Otomatik QR" Click="GenerateQr_Click" Margin="8,0,0,0" Padding="12,0"
+                                Background="#F1F5F9" Foreground="#1E293B" FontWeight="SemiBold" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 4. FİYATLAR (ALIŞ & SATIŞ) -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="Alış Fiyatı (₺) *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtPurchasePrice" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Satış Fiyatı (₺) *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtSalePrice" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 5. KDV ORANI VE STOK -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="KDV Oranı (%) *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbVatRate" Height="38" VerticalContentAlignment="Center" FontSize="14">
+                            <ComboBoxItem Content="%20 (Genel Oran)" Tag="20" IsSelected="True"/>
+                            <ComboBoxItem Content="%10 (Gıda / Temel)" Tag="10"/>
+                            <ComboBoxItem Content="%1 (Toptan / Özel)" Tag="1"/>
+                            <ComboBoxItem Content="%0 (Muaf)" Tag="0"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Mevcut Stok (Adet) *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtStock" Height="38" Padding="8,4" FontSize="14" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ALT BUTONLAR -->
+        <Border Grid.Row="2" Margin="0,15,0,0" Padding="0,12,0,0" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Vazgeç" Click="Cancel_Click" Margin="0,0,10,0" Padding="18,10"
+                        Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button Content="💾 Kaydet" Click="Save_Click" Padding="24,10"
+                        Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

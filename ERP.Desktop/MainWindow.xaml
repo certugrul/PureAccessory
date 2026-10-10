@@ -1,0 +1,97 @@
+<Window x:Class="ERP.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pure Accessory Otomasyon" Width="1280" Height="800" WindowStartupLocation="CenterScreen" Background="{DynamicResource PageBrush}">
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="230"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel>
+            <!-- Yuvarlak Avatar Logo (Genişletilmiş Çember) -->
+            <Border Margin="0,18,0,8" HorizontalAlignment="Center">
+              <Grid Width="96" Height="96">
+                <Ellipse Fill="White" Stroke="#3B82F6" StrokeThickness="2.5"/>
+                <Image x:Name="ImgLogo" 
+                       Source="pack://application:,,,/ERP.Desktop;component/Assets/logo.png" 
+                       Width="76" Height="76" 
+                       Stretch="Uniform" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+
+            <!-- Marka Başlığı -->
+            <TextBlock x:Name="TxtBrandTitle" Text="Pure Accessory" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+            <TextBlock x:Name="TxtBrandSubtitle" Text="Otomasyon &amp; Finans" FontSize="10.5" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+            <!-- Aktif Kullanıcı Kartı & Yetki Rozeti -->
+            <Border Margin="14,0,14,14" Background="#1F2937" CornerRadius="10" Padding="12,10" BorderBrush="#374151" BorderThickness="1">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0">
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtUserIcon" Text="👑" FontSize="15" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtUserName" Text="Yönetici (Admin)" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Border Margin="0,4,0,0" x:Name="BadgeUserRole" Background="#1E3A8A" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                    <TextBlock x:Name="TxtUserRole" Text="Tam Yetki (Admin)" FontSize="10" FontWeight="SemiBold" Foreground="#93C5FD"/>
+                  </Border>
+                </StackPanel>
+                <Button Grid.Row="1" Content="🔄 Kullanıcı Değiştir" Click="SwitchUser_Click" Margin="0,8,0,0"
+                        Background="#111827" Foreground="#9CA3AF" BorderBrush="#374151" BorderThickness="1"
+                        FontSize="11" FontWeight="SemiBold" Padding="0,5" Cursor="Hand">
+                  <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+              </Grid>
+            </Border>
+
+            <Button x:Name="BtnNavSales" Content="Satış" Click="Sales_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavProducts" Content="Ürünler" Click="Products_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavWarehouse" Content="Depo" Click="Warehouse_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavCari" Content="Cari" Click="Cari_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavCash" Content="Kasa" Click="Cash_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavBank" Content="Banka" Click="Bank_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavDebts" Content="Borç &amp; Finans" Click="Debts_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavInvoices" Content="Faturalar" Click="Invoices_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavReports" Content="Raporlar" Click="Reports_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavDashboard" Content="Yönetim Paneli" Click="Dashboard_Click" Style="{StaticResource NavButton}"/>
+            <Button x:Name="BtnNavUsers" Content="Kullanıcı Yönetimi" Click="Users_Click" Style="{StaticResource NavButton}"/>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Sol Alt: Ayarlar Butonu -->
+        <Border Grid.Row="1" BorderBrush="#1F2937" BorderThickness="0,1,0,0" Padding="12,10" Background="#0B0F19">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="BtnNavSettings" Click="Settings_Click" Grid.Column="0"
+                    Background="Transparent" Foreground="#CBD5E1" BorderThickness="0"
+                    FontSize="13" FontWeight="SemiBold" Cursor="Hand" Padding="10,8" HorizontalContentAlignment="Left">
+              <Button.Resources>
+                <Style TargetType="Border">
+                  <Setter Property="CornerRadius" Value="8"/>
+                </Style>
+              </Button.Resources>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="⚙️" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Ayarlar" VerticalAlignment="Center" Foreground="#CBD5E1" FontWeight="SemiBold"/>
+              </StackPanel>
+            </Button>
+            <Border Grid.Column="1" VerticalAlignment="Center" Margin="0,0,6,0" Background="#1E293B" CornerRadius="6" Padding="6,2" BorderBrush="#334155" BorderThickness="1">
+              <TextBlock x:Name="TxtSidebarVersion" Text="v1.0.7" FontSize="10.5" FontWeight="Bold" Foreground="#38BDF8"/>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+    </Border>
+    <Frame x:Name="MainFrame" Grid.Column="1" NavigationUIVisibility="Hidden" Margin="20"/>
+  </Grid>
+</Window>

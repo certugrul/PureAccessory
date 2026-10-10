@@ -1,0 +1,572 @@
+<Page x:Class="ERP.Desktop.Views.BankView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#F8FAFC">
+
+    <Grid Margin="15,10,15,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Üst Başlık & Butonlar -->
+            <RowDefinition Height="Auto"/> <!-- Özet İstatistik Kartları -->
+            <RowDefinition Height="*"/>    <!-- Sekmeler & Tablolar -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. ÜST PANEL -->
+        <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="20,16" Margin="0,0,0,15"
+                BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="🏦 Banka ve POS Yönetimi" FontSize="24" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock Text="Banka hesaplarınızı, POS kredi kartı alacaklarınızı, transferleri ve hesap mutabakatını yönetin"
+                               FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Para Girişi Butonu -->
+                    <Button Content="➕ Para Girişi" Click="AddInflow_Click" Margin="0,0,8,0"
+                            Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <!-- Para Çıkışı Butonu -->
+                    <Button Content="➖ Para Çıkışı" Click="AddOutflow_Click" Margin="0,0,8,0"
+                            Background="#DC2626" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <!-- Kasa - Banka Transferi Butonu -->
+                    <Button Content="↔ Kasa Transferi" Click="Transfer_Click" Margin="0,0,8,0"
+                            Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <!-- Mutabakat Butonu -->
+                    <Button Content="🔄 Mutabakat" Click="Reconciliation_Click" Margin="0,0,8,0"
+                            Background="#6366F1" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <!-- Yeni Hesap Butonu -->
+                    <Button Content="➕ Yeni Banka Hesabı" Click="CreateAccount_Click"
+                            Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. ÖZET İSTATİSTİK KARTLARI -->
+        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,15">
+            <!-- Toplam Banka Bakiyesi -->
+            <Border Background="White" CornerRadius="12" Margin="0,0,6,0" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Toplam Banka Bakiyesi" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtTotalBalance" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtTotalBalanceSub" Text="Kayıtlı aktif hesaplar" FontSize="11" Foreground="#64748B" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bugünkü Para Girişi -->
+            <Border Background="White" CornerRadius="12" Margin="6,0,6,0" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Bugünkü Para Girişi" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtTodayInflow" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#059669" Margin="0,5,0,0"/>
+                    <TextBlock Text="Havale, EFT, POS ve transfer" FontSize="11" Foreground="#059669" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bugünkü Para Çıkışı -->
+            <Border Background="White" CornerRadius="12" Margin="6,0,6,0" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Bugünkü Para Çıkışı" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtTodayOutflow" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#DC2626" Margin="0,5,0,0"/>
+                    <TextBlock Text="Tedarikçi ve masraflar" FontSize="11" Foreground="#DC2626" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bekleyen POS Ödemesi (Brüt) -->
+            <Border Background="White" CornerRadius="12" Margin="6,0,6,0" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Bekleyen POS (Brüt)" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtPendingGrossPos" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#D97706" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtPendingGrossSub" Text="Kredi kartı satış cirosu" FontSize="11" Foreground="#D97706" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bekleyen Net POS (Net Alacak) -->
+            <Border Background="White" CornerRadius="12" Margin="6,0,0,0" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Bekleyen Net POS" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TxtPendingNetPos" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#2563EB" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtPendingNetSub" Text="Komisyon düşüldü" FontSize="11" Foreground="#2563EB" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- 3. İÇERİK SEKMELERİ -->
+        <Border Grid.Row="2" Background="White" CornerRadius="14" Padding="18" BorderBrush="#E2E8F0" BorderThickness="1">
+            <TabControl x:Name="MainTabs" Background="Transparent" BorderThickness="0">
+                
+                <!-- SEKME 1: BANKA HESAPLARI -->
+                <TabItem Header="🏦 Banka Hesapları" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,15,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Üst Bilgi & Yenile -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <TextBlock Text="Kayıtlı Banka Hesapları ve Bakiyeleri" FontSize="16" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                            <Button Content="🔄 Yenile" Click="Refresh_Click" HorizontalAlignment="Right"
+                                    Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" Padding="14,6" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                            </Button>
+                        </Grid>
+
+                        <!-- Tablo -->
+                        <DataGrid x:Name="AccountsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="42" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="36"/>
+                                    <Setter Property="Padding" Value="10,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Banka Adı" Binding="{Binding BankName}" FontWeight="Bold" Width="140"/>
+                                <DataGridTextColumn Header="Hesap Adı" Binding="{Binding AccountName}" Width="160"/>
+                                <DataGridTextColumn Header="IBAN" Binding="{Binding Iban}" Width="230"/>
+                                <DataGridTextColumn Header="POS Komisyonu" Binding="{Binding FormattedCommissionRate}" Width="110"/>
+                                <DataGridTextColumn Header="Sistem Bakiyesi" Binding="{Binding FormattedCurrentBalance}" FontWeight="Bold" Width="130"/>
+                                <DataGridTextColumn Header="Gerçek Bakiye" Binding="{Binding FormattedActualBalance}" Width="130"/>
+                                <DataGridTextColumn Header="Mutabakat Farkı" Binding="{Binding FormattedReconciliationDiff}" Width="120"/>
+                                <DataGridTextColumn Header="Durum" Binding="{Binding ReconciliationStatus}" Width="120"/>
+
+                                <!-- İşlemler Kolonu -->
+                                <DataGridTemplateColumn Header="İşlemler" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="✏️ Düzenle" Click="EditAccount_Click" Padding="8,4" Margin="0,0,6,0"
+                                                        Background="#F1F5F9" Foreground="#2563EB" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🔄 Mutabakat" Click="AccountReconciliation_Click" Padding="8,4" Margin="0,0,6,0"
+                                                        Background="#EFF6FF" Foreground="#0284C7" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🗑️ Sil" Click="DeleteAccount_Click" Padding="8,4"
+                                                        Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- SEKME 2: HAREKETLER -->
+                <TabItem Header="📋 Banka Hareketleri" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,15,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Filtre Çubuğu -->
+                            <RowDefinition Height="*"/>    <!-- Hareket Tablosu -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Filtre Çubuğu -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="8" Padding="12" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/> <!-- Başlangıç Tarihi -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Bitiş Tarihi -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Hesap Seçici -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Yön / Tür Seçici -->
+                                    <ColumnDefinition Width="*"/>    <!-- Arama Kutusu -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Filtrele Butonu -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Başlangıç Tarihi -->
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock Text="Başlangıç" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <DatePicker x:Name="DpTxStart" Width="120" Height="32"/>
+                                </StackPanel>
+
+                                <!-- Bitiş Tarihi -->
+                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                    <TextBlock Text="Bitiş" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <DatePicker x:Name="DpTxEnd" Width="120" Height="32"/>
+                                </StackPanel>
+
+                                <!-- Banka Hesabı -->
+                                <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                    <TextBlock Text="Banka Hesabı" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <ComboBox x:Name="CmbTxAccount" Width="160" Height="32" DisplayMemberPath="AccountName"/>
+                                </StackPanel>
+
+                                <!-- İşlem Yönü -->
+                                <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                                    <TextBlock Text="Yön" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <ComboBox x:Name="CmbTxDirection" Width="110" Height="32">
+                                        <ComboBoxItem Content="Tümü" IsSelected="True"/>
+                                        <ComboBoxItem Content="Giriş"/>
+                                        <ComboBoxItem Content="Çıkış"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <!-- Arama Kutusu -->
+                                <StackPanel Grid.Column="4" Margin="0,0,10,0">
+                                    <TextBlock Text="Açıklama / Arama" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="TxtTxSearch" Height="32" Padding="6,4" TextChanged="TxSearch_TextChanged"/>
+                                </StackPanel>
+
+                                <!-- Filtrele Butonu -->
+                                <Button Grid.Column="5" Content="🔍 Filtrele" Click="FilterTransactions_Click" VerticalAlignment="Bottom"
+                                        Height="32" Padding="14,0" Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Hareketler DataGrid -->
+                        <DataGrid x:Name="TransactionsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="38" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="34"/>
+                                    <Setter Property="Padding" Value="8,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tarih / Saat" Binding="{Binding FormattedDate}" Width="130"/>
+                                <DataGridTextColumn Header="Banka Hesabı" Binding="{Binding BankAccountName}" Width="180"/>
+                                <DataGridTextColumn Header="İşlem Türü" Binding="{Binding TransactionType}" FontWeight="SemiBold" Width="140"/>
+                                <DataGridTextColumn Header="Ödeme Yöntemi" Binding="{Binding PaymentMethod}" Width="110"/>
+                                <DataGridTextColumn Header="Giriş (+)" Binding="{Binding FormattedInflow}" Foreground="#059669" FontWeight="Bold" Width="120"/>
+                                <DataGridTextColumn Header="Çıkış (-)" Binding="{Binding FormattedOutflow}" Foreground="#DC2626" FontWeight="Bold" Width="120"/>
+                                <DataGridTextColumn Header="Bakiye" Binding="{Binding FormattedBalance}" FontWeight="Bold" Width="120"/>
+                                <DataGridTextColumn Header="Açıklama" Binding="{Binding Description}" Width="*"/>
+
+                                <!-- İşlem Kolonu -->
+                                <DataGridTemplateColumn Header="İşlem" Width="85">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="🗑️ Sil" Click="DeleteTransaction_Click"
+                                                    Padding="8,4" Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold"
+                                                    BorderThickness="0" Cursor="Hand" ToolTip="Bu hareketi sil ve hesap bakiyesini düzelt">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- SEKME 3: BEKLEYEN POS ALACAKLARI -->
+                <TabItem Header="💳 Bekleyen POS Alacakları" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,15,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Toplu Tahsilat Bilgi ve Hızlı İşlem Şeridi -->
+                            <RowDefinition Height="*"/>    <!-- POS Tablosu -->
+                        </Grid.RowDefinitions>
+
+                        <!-- 1. Toplu Tahsilat Bilgi ve Hızlı İşlem Şeridi -->
+                        <Border Grid.Row="0" Background="#EFF6FF" CornerRadius="10" Padding="16,12" Margin="0,0,0,12" BorderBrush="#BFDBFE" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/> <!-- Durum Filtresi -->
+                                    <ColumnDefinition Width="*"/>    <!-- Toplu Tutar Bilgileri -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Toplu Kabul Et Butonu -->
+                                    <ColumnDefinition Width="Auto"/> <!-- Yenile Butonu -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Durum Filtresi -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <TextBlock Text="Durum:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E40AF" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="CmbPosStatus" Width="120" Height="34" SelectionChanged="PosStatus_SelectionChanged">
+                                        <ComboBoxItem Content="Tümü"/>
+                                        <ComboBoxItem Content="Bekliyor"/>
+                                        <ComboBoxItem Content="Ödendi"/>
+                                        <ComboBoxItem Content="Gecikti"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <!-- Toplu Tutar Göstergesi -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Bekleyen: " FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtBatchCountLabel" Text="0 Fiş" FontSize="12" FontWeight="Bold" Foreground="#1E293B"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Toplam Brüt: " FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtBatchGrossLabel" Text="₺0,00" FontSize="12" FontWeight="Bold" Foreground="#0F172A"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Komisyon: " FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtBatchCommissionLabel" Text="-₺0,00" FontSize="12" FontWeight="SemiBold" Foreground="#DC2626"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#ECFDF5" CornerRadius="6" Padding="12,6" BorderBrush="#A7F3D0" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Toplu Net: " FontSize="12" FontWeight="SemiBold" Foreground="#065F46"/>
+                                            <TextBlock x:Name="TxtBatchNetLabel" Text="₺0,00" FontSize="13" FontWeight="Bold" Foreground="#059669"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Toplu Kabul Et Butonu -->
+                                <Button Grid.Column="2" x:Name="BtnBatchSettle" Content="⚡ Toplu Kabul Et" Click="BatchSettlePos_Click" Margin="0,0,8,0"
+                                        Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13" Padding="16,8" BorderThickness="0" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+
+                                <!-- Yenile Butonu -->
+                                <Button Grid.Column="3" Content="🔄 Yenile" Click="RefreshPos_Click"
+                                        Background="White" Foreground="#475569" FontWeight="SemiBold" Padding="12,8" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- POS DataGrid -->
+                        <DataGrid x:Name="PosGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="42" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="34"/>
+                                    <Setter Property="Padding" Value="8,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Satış Tarihi" Binding="{Binding FormattedSaleDate}" Width="130"/>
+                                <DataGridTextColumn Header="Fiş No" Binding="{Binding SaleId}" Width="80"/>
+                                <DataGridTextColumn Header="Brüt Tutar" Binding="{Binding FormattedGross}" FontWeight="Bold" Width="120"/>
+                                <DataGridTextColumn Header="Komisyon (%)" Binding="{Binding FormattedCommissionRate}" Width="100"/>
+                                <DataGridTextColumn Header="Komisyon Tutarı" Binding="{Binding FormattedCommission}" Foreground="#DC2626" Width="120"/>
+                                <DataGridTextColumn Header="Net Alacak" Binding="{Binding FormattedNet}" Foreground="#2563EB" FontWeight="Bold" Width="130"/>
+                                <DataGridTextColumn Header="Beklenen Vade" Binding="{Binding FormattedExpectedDate}" Width="110"/>
+                                <DataGridTextColumn Header="Durum" Binding="{Binding StatusBadge}" FontWeight="SemiBold" Width="110"/>
+
+                                <!-- Tahsilat Aksiyonu -->
+                                <DataGridTemplateColumn Header="İşlem" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="💳 Ödeme Geldi" Click="SettlePos_Click"
+                                                    Visibility="{Binding SettleButtonVisibility}"
+                                                    Padding="10,4" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- SEKME 4: BUGÜNÜN ÖZETİ -->
+                <TabItem Header="📊 Bugünün Özeti" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                        <StackPanel Margin="0,15,0,20">
+                            <!-- Başlık & Tarih -->
+                            <Grid Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="📅 Günlük Banka ve Finansal Akış Özeti" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Günün banka hesapları, kredi kartı POS alacakları ve para hareketlerinin net mali dengesi"
+                                               FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- 1. Üst Bakiye Karşılaştırma Bandı -->
+                            <Border Background="#F8FAFC" CornerRadius="12" Padding="20,16" Margin="0,0,0,18" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Dünden Devreden Açılış -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="DÜNDEN DEVREDEN AÇILIŞ" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
+                                        <TextBlock x:Name="TxtSummaryOpening" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,0"/>
+                                        <TextBlock Text="Güne başlanan banka mevcudu" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                                    </StackPanel>
+
+                                    <Rectangle Grid.Column="1" Width="1" Fill="#CBD5E1" Margin="20,0"/>
+
+                                    <!-- Gün İçi Net Değişim -->
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="GÜN İÇİ NET DEĞİŞİM" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
+                                        <TextBlock x:Name="TxtSummaryNetChange" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#2563EB" Margin="0,6,0,0"/>
+                                        <TextBlock Text="Toplam Girişler - Toplam Çıkışlar" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                                    </StackPanel>
+
+                                    <Rectangle Grid.Column="3" Width="1" Fill="#CBD5E1" Margin="20,0"/>
+
+                                    <!-- Güncel Toplam Bakiye -->
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="GÜNCEL TOPLAM BANKA BAKİYESİ" FontSize="11" FontWeight="Bold" Foreground="#1E40AF"/>
+                                        <TextBlock x:Name="TxtSummaryClosing" Text="₺0,00" FontSize="24" FontWeight="Bold" Foreground="#1D4ED8" Margin="0,6,0,0"/>
+                                        <TextBlock Text="Tüm aktif hesapların toplamı" FontSize="11" Foreground="#3B82F6" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- 2. 3 Kolonlu Detay Kartları -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Kart 1: POS ve Kredi Kartı Alacakları -->
+                                <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="18" BorderBrush="#FEF3C7" BorderThickness="1.5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                            <Border Background="#FEF3C7" CornerRadius="6" Padding="6,4" Margin="0,0,8,0">
+                                                <TextBlock Text="💳" FontSize="14"/>
+                                            </Border>
+                                            <TextBlock Text="POS &amp; Kredi Kartı Satışları" FontSize="14" FontWeight="Bold" Foreground="#92400E" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,8,0,6">
+                                            <TextBlock Text="Günün POS Satış Cirosu:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryPosGross" Text="₺0,00" FontSize="13" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="POS Komisyon Kesintisi:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryPosCommission" Text="-₺0,00" FontSize="13" FontWeight="SemiBold" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Separator Background="#F1F5F9" Margin="0,6"/>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="Bankaya Geçecek Net POS:" FontSize="12" FontWeight="SemiBold" Foreground="#1E40AF"/>
+                                            <TextBlock x:Name="TxtSummaryPosNet" Text="₺0,00" FontSize="14" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Border Background="#FEFCE8" CornerRadius="6" Padding="8" Margin="0,10,0,0">
+                                            <TextBlock Text="Satışlar anında POS alacağına geçer, 'Ödeme Geldi' veya 'Toplu Kabul Et' ile bankaya aktarılır." FontSize="11" Foreground="#A16207" TextWrapping="Wrap"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Kart 2: Bankaya Para Girişleri -->
+                                <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="18" BorderBrush="#D1FAE5" BorderThickness="1.5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                            <Border Background="#D1FAE5" CornerRadius="6" Padding="6,4" Margin="0,0,8,0">
+                                                <TextBlock Text="📥" FontSize="14"/>
+                                            </Border>
+                                            <TextBlock Text="Bugün Bankaya Girenler" FontSize="14" FontWeight="Bold" Foreground="#065F46" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,8,0,6">
+                                            <TextBlock Text="Yatan POS Tahsilatları:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryPosInflow" Text="+₺0,00" FontSize="13" FontWeight="Bold" Foreground="#059669" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="Dışarıdan / Sermaye / Havale:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryExtInflow" Text="+₺0,00" FontSize="13" FontWeight="Bold" Foreground="#059669" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Separator Background="#F1F5F9" Margin="0,6"/>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="Toplam Banka Girişi:" FontSize="12" FontWeight="SemiBold" Foreground="#065F46"/>
+                                            <TextBlock x:Name="TxtSummaryTotalInflow" Text="+₺0,00" FontSize="14" FontWeight="Bold" Foreground="#059669" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Border Background="#F0FDF4" CornerRadius="6" Padding="8" Margin="0,10,0,0">
+                                            <TextBlock Text="Bankaya fiilen giren paralar anlık hesap bakiyenize eklenir." FontSize="11" Foreground="#15803D" TextWrapping="Wrap"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Kart 3: Bankadan Para Çıkışları -->
+                                <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="18" BorderBrush="#FEE2E2" BorderThickness="1.5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                            <Border Background="#FEE2E2" CornerRadius="6" Padding="6,4" Margin="0,0,8,0">
+                                                <TextBlock Text="📤" FontSize="14"/>
+                                            </Border>
+                                            <TextBlock Text="Bugün Bankadan Çıkanlar" FontSize="14" FontWeight="Bold" Foreground="#991B1B" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <Grid Margin="0,8,0,6">
+                                            <TextBlock Text="Tedarikçi Ödemeleri &amp; Gider:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryOutflow" Text="-₺0,00" FontSize="13" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="Kasaya Nakit Çekim / Transfer:" FontSize="12" Foreground="#64748B"/>
+                                            <TextBlock x:Name="TxtSummaryTransferOut" Text="₺0,00" FontSize="13" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Separator Background="#F1F5F9" Margin="0,6"/>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="Toplam Banka Çıkışı:" FontSize="12" FontWeight="SemiBold" Foreground="#991B1B"/>
+                                            <TextBlock x:Name="TxtSummaryTotalOutflow" Text="-₺0,00" FontSize="14" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Border Background="#FEF2F2" CornerRadius="6" Padding="8" Margin="0,10,0,0">
+                                            <TextBlock Text="Tedarikçi ödemesi ve masraflar hesap bakiyesinden anında düşer." FontSize="11" Foreground="#B91C1C" TextWrapping="Wrap"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+            </TabControl>
+        </Border>
+    </Grid>
+</Page>

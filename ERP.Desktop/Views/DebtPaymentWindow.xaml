@@ -1,0 +1,169 @@
+<Window x:Class="ERP.Desktop.Views.DebtPaymentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Borç &amp; Kredi Ödeme İşlemi" Width="580" Height="700"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC" ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık -->
+            <RowDefinition Height="Auto"/> <!-- Borç Bilgi Özeti -->
+            <RowDefinition Height="*"/>    <!-- Ödeme Girişleri & Dağıtım Önizlemesi -->
+            <RowDefinition Height="Auto"/> <!-- Butonlar -->
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <Border Grid.Row="0" Background="#0F172A" CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Text="💳 Finansal Borç / Kart Ödeme Motoru" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="Ödeme öncelik motoru: Faiz ➔ Yasal Vergiler ➔ Masraflar ➔ Anapara sırasıyla dağıtılır."
+                           FontSize="11" Foreground="#94A3B8" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- BORÇ BİLGİ ÖZETİ -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="14" Margin="0,0,0,14"
+                BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0">
+                    <TextBlock Text="Borç / Kurum:" Foreground="#64748B" FontSize="11"/>
+                    <TextBlock x:Name="TxtDebtTitle" Text="-" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="1">
+                    <TextBlock Text="Kalan Saf Anapara:" Foreground="#64748B" FontSize="11"/>
+                    <TextBlock x:Name="TxtPrincipal" Text="₺0,00" FontWeight="Bold" FontSize="13" Foreground="#1E293B"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="2">
+                    <TextBlock Text="Birikmiş Faiz + Vergi:" Foreground="#64748B" FontSize="11"/>
+                    <TextBlock x:Name="TxtAccruedInterestTax" Text="₺0,00" FontWeight="Bold" FontSize="13" Foreground="#D97706"/>
+                </StackPanel>
+
+                <Border Grid.Row="1" Grid.ColumnSpan="3" Background="#FEF2F2" CornerRadius="6" Padding="10,6" Margin="0,10,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="SpaceBetween">
+                        <TextBlock Text="Toplam Ödenmesi Gereken Borç:" FontWeight="SemiBold" Foreground="#991B1B" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtTotalDebt" Text="₺0,00" FontWeight="Bold" FontSize="15" Foreground="#DC2626" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- GİRİŞ ALANLARI & DAĞITIM -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,0,10">
+                <!-- Hızlı Tutar Butonları -->
+                <TextBlock Text="Ödeme Tutarı Seçimi:" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6" Foreground="#334155"/>
+                <UniformGrid Columns="3" Margin="0,0,0,10">
+                    <Button x:Name="BtnFullPay" Content="Tam Borcu Kapat" Click="BtnFullPay_Click"
+                            Background="#DC2626" Foreground="White" FontWeight="Bold" FontSize="11"
+                            Padding="6,8" Margin="0,0,4,0" Cursor="Hand" BorderThickness="0">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                    <Button x:Name="BtnMinPay" Content="Asgari Tutar" Click="BtnMinPay_Click"
+                            Background="#D97706" Foreground="White" FontWeight="Bold" FontSize="11"
+                            Padding="6,8" Margin="2,0,2,0" Cursor="Hand" BorderThickness="0">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                    <Button x:Name="BtnInstallmentPay" Content="1 Taksit Tutarı" Click="BtnInstallmentPay_Click"
+                            Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="11"
+                            Padding="6,8" Margin="4,0,0,0" Cursor="Hand" BorderThickness="0">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                </UniformGrid>
+
+                <!-- Tutar Girişi -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                        <TextBlock Text="Ödenecek Tutar (₺):" FontWeight="SemiBold" FontSize="12" Foreground="#334155"/>
+                        <TextBox x:Name="TxtPaymentAmount" Height="34" FontSize="14" FontWeight="Bold"
+                                 Padding="8,4" TextChanged="TxtPaymentAmount_TextChanged" Margin="0,4,0,0">
+                            <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></TextBox.Resources>
+                        </TextBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                        <TextBlock Text="Ödeme Tarihi:" FontWeight="SemiBold" FontSize="12" Foreground="#334155"/>
+                        <DatePicker x:Name="DpPaymentDate" Height="34" Margin="0,4,0,0" SelectedDateChanged="DpPaymentDate_SelectedDateChanged"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Ödeme Kaynağı -->
+                <TextBlock Text="Ödeme Kaynağı (Paranın Çıkacağı Hesap):" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbPaymentSource" Height="34" FontSize="12" Margin="0,0,0,12" SelectionChanged="CmbPaymentSource_SelectionChanged"/>
+
+                <!-- DAĞITIM SİMÜLASYONU ÖNİZLEME KUTUSU -->
+                <Border Background="#F1F5F9" CornerRadius="8" Padding="14,10" Margin="0,4,0,10" BorderBrush="#CBD5E1" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="📊 Otomatik Ödeme Dağıtım Önizlemesi" FontWeight="Bold" FontSize="12" Foreground="#0F172A" Margin="0,0,0,8"/>
+
+                        <Grid Margin="0,2">
+                            <TextBlock Text="1. Faiz Payı (Kapatılan Net Faiz):" FontSize="11" Foreground="#475569"/>
+                            <TextBlock x:Name="TxtSimInterest" Text="₺0,00" FontSize="11" FontWeight="Bold" Foreground="#D97706" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Grid Margin="0,2">
+                            <TextBlock Text="2. Vergi Payı (KKDF %15 + BSMV %5):" FontSize="11" Foreground="#475569"/>
+                            <TextBlock x:Name="TxtSimTax" Text="₺0,00" FontSize="11" FontWeight="Bold" Foreground="#D97706" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Grid Margin="0,2">
+                            <TextBlock Text="3. Anapara Payı (Kalan Anaparadan Düşen):" FontSize="11" Foreground="#475569"/>
+                            <TextBlock x:Name="TxtSimPrincipal" Text="₺0,00" FontSize="11" FontWeight="Bold" Foreground="#059669" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Separator Margin="0,6" Background="#CBD5E1"/>
+
+                        <Grid Margin="0,2">
+                            <TextBlock Text="İşlem Sonrası Kalan Saf Anapara:" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B"/>
+                            <TextBlock x:Name="TxtSimRemainingPrincipal" Text="₺0,00" FontSize="11" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Grid Margin="0,2">
+                            <TextBlock Text="İşlem Sonrası Kalan Toplam Borç:" FontSize="12" FontWeight="Bold" Foreground="#DC2626"/>
+                            <TextBlock x:Name="TxtSimRemainingTotal" Text="₺0,00" FontSize="12" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Açıklama / Not -->
+                <TextBlock Text="Açıklama / Dekont Notu:" FontWeight="SemiBold" FontSize="11" Foreground="#64748B" Margin="0,0,0,3"/>
+                <TextBox x:Name="TxtNotes" Height="30" Padding="6,4" FontSize="11">
+                    <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></TextBox.Resources>
+                </TextBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- BUTONLAR -->
+        <Border Grid.Row="3" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Click="Cancel_Click" Width="90" Height="36"
+                        Background="#E2E8F0" Foreground="#334155" FontWeight="SemiBold" FontSize="12"
+                        Margin="0,0,8,0" Cursor="Hand" BorderThickness="0">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+
+                <Button x:Name="BtnConfirmPayment" Content="💾 Ödemeyi Onayla ve İşle" Click="ConfirmPayment_Click"
+                        Width="190" Height="36" Background="#059669" Foreground="White"
+                        FontWeight="Bold" FontSize="13" Cursor="Hand" BorderThickness="0">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

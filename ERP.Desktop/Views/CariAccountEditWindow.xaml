@@ -1,0 +1,61 @@
+<Window x:Class="ERP.Desktop.Views.CariAccountEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cari Kart Tanımla / Düzenle" Height="520" Width="470" MinHeight="480" MinWidth="440"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock x:Name="TxtTitle" Text="👥 Yeni Cari Kart" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Müşteri veya tedarikçi cari hesap bilgilerini girin." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Form Alanları -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Cari Türü -->
+                <TextBlock Text="Cari Türü *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbType" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                    <ComboBoxItem Content="Müşteri" IsSelected="True"/>
+                    <ComboBoxItem Content="Tedarikçi"/>
+                    <ComboBoxItem Content="Diğer"/>
+                </ComboBox>
+
+                <!-- Ünvan / Ad -->
+                <TextBlock Text="Cari Ünvanı / Adı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtName" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+
+                <!-- Telefon -->
+                <TextBlock Text="Telefon" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtPhone" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+
+                <!-- Vergi No / TC -->
+                <TextBlock Text="Vergi No / T.C." FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtTaxNo" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+
+                <!-- Adres -->
+                <TextBlock Text="Adres" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtAddress" Height="50" Padding="8,6" Background="White" BorderBrush="#CBD5E1" TextWrapping="Wrap" AcceptsReturn="True"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="95" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+                <Button Content="💾 Kaydet" Width="120" Height="38" Background="#2563EB" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

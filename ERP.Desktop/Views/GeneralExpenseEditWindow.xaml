@@ -1,0 +1,75 @@
+<Window x:Class="ERP.Desktop.Views.GeneralExpenseEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Genel Gider Tanımı" Height="480" Width="440" MinHeight="440" MinWidth="400"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock x:Name="TxtHeading" Text="🏢 Düzenli Genel Gider Tanımla" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Her ay düzenli olarak takvimde yer alacak sabit işletme masrafı." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Başlık -->
+                <TextBlock Text="Gider / Masraf Adı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtTitle" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1" ToolTip="Örn: İşyeri / Dükkan Kirası, Muhasebe Ücreti"/>
+
+                <!-- Kategori -->
+                <TextBlock Text="Kategori *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <ComboBox x:Name="CmbCategory" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                    <ComboBoxItem Content="Kira" IsSelected="True"/>
+                    <ComboBoxItem Content="Fatura"/>
+                    <ComboBoxItem Content="Maaş/SGK"/>
+                    <ComboBoxItem Content="Vergi"/>
+                    <ComboBoxItem Content="Tedarikçi"/>
+                    <ComboBoxItem Content="Diğer"/>
+                </ComboBox>
+
+                <!-- Tutar ve Gün (Yan Yana) -->
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="120"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Aylık Tutar (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtAmount" Height="38" Padding="10,6" FontSize="15" FontWeight="Bold" Foreground="#059669" Background="White" BorderBrush="#CBD5E1"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Her Ayın Günü *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtDayOfMonth" Text="15" Height="38" Padding="10,6" FontSize="15" FontWeight="Bold" HorizontalContentAlignment="Center" Background="White" BorderBrush="#CBD5E1" ToolTip="1 ile 31 arasında gün numarası"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Açıklama -->
+                <TextBlock Text="Açıklama / Not" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,14,0,4"/>
+                <TextBox x:Name="TxtDesc" Height="50" Padding="8,6" Background="White" BorderBrush="#CBD5E1" TextWrapping="Wrap" AcceptsReturn="True"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="90" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" 
+                        Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+                <Button Content="💾 Kaydet" Width="120" Height="38" Background="#2563EB" Foreground="White" 
+                        FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

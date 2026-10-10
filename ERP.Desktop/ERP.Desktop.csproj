@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ERP.Desktop</RootNamespace>
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
+    <Version>1.0.7</Version>
+    <AssemblyVersion>1.0.7.0</AssemblyVersion>
+    <FileVersion>1.0.7.0</FileVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.2" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\**\*" />
+    <Content Include="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="Tools\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project> 

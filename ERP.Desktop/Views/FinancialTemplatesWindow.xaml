@@ -1,0 +1,240 @@
+<Window x:Class="ERP.Desktop.Views.FinancialTemplatesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Şablonları &amp; Borçları Yönet" Height="680" Width="920" MinHeight="550" MinWidth="800"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Üst Başlık -->
+            <RowDefinition Height="*"/>    <!-- Sekmeler -->
+            <RowDefinition Height="Auto"/> <!-- Alt Kapat Butonu -->
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="18,14" Margin="0,0,0,16" BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="⚙️ Genel Gider Şablonları &amp; Vadeli Borçlar" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock Text="Aylık düzenli işletme giderlerini yönetin; vadeli borçlarınızı takip edin (ödendikçe düşer, bittiğinde takvimden kalkar)." 
+                               FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="🔄 Yenile" Click="RefreshAll_Click" VerticalAlignment="Center"
+                        Background="#F1F5F9" Foreground="#334155" FontWeight="SemiBold" Padding="14,8" BorderBrush="#CBD5E1" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- SEKMELER -->
+        <Border Grid.Row="1" Background="White" CornerRadius="12" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1">
+            <TabControl Background="Transparent" BorderThickness="0">
+
+                <!-- SEKME 1: DÜZENLİ GENEL GİDERLER -->
+                <TabItem Header="🏢 Düzenli Genel Giderler (Sürekli Masraflar)" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,14,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Araç Çubuğu -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="8" Padding="12,10" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Her ay düzenli olarak takvimde hatırlatılan sabit masraflarınız" FontSize="12" Foreground="#64748B"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="➕ Yeni Genel Gider Ekle" Click="AddExpense_Click" Margin="0,0,8,0"
+                                            Background="#2563EB" Foreground="White" FontWeight="Bold" Padding="14,8" BorderThickness="0" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+
+                                    <Button Content="⚡ Varsayılanları Yükle" Click="ResetExpenses_Click"
+                                            Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" Padding="12,8" BorderBrush="#CBD5E1" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Tablo -->
+                        <DataGrid x:Name="ExpensesGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="40" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="36"/>
+                                    <Setter Property="Padding" Value="10,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Gider / Masraf Adı" Binding="{Binding Title}" FontWeight="Bold" Width="220"/>
+                                <DataGridTextColumn Header="Kategori" Binding="{Binding Category}" Width="110"/>
+                                <DataGridTextColumn Header="Aylık Tutar" Binding="{Binding FormattedAmount}" FontWeight="Bold" Width="130"/>
+                                <DataGridTextColumn Header="Her Ayın Günü" Binding="{Binding DayOfMonth}" Width="110"/>
+                                <DataGridTextColumn Header="Açıklama" Binding="{Binding Description}" Width="*"/>
+
+                                <DataGridTemplateColumn Header="İşlemler" Width="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="✏️ Düzenle" Click="EditExpense_Click" Padding="8,4" Margin="0,0,6,0"
+                                                        Background="#F1F5F9" Foreground="#2563EB" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🗑️ Sil" Click="DeleteExpense_Click" Padding="8,4"
+                                                        Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- SEKME 2: VADELİ BORÇLAR & KREDİLER -->
+                <TabItem Header="💳 Vadeli Borçlar &amp; Krediler (Azalan Borçlar)" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,14,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/> <!-- Özet Kartları -->
+                            <RowDefinition Height="Auto"/> <!-- Araç Çubuğu -->
+                            <RowDefinition Height="*"/>    <!-- Tablo -->
+                            <RowDefinition Height="Auto"/> <!-- Bilgi Notu -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Özet Kartları -->
+                        <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,12">
+                            <Border Background="#F8FAFC" CornerRadius="8" Padding="14,10" Margin="0,0,8,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="TOPLAM BORÇ" FontSize="10" FontWeight="Bold" Foreground="#64748B"/>
+                                    <TextBlock x:Name="TxtTotalDebtSum" Text="₺0,00" FontSize="18" FontWeight="Bold" Foreground="#0F172A" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#FEF2F2" CornerRadius="8" Padding="14,10" Margin="0,0,8,0" BorderBrush="#FECACA" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="KALAN TOPLAM BORÇ" FontSize="10" FontWeight="Bold" Foreground="#B91C1C"/>
+                                    <TextBlock x:Name="TxtRemainingDebtSum" Text="₺0,00" FontSize="18" FontWeight="Bold" Foreground="#DC2626" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#EFF6FF" CornerRadius="8" Padding="14,10" Margin="0,0,8,0" BorderBrush="#BFDBFE" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="AYLIK TAKSİT YÜKÜ" FontSize="10" FontWeight="Bold" Foreground="#1E40AF"/>
+                                    <TextBlock x:Name="TxtInstallmentSum" Text="₺0,00" FontSize="18" FontWeight="Bold" Foreground="#2563EB" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#F0FDF4" CornerRadius="8" Padding="14,10" BorderBrush="#BBF7D0" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="AKTİF BORÇ DOSYASI" FontSize="10" FontWeight="Bold" Foreground="#15803D"/>
+                                    <TextBlock x:Name="TxtActiveDebtCount" Text="0 Adet" FontSize="18" FontWeight="Bold" Foreground="#16A34A" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Araç Çubuğu -->
+                        <Border Grid.Row="1" Background="#F8FAFC" CornerRadius="8" Padding="12,10" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Taksitleri ödendikçe borç düşer; tamamen bittiğinde takvimden otomatik kalkar." FontSize="12" Foreground="#64748B"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Content="➕ Yeni Borç / Kredi Tanımla" Click="AddDebt_Click"
+                                        Background="#059669" Foreground="White" FontWeight="Bold" Padding="14,8" BorderThickness="0" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Tablo -->
+                        <DataGrid x:Name="DebtsGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="40" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="36"/>
+                                    <Setter Property="Padding" Value="10,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Borç / Kredi Adı" Binding="{Binding Title}" FontWeight="Bold" Width="180"/>
+                                <DataGridTextColumn Header="Alacaklı / Kurum" Binding="{Binding Creditor}" Width="140"/>
+                                <DataGridTextColumn Header="Toplam Borç" Binding="{Binding FormattedTotal}" Width="120"/>
+                                <DataGridTextColumn Header="Aylık Taksit" Binding="{Binding FormattedInstallment}" FontWeight="SemiBold" Width="120"/>
+                                <DataGridTextColumn Header="Kalan Borç" Binding="{Binding FormattedRemaining}" Foreground="#DC2626" FontWeight="Bold" Width="130"/>
+                                <DataGridTextColumn Header="Kalan Taksit" Binding="{Binding RemainingInstallments}" Width="100"/>
+                                <DataGridTextColumn Header="Vade Günü" Binding="{Binding DayOfMonth}" Width="90"/>
+                                <DataGridTextColumn Header="Durum" Binding="{Binding StatusBadge}" FontWeight="SemiBold" Width="160"/>
+
+                                <DataGridTemplateColumn Header="İşlemler" Width="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="✏️ Düzenle" Click="EditDebt_Click" Padding="8,4" Margin="0,0,6,0"
+                                                        Background="#F1F5F9" Foreground="#2563EB" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🗑️ Sil" Click="DeleteDebt_Click" Padding="8,4"
+                                                        Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Bilgi Notu -->
+                        <Border Grid.Row="3" Background="#F8FAFC" CornerRadius="8" Padding="12,8" Margin="0,10,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <TextBlock Text="💡 Bilgi: Dashboard takviminde borç taksitine 'Ödendi' yapıldığında kalan borç tutarı otomatik düşer. Kalan borç 0 TL olduğunda borç 'Tamamlandı' olur ve bir sonraki ayların takviminde çıkmaz." 
+                                       FontSize="11" Foreground="#64748B"/>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <!-- ALT KAPAT BUTONU -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,12,0,0">
+            <Button Content="Kapat ve Takvimi Güncelle" Width="200" Height="38" Background="#0F172A" Foreground="White" 
+                    FontWeight="Bold" HorizontalAlignment="Right" Click="Close_Click" BorderThickness="0" Cursor="Hand">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+            </Button>
+        </Border>
+    </Grid>
+</Window>

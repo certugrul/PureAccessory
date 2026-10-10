@@ -1,0 +1,101 @@
+<Window x:Class="ERP.Desktop.Views.ReminderPaymentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Masraf / Ödeme İşleme" Height="560" Width="480" MinHeight="500" MinWidth="440"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık -->
+            <RowDefinition Height="*"/>    <!-- Form & Kaydırıcı -->
+            <RowDefinition Height="Auto"/> <!-- Butonlar -->
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="💳 Masraf / Ödeme Kaydı" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Ödeme kaynağını seçtiğinizde otomatik masraf faturası işlenecek ve bakiye düşülecektir." 
+                       FontSize="12" Foreground="#64748B" Margin="0,3,0,0" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- FORM ALANLARI -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Hatırlatma Bilgi Kartı -->
+                <Border Background="#EFF6FF" CornerRadius="10" Padding="14" BorderBrush="#BFDBFE" BorderThickness="1" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock x:Name="TxtReminderTitle" Text="Dükkan Kirası" FontSize="15" FontWeight="Bold" Foreground="#1E3A8A"/>
+                            <TextBlock x:Name="TxtReminderCategory" Text="🏢 Kategori: Kira" FontSize="12" Foreground="#3B82F6" Margin="0,2,0,0"/>
+                            <TextBlock x:Name="TxtReminderDueDate" Text="Vade: 15.10.2026" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Ödenecek Tutar" FontSize="10" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Right"/>
+                            <TextBlock x:Name="TxtReminderAmount" Text="₺25.000,00" FontSize="18" FontWeight="Bold" Foreground="#059669" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ÖDEME NEREDEN YAPILDI? -->
+                <TextBlock Text="Ödeme Nereden Yapıldı? *" FontWeight="Bold" Foreground="#1E293B" FontSize="13" Margin="0,0,0,8"/>
+
+                <!-- Seçenek 1: Banka Hesabı -->
+                <Border Background="White" CornerRadius="8" Padding="12" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,0,8">
+                    <StackPanel>
+                        <RadioButton x:Name="RbBank" Content="🏦 Banka Hesabı (Havale / EFT / Otomatik Ödeme)" 
+                                     FontWeight="SemiBold" Foreground="#0F172A" IsChecked="True" Checked="PaymentSource_Changed"/>
+                        
+                        <!-- Banka Seçim Kutusu -->
+                        <StackPanel x:Name="PnlBankSelect" Margin="22,8,0,0">
+                            <TextBlock Text="Ödemenin Çıkacağı Banka Hesabı:" FontSize="11" Foreground="#64748B" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="CmbBankAccounts" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Seçenek 2: Nakit Kasa -->
+                <Border Background="White" CornerRadius="8" Padding="12" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,0,16">
+                    <StackPanel>
+                        <RadioButton x:Name="RbCash" Content="💵 Merkez Nakit Kasa (Fiziksel Nakit)" 
+                                     FontWeight="SemiBold" Foreground="#0F172A" Checked="PaymentSource_Changed"/>
+                        <TextBlock x:Name="TxtCashStatus" Text="Kasa mevcut nakiti kontrol ediliyor..." 
+                                   FontSize="11" Foreground="#059669" Margin="22,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Ödeme Tarihi -->
+                <TextBlock Text="Ödeme Tarihi *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <DatePicker x:Name="DpPaymentDate" Height="36" Background="White" Margin="0,0,0,12"/>
+
+                <!-- Açıklama / Not -->
+                <TextBlock Text="Açıklama / Belge Notu" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtNotes" Height="46" Padding="8,6" Background="White" BorderBrush="#CBD5E1" 
+                         TextWrapping="Wrap" AcceptsReturn="True" ToolTip="Ödeme fişine yazılacak not"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- BUTONLAR -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="Vazgeç" Width="90" Height="38" Background="#E2E8F0" Foreground="#475569" 
+                        FontWeight="SemiBold" HorizontalAlignment="Left" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+
+                <Button Grid.Column="1" x:Name="BtnConfirm" Content="✅ Ödemeyi Tamamla ve Düş" Height="38" Padding="16,0" 
+                        Background="#059669" Foreground="White" FontWeight="Bold" Click="Confirm_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

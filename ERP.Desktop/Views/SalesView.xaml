@@ -1,0 +1,620 @@
+<Page x:Class="ERP.Desktop.Views.SalesView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#F8FAFC"
+      PreviewKeyDown="SalesView_PreviewKeyDown">
+
+    <Grid Margin="10,5,10,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Üst Başlık & Hızlı İpuçları -->
+            <RowDefinition Height="Auto"/> <!-- Gün & Kasa Durum Bilgilendirme Bandı -->
+            <RowDefinition Height="Auto"/> <!-- QR / Barkod Okuma Çubuğu -->
+            <RowDefinition Height="*"/>    <!-- Sepet ve Ödeme Özeti -->
+        </Grid.RowDefinitions>
+
+        <!-- ÜST PANEL -->
+        <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="20,16" Margin="0,0,0,15"
+                BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="QR / Barkodlu Hızlı Satış Terminali" FontSize="24" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock Text="Ürünleri barkod/QR ile okutun, sepet üzerinde fiyat/indirim uygulayın ve anında satışı tamamlayın" FontSize="13" Foreground="#64748B" Margin="0,2,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Telefon Bağlantı Rozeti -->
+                    <Border x:Name="PhoneBadge" Background="#FEF2F2" CornerRadius="8" Padding="12,7" Margin="0,0,10,0" BorderBrush="#FECACA" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="PhoneBadgeText" Text="🔴 Telefon bağlı değil" FontSize="12" FontWeight="Bold" Foreground="#DC2626"/>
+                    </Border>
+
+                    <!-- Telefonu Bağla Butonu -->
+                    <Button Content="📱 Telefonu Barkod Okuyucu Olarak Bağla" Click="ConnectPhoneScanner_Click"
+                            Background="#0284C7" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="16,8" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- GÜN & KASA DURUM BİLGİLENDİRME BANDI -->
+        <Border x:Name="CashStatusBanner" Grid.Row="1" CornerRadius="12" Padding="16,12" Margin="0,0,0,15"
+                Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1.5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="CashStatusIcon" Text="🔴" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="CashStatusTitle" Text="GÜN KAPALI / KASA AÇILIŞI YAPILMADI" FontSize="14" FontWeight="Bold" Foreground="#DC2626" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock x:Name="CashStatusDesc" Text="Satış yapabilmek ve ürün okutabilmek için önce gün açılışı yapmalı ve başlangıç nakitini belirlemelisiniz." 
+                               FontSize="12" Foreground="#7F1D1D" Margin="24,3,0,0"/>
+                </StackPanel>
+
+                <Button x:Name="BtnBannerOpenCash" Grid.Column="1" Content="🌅 Gün Açılışı Yap (Kasayı Aç)" Click="OpenCashFromBanner_Click"
+                        Background="#DC2626" Foreground="White" FontWeight="Bold" FontSize="13"
+                        Padding="18,9" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- QR / BARKOD OKUMA VE HIZLI ARAMA ÇUBUĞU -->
+        <Border Grid.Row="2" Background="White" CornerRadius="12" Padding="18" Margin="0,0,0,15"
+                BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="ScanBox" Grid.Column="0" Height="48" FontSize="18" Padding="14,10"
+                             VerticalContentAlignment="Center" BorderBrush="#2563EB" BorderThickness="2"
+                             KeyDown="ScanBox_KeyDown" ToolTip="QR Kod veya Barkod okutun ya da yazıp Enter'a basın..."/>
+
+                    <Button Grid.Column="1" Content="➕ Ürünü Ekle" Click="AddScannedProduct_Click" Margin="10,0,0,0" Padding="20,10"
+                            Background="#2563EB" Foreground="White" FontSize="15" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <Button Grid.Column="2" x:Name="BtnToggleProductMenu" Content="🛍️ Ürün Menüsü (Aç)" Click="ToggleProductMenu_Click" Margin="10,0,0,0" Padding="20,10"
+                            Background="#4F46E5" Foreground="White" FontSize="15" FontWeight="Bold" BorderThickness="0" Cursor="Hand" ToolTip="Tıklayarak ürün seçmek için ürün menüsünü açar/gizler">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <!-- Anlık Bildirim / Geri Bildirim Yazısı -->
+                <TextBlock x:Name="ScanFeedbackText" Grid.Row="1" Margin="4,8,0,0" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#059669" Text="Barkod veya QR okutulduğunda ürün otomatik tanınır."/>
+            </Grid>
+        </Border>
+
+        <!-- ÜRÜN MENÜSÜ, SEPET VE ÖDEME ALANI -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="ProductMenuColumn" Width="0"/> <!-- SOL: ÜRÜN MENÜSÜ (GİZLİ BAŞLAR) -->
+                <ColumnDefinition Width="*"/>                           <!-- ORTA: SEPET DATAGRID (GENİŞ) -->
+                <ColumnDefinition Width="330"/>                         <!-- SAĞ: SATIŞ ÖZETİ VE ÖDEME KARTI -->
+            </Grid.ColumnDefinitions>
+
+            <!-- SOL: ÜRÜN MENÜSÜ / KATALOĞU (GİZLİ BAŞLAR - MENÜYE TIKLANINCA AÇILIR) -->
+            <Border x:Name="ProductMenuBorder" Grid.Column="0" Visibility="Collapsed" Background="White" CornerRadius="12" Padding="15" Margin="0,0,15,0"
+                    BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Başlık ve Sayaç -->
+                        <RowDefinition Height="Auto"/> <!-- Arama Çubuğu -->
+                        <RowDefinition Height="*"/>    <!-- Kaydırılabilir Ürün Kartları Izgarası -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Başlık & Sayaç & Kapat Butonu -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🛍️ Ürün Menüsü" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            <Border Margin="8,0,0,0" Background="#EFF6FF" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="ProductCountBadge" Text="0 Ürün" FontSize="11" FontWeight="SemiBold" Foreground="#2563EB"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="🔄 Yenile" Click="RefreshProducts_Click"
+                                Background="#F1F5F9" Foreground="#475569" BorderThickness="0"
+                                FontWeight="SemiBold" FontSize="11" Padding="8,5" Margin="0,0,8,0" Cursor="Hand" ToolTip="Ürün listesini ve stokları yeniler">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                        <Button Grid.Column="2" Content="✕ Gizle" Click="CloseProductMenu_Click"
+                                Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                FontWeight="Bold" FontSize="11" Padding="8,5" Cursor="Hand" ToolTip="Ürün menüsünü kapatıp gizler">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+
+                    <!-- Arama Çubuğu -->
+                    <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="8,4" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🔍" FontSize="13" Foreground="#94A3B8" VerticalAlignment="Center" Margin="2,0,6,0"/>
+                            <TextBox x:Name="TxtProductSearch" Grid.Column="1" BorderThickness="0" Background="Transparent"
+                                     FontSize="13" VerticalContentAlignment="Center" TextChanged="ProductSearch_TextChanged"
+                                     ToolTip="Ürün adı, barkod veya koda göre anlık filtreler"/>
+                            <Button Grid.Column="2" Content="✕" Click="ClearProductSearch_Click"
+                                    Background="Transparent" BorderThickness="0" Foreground="#94A3B8"
+                                    FontWeight="Bold" Cursor="Hand" ToolTip="Aramayı temizle"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Ürün Kartları Listesi -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="ProductsItemsControl">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1.5" CornerRadius="10" Width="158" Height="108">
+                                        <Grid Margin="8,6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Ürün Kodu & Stok Rozeti -->
+                                            <Grid Grid.Row="0">
+                                                <TextBlock Text="{Binding Code}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis"/>
+                                                <Border HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="4" Padding="4,1">
+                                                    <TextBlock Text="{Binding FormattedStock}" FontSize="10" FontWeight="SemiBold" Foreground="#475569"/>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- Ürün Adı (Tıklayınca Sepete Ekle) -->
+                                            <Button Grid.Row="1" Click="ProductCard_Click" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
+                                                    HorizontalContentAlignment="Left" VerticalContentAlignment="Center" ToolTip="{Binding Name}">
+                                                <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
+                                                           TextWrapping="Wrap" MaxHeight="36" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
+
+                                            <!-- Fiyat + ✏️ Fiyat Düzenle Butonu + ➕ Sepete Ekle Butonu -->
+                                            <Grid Grid.Row="2" Margin="0,2,0,0">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FormattedSalePrice}" FontSize="13" FontWeight="Bold" Foreground="#2563EB" VerticalAlignment="Center"/>
+                                                    <!-- Fiyat Düzenle Butonu -->
+                                                    <Button Content="✏️" Click="EditProductCardPrice_Click" Margin="4,0,0,0" Padding="3,1"
+                                                            Background="#F1F5F9" BorderThickness="0" FontSize="10" Cursor="Hand" ToolTip="Bu ürünün sistem satış fiyatını güncelle">
+                                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                    </Button>
+                                                </StackPanel>
+
+                                                <!-- Sepete Ekle Butonu -->
+                                                <Button Click="ProductCard_Click" HorizontalAlignment="Right" Padding="6,2"
+                                                        Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" Cursor="Hand" ToolTip="Sepete Ekle">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                    <TextBlock Text="➕ Ekle" FontSize="10" FontWeight="Bold" Foreground="#059669"/>
+                                                </Button>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- ORTA: SEPET DATAGRID -->
+            <Border Grid.Column="1" Background="White" CornerRadius="12" Padding="15" Margin="0,0,15,0"
+                    BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🛒 Sepetteki Ürünler" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            <Border Margin="8,0,0,0" Background="#F1F5F9" CornerRadius="12" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="CartCountBadge" Text="0 Kalem" FontSize="11" FontWeight="SemiBold" Foreground="#475569"/>
+                            </Border>
+                            <Button x:Name="BtnCartMenuShortcut" Content="🛍️ Ürün Menüsü" Click="ToggleProductMenu_Click" Margin="10,0,0,0"
+                                    Background="#EEF2FF" Foreground="#4F46E5" BorderBrush="#C7D2FE" BorderThickness="1"
+                                    FontWeight="SemiBold" FontSize="11" Padding="8,4" Cursor="Hand" ToolTip="Tıklayarak ürün seçmek için ürün menüsünü açar/gizler">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="BtnCancelReceiptTop" Content="❌ Fişi İptal Et (F4)" Click="CancelReceipt_Click"
+                                Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                FontWeight="Bold" FontSize="11" Padding="8,5" Cursor="Hand" ToolTip="Açık fişi ve tüm ürünleri iptal eder (Kısayol: F4)">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+
+                    <DataGrid Grid.Row="1" x:Name="CartGrid" AutoGenerateColumns="False" Background="White"
+                              BorderBrush="#E2E8F0" BorderThickness="1" RowHeight="44" ColumnHeaderHeight="36"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                              PreviewKeyDown="CartGrid_PreviewKeyDown" MouseDoubleClick="CartGrid_MouseDoubleClick">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Padding" Value="6,0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                            </Style>
+                        </DataGrid.Resources>
+
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="✏️ Fiyat &amp; İndirim Düzenle" Click="ContextMenuEditPrice_Click"/>
+                                <MenuItem Header="❌ Bu Ürünün İndirimini Sıfırla" Click="ContextMenuClearDiscount_Click"/>
+                                <Separator/>
+                                <MenuItem Header="🗑️ Ürünü Sepetten Çıkar" Click="ContextMenuRemoveItem_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+
+                        <DataGrid.Columns>
+                            <!-- 1. Ürün Adı -->
+                            <DataGridTextColumn Header="Ürün Adı" Binding="{Binding Name}" Width="*"/>
+
+                            <!-- 2. Birim Fiyat (Düzenlenebilir / Tıklanabilir) -->
+                            <DataGridTemplateColumn Header="Birim Fiyat" Width="110">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Click="EditCartItemPrice_Click" Background="Transparent" BorderThickness="0"
+                                                Padding="2,0" HorizontalContentAlignment="Left" Cursor="Hand"
+                                                ToolTip="Fiyatı değiştirmek veya indirim yapmak için tıklayın">
+                                            <StackPanel VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding FormattedUnitPrice}" FontWeight="Bold" Foreground="#2563EB" FontSize="12.5"/>
+                                                    <TextBlock Text=" ✏️" FontSize="10" Foreground="#94A3B8"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding FormattedOriginalUnitPrice, StringFormat='(Eski: {0})'}" 
+                                                           FontSize="9.5" Foreground="#94A3B8" TextDecorations="Strikethrough"
+                                                           Visibility="{Binding OriginalPriceVisibility}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- 3. Adet ve Hızlı Değiştirme -->
+                            <DataGridTemplateColumn Header="Adet" Width="95">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="-" Click="DecreaseQty_Click" Width="22" Height="22" Margin="0,0,2,0"
+                                                    Background="#F1F5F9" FontWeight="Bold" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                                            <TextBlock Text="{Binding Quantity}" Width="24" TextAlignment="Center" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <Button Content="+" Click="IncreaseQty_Click" Width="22" Height="22" Margin="2,0,0,0"
+                                                    Background="#F1F5F9" FontWeight="Bold" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- 4. İndirim Kolonu -->
+                            <DataGridTemplateColumn Header="İndirim" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid VerticalAlignment="Center">
+                                            <!-- İndirim Varsa -->
+                                            <Button Click="EditCartItemPrice_Click" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1"
+                                                    Padding="6,2" Cursor="Hand" ToolTip="İndirimi düzenle veya kaldır"
+                                                    Visibility="{Binding DiscountBadgeVisibility}">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding FormattedDiscount}" FontWeight="Bold" Foreground="#059669" FontSize="10.5"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <!-- İndirim Yoksa -->
+                                            <Button Content="🏷️ İndirim" Click="EditCartItemPrice_Click"
+                                                    Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                                    Foreground="#64748B" FontSize="11" FontWeight="SemiBold" Padding="6,2" Cursor="Hand"
+                                                    ToolTip="Bu ürüne yüzde veya tutar indirimi uygula"
+                                                    Visibility="{Binding NoDiscountButtonVisibility}">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- 5. Net Satır Toplamı -->
+                            <DataGridTextColumn Header="Toplam" Binding="{Binding FormattedTotal}" FontWeight="Bold" Width="85"/>
+
+                            <!-- 6. Satır Sil Butonu -->
+                            <DataGridTemplateColumn Header="Sil" Width="36">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="✕" Click="RemoveItem_Click" Background="Transparent"
+                                                Foreground="#DC2626" FontWeight="Bold" BorderThickness="0" Cursor="Hand" ToolTip="Satırı sepetten çıkar"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- SAĞ: SATIŞ ÖZETİ VE ÖDEME KARTI -->
+            <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="Satış ve Ödeme Özeti" FontSize="17" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,10"/>
+
+                        <!-- İşlem Tarihi -->
+                        <Grid Margin="0,0,0,3">
+                            <TextBlock Text="İşlem Tarihi:" FontSize="12" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center"/>
+                            <TextBlock Text="🔍 Fiş Dökümü" FontSize="11" FontWeight="SemiBold" Foreground="#2563EB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Border x:Name="BtnSaleSessionDateCard" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1.5" CornerRadius="8" Padding="10,6" Margin="0,0,0,10"
+                                Cursor="Hand" MouseLeftButtonDown="SaleSessionDate_Click" ToolTip="Tıklayarak bu günün fiş dökümünü görüntüleyin">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="📅" FontSize="15" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TxtSaleSessionDate" Text="08.10.2026" FontSize="13" FontWeight="Bold" Foreground="#0F172A"/>
+                                    <TextBlock x:Name="TxtSaleSessionInfo" Text="Günün Fiş Dökümünü Gör" FontSize="9.5" FontWeight="SemiBold" Foreground="#2563EB"/>
+                                </StackPanel>
+                                <Border Grid.Column="2" Background="#DBEAFE" CornerRadius="5" Padding="5,3" VerticalAlignment="Center">
+                                    <TextBlock Text="📋 Fişler" FontSize="9.5" FontWeight="Bold" Foreground="#1D4ED8"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- GENEL FİŞ İNDİRİMİ KUTUSU (YENİ!) -->
+                        <Border Background="#FEFCE8" BorderBrush="#FEF08A" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,10">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="🏷️ Fiş İndirimi (Genel)" FontSize="11.5" FontWeight="Bold" Foreground="#854D0E" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <RadioButton x:Name="RbReceiptDiscAmount" Content="₺" IsChecked="True" Checked="ReceiptDiscountType_Changed"
+                                                     FontSize="11" FontWeight="Bold" Foreground="#713F12" Margin="0,0,6,0" Cursor="Hand"/>
+                                        <RadioButton x:Name="RbReceiptDiscPercent" Content="%" Checked="ReceiptDiscountType_Changed"
+                                                     FontSize="11" FontWeight="Bold" Foreground="#713F12" Cursor="Hand"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Input ve Butonlar -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtReceiptDiscount" Grid.Column="0" Height="32" FontSize="13" FontWeight="Bold"
+                                             Padding="6,2" VerticalContentAlignment="Center" BorderBrush="#FDE047"
+                                             TextChanged="ReceiptDiscount_TextChanged" ToolTip="Tüm fişe genel indirim uygulayın"/>
+                                    <Button Grid.Column="1" Content="✕ Sıfırla" Click="ClearReceiptDiscount_Click" Margin="6,0,0,0" Padding="8,4"
+                                            Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                            FontWeight="SemiBold" FontSize="10.5" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Hızlı Fiş İndirimi Butonları -->
+                                <WrapPanel Orientation="Horizontal">
+                                    <WrapPanel.Resources>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Margin" Value="0,0,4,3"/>
+                                            <Setter Property="Padding" Value="7,3"/>
+                                            <Setter Property="Background" Value="#FEF08A"/>
+                                            <Setter Property="Foreground" Value="#713F12"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="FontSize" Value="10.5"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </WrapPanel.Resources>
+                                    <Button Content="%5" Click="QuickReceiptDiscount_Click" Tag="%5"/>
+                                    <Button Content="%10" Click="QuickReceiptDiscount_Click" Tag="%10"/>
+                                    <Button Content="%15" Click="QuickReceiptDiscount_Click" Tag="%15"/>
+                                    <Button Content="10 ₺" Click="QuickReceiptDiscount_Click" Tag="10"/>
+                                    <Button Content="20 ₺" Click="QuickReceiptDiscount_Click" Tag="20"/>
+                                    <Button Content="50 ₺" Click="QuickReceiptDiscount_Click" Tag="50"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tutar Satırları -->
+                        <Border Background="#F8FAFC" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <!-- Brüt Ara Toplam -->
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="Brüt Ara Toplam" Foreground="#64748B" FontSize="12"/>
+                                    <TextBlock x:Name="SubTotalText" Text="₺0,00" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="#1E293B" FontSize="12"/>
+                                </Grid>
+
+                                <!-- Satır İndirimleri Toplamı (varsa) -->
+                                <Grid x:Name="RowLineDiscounts" Margin="0,0,0,4" Visibility="Collapsed">
+                                    <TextBlock Text="Ürün İndirimleri" Foreground="#DC2626" FontSize="11.5"/>
+                                    <TextBlock x:Name="LineDiscountsText" Text="-₺0,00" HorizontalAlignment="Right" FontWeight="Bold" Foreground="#DC2626" FontSize="11.5"/>
+                                </Grid>
+
+                                <!-- Fiş İndirimi Toplamı (varsa) -->
+                                <Grid x:Name="RowReceiptDiscount" Margin="0,0,0,4" Visibility="Collapsed">
+                                    <TextBlock Text="Fiş İndirimi" Foreground="#DC2626" FontSize="11.5"/>
+                                    <TextBlock x:Name="ReceiptDiscountText" Text="-₺0,00" HorizontalAlignment="Right" FontWeight="Bold" Foreground="#DC2626" FontSize="11.5"/>
+                                </Grid>
+
+                                <!-- Toplam KDV -->
+                                <Grid Margin="0,0,0,6">
+                                    <TextBlock Text="Toplam KDV" Foreground="#64748B" FontSize="12"/>
+                                    <TextBlock x:Name="VatTotalText" Text="₺0,00" HorizontalAlignment="Right" FontWeight="SemiBold" Foreground="#1E293B" FontSize="12"/>
+                                </Grid>
+
+                                <Separator Margin="0,2,0,6"/>
+
+                                <!-- Genel Toplam -->
+                                <Grid>
+                                    <TextBlock Text="GENEL TOPLAM" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="GrandTotalText" Text="₺0,00" HorizontalAlignment="Right" FontSize="22" FontWeight="Bold" Foreground="#2563EB"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Ödeme Yöntemi -->
+                        <TextBlock Text="Ödeme Yöntemi" FontSize="13" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,6"/>
+                        <StackPanel Orientation="Vertical" Margin="0,0,0,10">
+                            <RadioButton x:Name="RbCash" Content="💵 Nakit" IsChecked="True" Checked="PaymentType_Changed" FontSize="13" Margin="0,0,0,6" Cursor="Hand"/>
+                            <RadioButton x:Name="RbCreditCard" Content="💳 Kredi Kartı" Checked="PaymentType_Changed" FontSize="13" Margin="0,0,0,6" Cursor="Hand"/>
+                            <RadioButton x:Name="RbSplit" Content="⚖️ Parçalı / Kısmi (Nakit + Kart)" Checked="PaymentType_Changed" FontSize="13" Margin="0,0,0,6" Cursor="Hand"/>
+                            <RadioButton x:Name="RbOnAccount" Content="📝 Veresiye / Cari" Checked="PaymentType_Changed" FontSize="13" Cursor="Hand"/>
+                        </StackPanel>
+
+                        <!-- Parçalı Ödeme Giriş Paneli -->
+                        <Border x:Name="PanelSplitPayment" Visibility="Collapsed" Background="#EFF6FF" CornerRadius="10" Padding="12,10" Margin="0,0,0,12" BorderBrush="#BFDBFE" BorderThickness="1.5">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <TextBlock Text="⚖️ Parçalı Ödeme Dağılımı" FontWeight="Bold" FontSize="12.5" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                                    <Button Content="⚖️ %50 / %50 Böl" Click="SplitFiftyFifty_Click" HorizontalAlignment="Right" Padding="8,3"
+                                            Background="#DBEAFE" Foreground="#1E40AF" FontWeight="Bold" FontSize="10.5" BorderThickness="0" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Nakit Girişi -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="💵 Nakit Tutar (₺)" FontSize="11" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtSplitCash" Height="34" FontSize="14" FontWeight="Bold" Foreground="#0F172A"
+                                                 Padding="8,0" VerticalContentAlignment="Center" BorderBrush="#93C5FD" TextChanged="SplitAmounts_TextChanged"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Kalanı Yaz" Click="SplitFillCash_Click" Margin="6,16,0,0" Padding="8,0" Height="34"
+                                            Background="#FFFFFF" Foreground="#1E40AF" BorderBrush="#93C5FD" BorderThickness="1"
+                                            FontWeight="Bold" FontSize="10.5" Cursor="Hand" ToolTip="Kalan tutarı Nakit olarak doldurur">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Kredi Kartı Girişi -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="💳 Kredi Kartı Tutar (₺)" FontSize="11" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtSplitCard" Height="34" FontSize="14" FontWeight="Bold" Foreground="#0F172A"
+                                                 Padding="8,0" VerticalContentAlignment="Center" BorderBrush="#93C5FD" TextChanged="SplitAmounts_TextChanged"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Kalanı Yaz" Click="SplitFillCard_Click" Margin="6,16,0,0" Padding="8,0" Height="34"
+                                            Background="#FFFFFF" Foreground="#1E40AF" BorderBrush="#93C5FD" BorderThickness="1"
+                                            FontWeight="Bold" FontSize="10.5" Cursor="Hand" ToolTip="Kalan tutarı Kredi Kartı olarak doldurur">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Canlı Kalan / Durum Bilgisi -->
+                                <Border x:Name="BadgeSplitStatus" Background="#DCFCE7" CornerRadius="6" Padding="8,6" BorderBrush="#86EFAC" BorderThickness="1">
+                                    <TextBlock x:Name="TxtSplitStatus" Text="✅ Toplam Tutara Eşit" FontSize="11" FontWeight="Bold" Foreground="#166534" TextAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Satışı Tamamla Butonu -->
+                        <Button Content="✅ Satışı Tamamla" Click="CompleteSale_Click"
+                                Background="#059669" Foreground="White" FontSize="15" FontWeight="Bold"
+                                Padding="0,11" BorderThickness="0" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <!-- Fişi İptal Et Butonu -->
+                        <Button x:Name="BtnCancelReceiptBottom" Content="❌ Fişi İptal Et" Click="CancelReceipt_Click" Margin="0,8,0,0"
+                                Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                FontSize="12.5" FontWeight="Bold" Padding="0,8" Cursor="Hand" ToolTip="Açık fişi tamamen iptal eder (Kısayol: F4)">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

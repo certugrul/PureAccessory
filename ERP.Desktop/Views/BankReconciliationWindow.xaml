@@ -1,0 +1,75 @@
+<Window x:Class="ERP.Desktop.Views.BankReconciliationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Banka Mutabakatı" Height="640" Width="500" MinHeight="520" MinWidth="460"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="🔄 Banka Hesap Mutabakatı" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Gerçek banka bakiyesini girerek ERP sistem bakiyesiyle mutabakat yapın." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Form (Scroll Edilebilir) -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Banka Hesabı Seçimi -->
+                <TextBlock Text="Banka Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbAccounts" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayText" SelectionChanged="CmbAccounts_SelectionChanged"/>
+
+                <!-- Sistem Bakiyesi Göstergesi -->
+                <Border Background="#F1F5F9" CornerRadius="8" Padding="14" Margin="0,12,0,0" BorderBrush="#CBD5E1" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="ERP Sistem Kayıt Bakiyesi:" Foreground="#64748B" FontSize="12" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TxtSystemBalance" Grid.Row="1" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,4,0,0"/>
+                    </Grid>
+                </Border>
+
+                <!-- Gerçek Banka Bakiyesi Girişi -->
+                <TextBlock Text="Gerçek Banka Ekstresi / İnternet Şubesi Bakiyesi (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtActualBalance" Height="40" Padding="10,8" FontSize="16" FontWeight="Bold" Background="White" BorderBrush="#CBD5E1" Foreground="#0284C7" TextChanged="TxtActualBalance_TextChanged"/>
+
+                <!-- Mutabakat Fark Kutusu -->
+                <Border x:Name="BrdDiff" Background="#FEF2F2" CornerRadius="8" Padding="12" Margin="0,12,0,0" BorderBrush="#FECACA" BorderThickness="1">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Text="Mutabakat Farkı (Gerçek - Sistem):" Foreground="#991B1B" FontSize="11" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="TxtDiffAmount" Text="₺0,00" FontWeight="Bold" FontSize="14" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <TextBlock x:Name="TxtDiffAlert" Text="⚠️ Banka bakiyesi ile ERP bakiyesi arasında fark bulunuyor." FontSize="11" Foreground="#B91C1C" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Düzeltme Hareketi Oluştur CheckBox -->
+                <CheckBox x:Name="ChkCreateAdjustment" Content="Fark için ERP'de otomatik denkleştirme hareketi oluştur" FontWeight="SemiBold" Foreground="#334155" Margin="0,14,0,8"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Kapat" Width="95" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+                <Button Content="💾 Mutabakatı Kaydet" Width="170" Height="38" Background="#0284C7" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

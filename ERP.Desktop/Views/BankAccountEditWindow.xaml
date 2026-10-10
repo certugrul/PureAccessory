@@ -1,0 +1,127 @@
+<Window x:Class="ERP.Desktop.Views.BankAccountEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Banka Hesabı Tanımla / Düzenle" Height="620" Width="480"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="NoResize">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock x:Name="TxtTitle" Text="🏦 Yeni Banka Hesabı" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="İşletmeye ait banka ve POS hesap bilgilerini tanımlayın." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Form Alanları -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,5,0">
+                <!-- Banka Adı -->
+                <TextBlock Text="Banka Adı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbBankName" IsEditable="True" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                    <ComboBoxItem Content="Ziraat Bankası" IsSelected="True"/>
+                    <ComboBoxItem Content="İş Bankası"/>
+                    <ComboBoxItem Content="Garanti BBVA"/>
+                    <ComboBoxItem Content="Akbank"/>
+                    <ComboBoxItem Content="Yapı Kredi"/>
+                    <ComboBoxItem Content="QNB Finansbank"/>
+                    <ComboBoxItem Content="Halkbank"/>
+                    <ComboBoxItem Content="VakıfBank"/>
+                    <ComboBoxItem Content="DenizBank"/>
+                    <ComboBoxItem Content="TEB"/>
+                    <ComboBoxItem Content="Enpara.com"/>
+                </ComboBox>
+
+                <!-- Hesap Adı -->
+                <TextBlock Text="Hesap Adı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtAccountName" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1" Text="Ana Ticari Hesap"/>
+
+                <!-- IBAN -->
+                <TextBlock Text="IBAN" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtIban" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1" Text="TR"/>
+
+                <!-- Hesap No ve Şube -->
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Hesap No" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtAccountNumber" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Şube" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtBranch" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Para Birimi ve Açılış Bakiyesi -->
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Para Birimi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbCurrency" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                            <ComboBoxItem Content="TRY (₺)" Tag="TRY" IsSelected="True"/>
+                            <ComboBoxItem Content="USD ($)" Tag="USD"/>
+                            <ComboBoxItem Content="EUR (€)" Tag="EUR"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Açılış Bakiyesi (₺)" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <TextBox x:Name="TxtOpeningBalance" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1" Text="0,00"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- POS Komisyonu ve Valör Günü -->
+                <Border Background="#EFF6FF" CornerRadius="8" Padding="12" Margin="0,16,0,0" BorderBrush="#BFDBFE" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="💳 Kredi Kartı / POS Ayarları" FontWeight="Bold" Foreground="#1E40AF" FontSize="12" Margin="0,0,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="POS Komisyon Oranı (%)" FontWeight="SemiBold" Foreground="#1E3A8A" FontSize="11" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtCommissionRate" Height="34" Padding="8,5" Background="White" BorderBrush="#93C5FD" Text="3,99"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Valör (Ödeme Günü)" FontWeight="SemiBold" Foreground="#1E3A8A" FontSize="11" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtValourDays" Height="34" Padding="8,5" Background="White" BorderBrush="#93C5FD" Text="2"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Kredi kartı satışlarında net tutar ve beklenen tarih bu oranlara göre otomatik hesaplanır." FontSize="10" Foreground="#3B82F6" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Varsayılan Hesap CheckBox -->
+                <CheckBox x:Name="ChkIsDefault" Content="Varsayılan Ana Hesap Olarak Ayarla" FontWeight="SemiBold" Foreground="#334155" Margin="0,16,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="İptal" Width="90" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0">
+                <Button.Resources>
+                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                </Button.Resources>
+            </Button>
+            <Button Content="💾 Kaydet" Width="110" Height="38" Background="#2563EB" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0">
+                <Button.Resources>
+                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

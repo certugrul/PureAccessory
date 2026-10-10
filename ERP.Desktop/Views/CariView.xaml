@@ -1,0 +1,261 @@
+<Page x:Class="ERP.Desktop.Views.CariView"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Cari Hesaplar ve Hareketler" Background="#F1F5F9">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık ve Aksiyon Butonları -->
+            <RowDefinition Height="Auto"/> <!-- Özet Kartları -->
+            <RowDefinition Height="*"/>    <!-- Sekmeler (Cariler ve Hareketler) -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. BAŞLIK VE AKSİYON BUTONLARI -->
+        <Border Grid.Row="0" Background="White" CornerRadius="12" Padding="20,16" Margin="0,0,0,16" BorderBrush="#E2E8F0" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="👥 Cari Hesaplar ve Finansal Hareketler" FontSize="22" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock Text="Müşteri veresiye alacakları, tedarikçi açık hesap borçları ve tüm cari hareket kayıtları"
+                               FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Hızlı Aksiyon Butonları -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="➕ Yeni Cari Kart" Click="AddAccount_Click" Margin="0,0,10,0"
+                            Background="#2563EB" Foreground="White" FontWeight="Bold" Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                    </Button>
+                    <Button Content="📝 Cari Hareket Ekle" Click="AddTransaction_Click" Margin="0,0,10,0"
+                            Background="#059669" Foreground="White" FontWeight="Bold" Padding="14,9" BorderThickness="0" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                    </Button>
+                    <Button Content="🔄 Yenile" Click="Refresh_Click"
+                            Background="#F8FAFC" Foreground="#475569" FontWeight="SemiBold" Padding="14,9" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. ÖZET KARTLARI -->
+        <Grid Grid.Row="1" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Kart 1: Müşteri Alacakları -->
+            <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="16,14" BorderBrush="#BBF7D0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="MÜŞTERİ ALACAKLARI" FontSize="11" FontWeight="Bold" Foreground="#15803D"/>
+                    <TextBlock x:Name="TxtTotalReceivables" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#16A34A" Margin="0,6,0,2"/>
+                    <TextBlock Text="Tahsil edilecek veresiye tutarı" FontSize="11" Foreground="#64748B"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Kart 2: Tedarikçi Borçları -->
+            <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="16,14" BorderBrush="#FECACA" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="TEDARİKÇİ BORÇLARI" FontSize="11" FontWeight="Bold" Foreground="#B91C1C"/>
+                    <TextBlock x:Name="TxtTotalPayables" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#DC2626" Margin="0,6,0,2"/>
+                    <TextBlock Text="Ödenecek açık hesap tutarı" FontSize="11" Foreground="#64748B"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Kart 3: Net Cari Bakiye -->
+            <Border Grid.Column="4" Background="White" CornerRadius="12" Padding="16,14" BorderBrush="#BFDBFE" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="NET CARİ DENGE" FontSize="11" FontWeight="Bold" Foreground="#1E40AF"/>
+                    <TextBlock x:Name="TxtNetBalance" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#2563EB" Margin="0,6,0,2"/>
+                    <TextBlock Text="Alacaklar - Borçlar" FontSize="11" Foreground="#64748B"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Kart 4: Toplam Cari -->
+            <Border Grid.Column="6" Background="White" CornerRadius="12" Padding="16,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="TOPLAM CARİ KART" FontSize="11" FontWeight="Bold" Foreground="#475569"/>
+                    <TextBlock x:Name="TxtTotalAccounts" Text="0" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                    <TextBlock Text="Kayıtlı müşteri ve tedarikçi" FontSize="11" Foreground="#64748B"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- 3. TABCONTROL -->
+        <Border Grid.Row="2" Background="White" CornerRadius="12" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1">
+            <TabControl Background="Transparent" BorderThickness="0">
+
+                <!-- SEKME 1: CARİ HESAPLAR -->
+                <TabItem Header="👥 Cari Hesap Kartları" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,15,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Filtre Çubuğu -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="8" Padding="12" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Tür:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="CmbTypeFilter" Width="130" Height="34" SelectionChanged="TypeFilter_SelectionChanged" Margin="0,0,16,0">
+                                    <ComboBoxItem Content="Tümü" IsSelected="True"/>
+                                    <ComboBoxItem Content="Müşteri"/>
+                                    <ComboBoxItem Content="Tedarikçi"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Arama:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,8,0"/>
+                                <TextBox x:Name="TxtAccountSearch" Width="240" Height="34" Padding="6,4" TextChanged="AccountSearch_TextChanged"
+                                         ToolTip="Cari ünvanı, kodu veya telefon ara..."/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tablo -->
+                        <DataGrid x:Name="AccountsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="40" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="36"/>
+                                    <Setter Property="Padding" Value="10,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Cari Kodu" Binding="{Binding Code}" FontWeight="Bold" Width="110"/>
+                                <DataGridTextColumn Header="Ünvan / Adı" Binding="{Binding Name}" FontWeight="SemiBold" Width="*"/>
+                                <DataGridTextColumn Header="Türü" Binding="{Binding Type}" Width="110"/>
+                                <DataGridTextColumn Header="Telefon" Binding="{Binding Phone}" Width="130"/>
+                                <DataGridTextColumn Header="Vergi No / TC" Binding="{Binding TaxNo}" Width="120"/>
+                                <DataGridTextColumn Header="Bakiye" Binding="{Binding FormattedBalance}" FontWeight="Bold" Width="120"/>
+                                <DataGridTextColumn Header="Durum" Binding="{Binding BalanceStatus}" Width="160"/>
+
+                                <DataGridTemplateColumn Header="İşlemler" Width="160">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="✏️ Düzenle" Click="EditAccount_Click" Padding="8,4" Margin="0,0,6,0"
+                                                        Background="#F1F5F9" Foreground="#2563EB" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🗑️ Sil" Click="DeleteAccount_Click" Padding="8,4"
+                                                        Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+                <!-- SEKME 2: CARİ HAREKETLERİ -->
+                <TabItem Header="📋 Cari Hareketleri (Döküm)" FontSize="14" FontWeight="SemiBold" Padding="16,8">
+                    <Grid Margin="0,15,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Filtre Çubuğu -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="8" Padding="12" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock Text="Başlangıç" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <DatePicker x:Name="DpStart" Width="120" Height="32"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                    <TextBlock Text="Bitiş" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <DatePicker x:Name="DpEnd" Width="120" Height="32"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                    <TextBlock Text="Cari Hesabı" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <ComboBox x:Name="CmbCariFilter" Width="180" Height="32" DisplayMemberPath="Name"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="3" Margin="0,0,10,0">
+                                    <TextBlock Text="Arama" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="TxtTxSearch" Height="32" Padding="6,4" TextChanged="TxSearch_TextChanged"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="4" Content="🔍 Filtrele" Click="FilterTx_Click" VerticalAlignment="Bottom"
+                                        Height="32" Padding="14,0" Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Hareketler DataGrid -->
+                        <DataGrid x:Name="TransactionsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                  Background="White" RowHeight="38" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Height" Value="34"/>
+                                    <Setter Property="Padding" Value="8,0"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tarih / Saat" Binding="{Binding FormattedDate}" Width="130"/>
+                                <DataGridTextColumn Header="Cari Ünvanı" Binding="{Binding CariAccountName}" FontWeight="Bold" Width="180"/>
+                                <DataGridTextColumn Header="Belge / Fiş No" Binding="{Binding DocumentNo}" Width="120"/>
+                                <DataGridTextColumn Header="İşlem Türü" Binding="{Binding TransactionType}" FontWeight="SemiBold" Width="130"/>
+                                <DataGridTextColumn Header="Borç (+)" Binding="{Binding FormattedDebit}" Foreground="#059669" FontWeight="Bold" Width="110"/>
+                                <DataGridTextColumn Header="Alacak (-)" Binding="{Binding FormattedCredit}" Foreground="#DC2626" FontWeight="Bold" Width="110"/>
+                                <DataGridTextColumn Header="Bakiye" Binding="{Binding FormattedBalance}" FontWeight="Bold" Width="110"/>
+                                <DataGridTextColumn Header="Açıklama" Binding="{Binding Description}" Width="*"/>
+
+                                <!-- İŞLEM KOLONU: HAREKETİ SİL -->
+                                <DataGridTemplateColumn Header="İşlem" Width="85">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="🗑️ Sil" Click="DeleteTransaction_Click"
+                                                    Padding="8,4" Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold"
+                                                    BorderThickness="0" Cursor="Hand" ToolTip="Bu cari hareketi sil ve cari bakiyesini düzelt">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                </Button.Resources>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+
+            </TabControl>
+        </Border>
+    </Grid>
+</Page>

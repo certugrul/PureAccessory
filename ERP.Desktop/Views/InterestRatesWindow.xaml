@@ -1,0 +1,102 @@
+<Window x:Class="ERP.Desktop.Views.InterestRatesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Faiz ve Yasal Vergi Oranları Yönetimi" Width="720" Height="500"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık -->
+            <RowDefinition Height="*"/>    <!-- DataGrid -->
+            <RowDefinition Height="Auto"/> <!-- Yeni Oran Ekleme Çubuğu -->
+            <RowDefinition Height="Auto"/> <!-- Kapat Butonu -->
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <Border Grid.Row="0" Background="#0F172A" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="⚙️ Parametrik Faiz &amp; Vergi Oranları" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="TCMB ve banka oranlarını tanımlayın. Değişiklikler geçmiş dönem faizlerini geriye dönük etkilemez."
+                           FontSize="11" Foreground="#94A3B8" Margin="0,3,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- DATAGRID -->
+        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="10" BorderBrush="#E2E8F0" BorderThickness="1">
+            <DataGrid x:Name="DgRates" AutoGenerateColumns="False" CanUserAddRows="False"
+                      IsReadOnly="True" BorderBrush="#E2E8F0" BorderThickness="1"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                      Background="White" RowHeight="36" FontSize="12">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Borç Türü" Binding="{Binding AccountType}" Width="130" FontWeight="SemiBold"/>
+                    <DataGridTextColumn Header="Faiz Türü" Binding="{Binding InterestType}" Width="120"/>
+                    <DataGridTextColumn Header="Aylık Faiz %" Binding="{Binding FormattedRate}" Width="95" FontWeight="Bold" Foreground="#D97706"/>
+                    <DataGridTextColumn Header="Yürürlük Tarihi" Binding="{Binding EffectiveDate, StringFormat='dd.MM.yyyy'}" Width="105"/>
+                    <DataGridTextColumn Header="Bitiş Tarihi" Binding="{Binding EndDate, StringFormat='dd.MM.yyyy', TargetNullValue='Yürürlükte'}" Width="100"/>
+                    <DataGridTextColumn Header="Yasal Vergiler" Binding="{Binding FormattedTotalTaxRate}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- YENİ ORAN FORMU -->
+        <Border Grid.Row="2" Background="#F1F5F9" CornerRadius="8" Padding="12,10" Margin="0,12,0,0" BorderBrush="#CBD5E1" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                    <TextBlock Text="Hesap Türü" FontSize="11" Foreground="#475569" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="CmbNewAccountType" Height="30" FontSize="11" SelectedIndex="0">
+                        <ComboBoxItem Content="Kredi Kartı"/>
+                        <ComboBoxItem Content="KMH / Ek Hesap"/>
+                        <ComboBoxItem Content="Kredi"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,6,0">
+                    <TextBlock Text="Faiz Türü" FontSize="11" Foreground="#475569" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="CmbNewInterestType" Height="30" FontSize="11" SelectedIndex="0">
+                        <ComboBoxItem Content="Akdi Faiz"/>
+                        <ComboBoxItem Content="Gecikme Faizi"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Margin="0,0,6,0">
+                    <TextBlock Text="Oran (%)" FontSize="11" Foreground="#475569" FontWeight="SemiBold"/>
+                    <TextBox x:Name="TxtNewRate" Text="4,25" Height="30" Padding="6,4" FontSize="12" FontWeight="Bold"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="0,0,6,0">
+                    <TextBlock Text="Yürürlük Tarihi" FontSize="11" Foreground="#475569" FontWeight="SemiBold"/>
+                    <DatePicker x:Name="DpEffectiveDate" Height="30"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" Margin="0,0,6,0">
+                    <TextBlock Text="Vergi Oranı" FontSize="11" Foreground="#475569"/>
+                    <TextBlock Text="KKDF %15 + BSMV %5" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,6,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="5" Content="➕ Ekle / Güncelle" Click="AddNewRate_Click" Height="30"
+                        Background="#059669" Foreground="White" FontWeight="Bold" FontSize="11"
+                        Padding="12,0" VerticalAlignment="Bottom" Cursor="Hand" BorderThickness="0">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- BUTONLAR -->
+        <Border Grid.Row="3" Margin="0,12,0,0">
+            <Button Content="Kapat" Click="Close_Click" Width="90" Height="34" HorizontalAlignment="Right"
+                    Background="#E2E8F0" Foreground="#334155" FontWeight="SemiBold" FontSize="12"
+                    Cursor="Hand" BorderThickness="0">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+            </Button>
+        </Border>
+    </Grid>
+</Window>

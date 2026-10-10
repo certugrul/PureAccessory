@@ -1,0 +1,69 @@
+<Window x:Class="ERP.Desktop.Views.NotificationEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bildirim &amp; Hatırlatma Tanımı" Height="520" Width="450" MinHeight="480" MinWidth="420"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock x:Name="TxtHeading" Text="🔔 Yeni Ödeme Hatırlatması Ekle" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Finansal takvimde takip edilecek ödeme, kira veya masraf planı oluşturun." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Başlık -->
+                <TextBlock Text="Başlık / Ödeme Adı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtTitle" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1" ToolTip="Örn: İşyeri Kirası, Garanti Bonus Kredi Kartı"/>
+
+                <!-- Kategori -->
+                <TextBlock Text="Kategori *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <ComboBox x:Name="CmbCategory" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                    <ComboBoxItem Content="Kira" IsSelected="True"/>
+                    <ComboBoxItem Content="Kredi Kartı"/>
+                    <ComboBoxItem Content="Fatura"/>
+                    <ComboBoxItem Content="Maaş/SGK"/>
+                    <ComboBoxItem Content="Vergi"/>
+                    <ComboBoxItem Content="Tedarikçi"/>
+                    <ComboBoxItem Content="Diğer"/>
+                </ComboBox>
+
+                <!-- Tutar -->
+                <TextBlock Text="Ödeme Tutarı (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtAmount" Height="38" Padding="10,6" FontSize="15" FontWeight="Bold" Foreground="#059669" Background="White" BorderBrush="#CBD5E1"/>
+
+                <!-- Vade Tarihi -->
+                <TextBlock Text="Vade Tarihi *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <DatePicker x:Name="DpDueDate" Height="36" Background="White"/>
+
+                <!-- Her Ay Tekrarla -->
+                <CheckBox x:Name="ChkRecurring" Content="🔄 Her Ay Aynı Günde Tekrarla (Aylık Sabit Masraf)" 
+                          IsChecked="True" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,14,0,8"/>
+
+                <!-- Açıklama -->
+                <TextBlock Text="Açıklama / Not" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,8,0,4"/>
+                <TextBox x:Name="TxtDesc" Height="50" Padding="8,6" Background="White" BorderBrush="#CBD5E1" TextWrapping="Wrap" AcceptsReturn="True"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="90" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" 
+                        Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+                <Button Content="💾 Kaydet" Width="120" Height="38" Background="#2563EB" Foreground="White" 
+                        FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

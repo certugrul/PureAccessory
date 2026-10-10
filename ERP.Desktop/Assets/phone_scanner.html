@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>📱 ERP Telefon Barkod Okuyucu</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #0F172A;
+            color: #F8FAFC;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        header {
+            background: #1E293B;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #334155;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            color: #38BDF8;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #334155;
+            color: #94A3B8;
+            transition: all 0.3s ease;
+        }
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+            border: 1px solid #059669;
+        }
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #F87171;
+            border: 1px solid #DC2626;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* KAMERA VİDEO VE ÇERÇEVE ALANI */
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            background: #020617;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            height: 48vh;
+            max-height: 440px;
+        }
+
+        #scannerVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            background: #000;
+        }
+
+        /* Kamera Başlatma Öncesi Placeholder */
+        .camera-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+        .placeholder-icon {
+            font-size: 54px;
+            margin-bottom: 12px;
+            animation: pulseIcon 2s infinite ease-in-out;
+        }
+        @keyframes pulseIcon {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.08); opacity: 1; }
+        }
+        .placeholder-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #F1F5F9;
+            margin-bottom: 6px;
+        }
+        .placeholder-desc {
+            font-size: 13px;
+            color: #94A3B8;
+            max-width: 300px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
+        .btn-launch-camera {
+            background: #2563EB;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            padding: 13px 26px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            transition: transform 0.15s ease, background 0.2s ease;
+        }
+        .btn-launch-camera:active {
+            transform: scale(0.96);
+            background: #1D4ED8;
+        }
+
+        /* Barkod Çerçevesi ve Lazer */
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 78%;
+            max-width: 290px;
+            height: 180px;
+            pointer-events: none;
+            box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.65);
+            border-radius: 14px;
+            border: 2px solid rgba(56, 189, 248, 0.85);
+            z-index: 10;
+            display: none;
+        }
+        .laser-line {
+            width: 100%;
+            height: 2.5px;
+            background: #38BDF8;
+            box-shadow: 0 0 10px #38BDF8;
+            position: absolute;
+            animation: scanLaser 2s infinite ease-in-out;
+        }
+        @keyframes scanLaser {
+            0% { top: 6%; opacity: 0.8; }
+            50% { top: 94%; opacity: 1; }
+            100% { top: 6%; opacity: 0.8; }
+        }
+        .scan-overlay-hint {
+            position: absolute;
+            bottom: -32px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #E2E8F0;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* KONTROL BUTONLARI ÇUBUĞU */
+        .controls-bar {
+            background: #1E293B;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #334155;
+        }
+        .btn-ctrl {
+            background: #334155;
+            color: #F8FAFC;
+            border: 1px solid #475569;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn-ctrl:active {
+            transform: scale(0.96);
+            background: #475569;
+        }
+        .btn-ctrl.btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #FCA5A5;
+            border-color: #EF4444;
+        }
+        .btn-ctrl.btn-primary {
+            background: #2563EB;
+            color: white;
+            border-color: #2563EB;
+        }
+
+        /* ANA İÇERİK KARTLARI */
+        .main-content {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* UYARI BANNERLARI */
+        .alert-banner {
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            display: none;
+        }
+        .alert-banner.warning {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1.5px solid #F59E0B;
+            color: #FDE68A;
+        }
+        .alert-banner.error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1.5px solid #EF4444;
+            color: #FECACA;
+        }
+        .alert-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* KARTLAR */
+        .card {
+            background: #1E293B;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 16px;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94A3B8;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .last-code-display {
+            font-size: 20px;
+            font-weight: 800;
+            color: #38BDF8;
+            letter-spacing: 1px;
+            word-break: break-all;
+        }
+
+        .result-box {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            line-height: 1.4;
+        }
+        .result-box.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10B981;
+            color: #6EE7B7;
+        }
+        .result-box.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #EF4444;
+            color: #FCA5A5;
+        }
+
+        /* İSTATİSTİKLER */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .stat-card {
+            background: #1E293B;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+        }
+        .stat-lbl {
+            font-size: 12px;
+            color: #94A3B8;
+            font-weight: 500;
+        }
+        .stat-val {
+            font-size: 22px;
+            font-weight: 800;
+            color: #F8FAFC;
+            margin-top: 4px;
+        }
+
+        /* MANUEL BARKOD KUTUSU */
+        .manual-input-box {
+            display: flex;
+            gap: 8px;
+        }
+        .manual-input {
+            flex: 1;
+            background: #0F172A;
+            border: 1px solid #334155;
+            color: white;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+        }
+        .manual-input:focus {
+            border-color: #38BDF8;
+        }
+        .manual-btn {
+            background: #2563EB;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <span>📱</span>
+            <span>ERP Barkod Okuyucu</span>
+        </div>
+        <div id="statusBadge" class="status-badge disconnected">
+            <span class="status-dot"></span>
+            <span id="statusText">Bağlanıyor...</span>
+        </div>
+    </header>
+
+    <!-- KAMERA VİDEO VE ÇERÇEVE ALANI -->
+    <div class="scanner-container">
+        <!-- iOS Safari Uyumlu Gerçek Video Elementi -->
+        <video id="scannerVideo" autoplay playsinline webkit-playsinline muted></video>
+
+        <!-- Canlı Tarama Lazer Çerçevesi -->
+        <div id="scanOverlay" class="scan-overlay">
+            <div class="laser-line"></div>
+            <div class="scan-overlay-hint">Barkodu çerçeveye hizalayın</div>
+        </div>
+
+        <!-- Kamera Başlatma Placeholder (iOS Safari Etkileşim Zorunluluğu) -->
+        <div id="cameraPlaceholder" class="camera-placeholder">
+            <div class="placeholder-icon">📷</div>
+            <div class="placeholder-title">Canlı Barkod Taraması</div>
+            <div class="placeholder-desc">
+                iPhone kameranızı kullanarak ürün barkodlarını anında bilgisayara gönderebilirsiniz.
+            </div>
+            <button id="btnStartCamera" class="btn-launch-camera">
+                ▶️ Kamerayı Aç &amp; Tara
+            </button>
+        </div>
+    </div>
+
+    <!-- KONTROLLER ÇUBUĞU -->
+    <div class="controls-bar">
+        <button id="btnToggleCamera" class="btn-ctrl btn-primary" style="display:none;">▶️ Kamerayı Aç</button>
+        <button id="btnSwitchCam" class="btn-ctrl" style="display:none;">🔄 Kamera Değiştir</button>
+        <button id="btnZoom" class="btn-ctrl" style="display:none;">🔍 2x Yakınlaştır</button>
+        <button id="btnTorch" class="btn-ctrl" style="display:none;">💡 Işık</button>
+        <button id="btnStopCamera" class="btn-ctrl btn-danger" style="display:none;">⏹️ Kamerayı Kapat</button>
+        <button id="btnUploadFile" class="btn-ctrl">📸 Fotoğrafla Tara</button>
+        <input type="file" id="fileInput" class="hidden-file-input" accept="image/*" capture="environment">
+    </div>
+
+    <div class="main-content">
+        <!-- 1. HTTPS ZORUNLULUĞU UYARI BANNERI -->
+        <div id="httpsWarningBanner" class="alert-banner warning">
+            <div class="alert-title">🔒 Kamera İçin HTTPS Bağlantısı Gereklidir</div>
+            <div>
+                Apple iOS Safari güvenlik kuralları gereği, iPhone kamerasını canlı açabilmek için sayfanın <strong>HTTPS</strong> güvenli bağlantı üzerinden açılması zorunludur.
+            </div>
+            <div style="margin-top:8px; font-size:12px; opacity:0.9;">
+                💡 <strong>Öneri:</strong> Eğer yerel ağda HTTP ile bağlıysanız, canlı video yerine aşağıdaki <strong>"📸 Fotoğrafla Tara"</strong> butonunu kullanarak iPhone kamerasıyla doğrudan fotoğraf çekip barkod okutabilirsiniz.
+            </div>
+        </div>
+
+        <!-- 2. KAMERA İZİN VE ERİŞİM HATA BANNERI -->
+        <div id="cameraErrorBanner" class="alert-banner error">
+            <div class="alert-title" id="cameraErrorTitle">⚠️ Kamera Başlatılamadı</div>
+            <div id="cameraErrorMessage">
+                Kamera izni reddedilmiş veya cihaz kamerasına erişilemiyor olabilir.
+            </div>
+            <div style="margin-top:10px; display:flex; gap:8px;">
+                <button id="btnRetryPermission" class="btn-ctrl" style="background:#2563EB; border-color:#2563EB; flex:1;">🔄 Tekrar Dene</button>
+                <button id="btnFallbackPhoto" class="btn-ctrl" style="background:#334155; flex:1;">📸 Fotoğrafla Tara</button>
+            </div>
+            <div style="font-size:11px; margin-top:8px; opacity:0.85; line-height:1.4;">
+                🍎 <strong>iPhone Safari İzni:</strong> Safari adres çubuğundaki <strong>aA</strong> simgesine dokunun &gt; <strong>Web Sitesi Ayarları</strong> &gt; <strong>Kamera: İzin Ver</strong> olarak ayarlayın.
+            </div>
+        </div>
+
+        <!-- Son Okunan Barkod Kartı -->
+        <div class="card">
+            <div class="card-title">
+                <span>Son Okunan Barkod</span>
+                <span id="scanTimestamp" style="font-size:11px; font-weight:normal; color:#64748B;">-</span>
+            </div>
+            <div id="lastBarcode" class="last-code-display">Henüz okutulmadı</div>
+            <div id="resultBox" class="result-box"></div>
+        </div>
+
+        <!-- İstatistikler -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-lbl">Toplam Okutulan</div>
+                <div id="scanCount" class="stat-val">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-lbl">Bağlantı Türü</div>
+                <div id="connType" class="stat-val" style="font-size:15px; color:#38BDF8;">WebSocket</div>
+            </div>
+        </div>
+
+        <!-- Manuel Barkod Gönderme Kutusu -->
+        <div class="card">
+            <div class="card-title">Manuel Barkod Gönder</div>
+            <div class="manual-input-box">
+                <input type="text" id="manualBarcodeInput" class="manual-input" placeholder="Barkod veya QR kod yazın..." />
+                <button id="btnSendManual" class="manual-btn">Gönder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ZXing MultiFormat Reader & Fallback -->
+    <script src="/assets/zxing.min.js"></script>
+    <script>
+        if (typeof ZXing === 'undefined') {
+            document.write('<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"><\/script>');
+        }
+    </script>
+
+    <script>
+        // URL Parametreleri ve Token
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token') || '';
+
+        // Durum Değişkenleri
+        let ws = null;
+        let codeReader = null;
+        let barcodeDetector = null;
+        let currentStream = null;
+        let isCameraActive = false;
+        let isScanning = false;
+        let currentFacingMode = "environment"; // "environment" = arka kamera
+        let totalScans = 0;
+        let lastScannedBarcode = null;
+        let lastScanTime = 0;
+        let hasZoom = false;
+        let hasTorch = false;
+        let isTorchOn = false;
+        let currentZoom = 1;
+        let maxZoom = 1;
+        let cropCanvas = null;
+        let cropCtx = null;
+        let isScanFrameBusy = false;
+        let scanTimerId = null;
+
+        // DOM Elemanları
+        const videoElement = document.getElementById('scannerVideo');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const scanOverlay = document.getElementById('scanOverlay');
+        const btnStartCamera = document.getElementById('btnStartCamera');
+        const btnToggleCamera = document.getElementById('btnToggleCamera');
+        const btnStopCamera = document.getElementById('btnStopCamera');
+        const btnSwitchCam = document.getElementById('btnSwitchCam');
+        const btnZoom = document.getElementById('btnZoom');
+        const btnTorch = document.getElementById('btnTorch');
+        const btnUploadFile = document.getElementById('btnUploadFile');
+        const fileInput = document.getElementById('fileInput');
+
+        const httpsWarningBanner = document.getElementById('httpsWarningBanner');
+        const cameraErrorBanner = document.getElementById('cameraErrorBanner');
+        const cameraErrorTitle = document.getElementById('cameraErrorTitle');
+        const cameraErrorMessage = document.getElementById('cameraErrorMessage');
+        const btnRetryPermission = document.getElementById('btnRetryPermission');
+        const btnFallbackPhoto = document.getElementById('btnFallbackPhoto');
+
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const lastBarcodeEl = document.getElementById('lastBarcode');
+        const resultBox = document.getElementById('resultBox');
+        const scanTimestamp = document.getElementById('scanTimestamp');
+        const scanCountEl = document.getElementById('scanCount');
+        const manualBarcodeInput = document.getElementById('manualBarcodeInput');
+        const btnSendManual = document.getElementById('btnSendManual');
+
+        // 1. SES VE TİTREŞİM EFEKTLERİ
+        function playFeedback(isSuccess) {
+            if (navigator.vibrate) {
+                try { navigator.vibrate(isSuccess ? [100] : [100, 80, 100]); } catch (e) { }
+            }
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (isSuccess) {
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.22);
+                } else {
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(220, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                }
+            } catch (e) { }
+        }
+
+        // 2. HTTPS VE SECURE CONTEXT DENETİMİ
+        function checkSecureContext() {
+            const isLocal = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' ||
+                            window.location.hostname === '[::1]';
+            const isHttps = window.location.protocol === 'https:';
+            const isSecure = window.isSecureContext || isHttps || isLocal;
+
+            if (!isSecure) {
+                httpsWarningBanner.style.display = 'block';
+                return false;
+            } else {
+                httpsWarningBanner.style.display = 'none';
+                return true;
+            }
+        }
+
+        // 3. WEBSOCKET BAĞLANTISI (ERP İLE ANLIK SENKRONİZASYON)
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
+
+            statusBadge.className = 'status-badge';
+            statusText.textContent = 'Bağlanıyor...';
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    statusBadge.className = 'status-badge connected';
+                    statusText.textContent = '🟢 Bilgisayara Bağlandı';
+                    document.getElementById('connType').textContent = "WebSocket";
+
+                    ws.send(JSON.stringify({
+                        type: 'hello',
+                        token: token,
+                        device: /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "iPhone Safari" : "Mobil Cihaz"
+                    }));
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerMessage(data);
+                    } catch (e) { }
+                };
+
+                ws.onclose = () => {
+                    statusBadge.className = 'status-badge disconnected';
+                    statusText.textContent = '🔴 Bağlantı Kesildi';
+                    setTimeout(connectWebSocket, 2000);
+                };
+
+                ws.onerror = () => {
+                    statusBadge.className = 'status-badge disconnected';
+                    statusText.textContent = '⚠️ Bağlantı Hatası';
+                };
+            } catch (err) {
+                setTimeout(connectWebSocket, 3000);
+            }
+        }
+
+        // 4. BARKODU ERP SUNUCUSUNA GÖNDERME
+        function sendBarcodeToServer(barcode) {
+            const clean = (barcode || '').trim();
+            if (!clean) return;
+
+            totalScans++;
+            scanCountEl.textContent = totalScans;
+            lastBarcodeEl.textContent = clean;
+            scanTimestamp.textContent = new Date().toLocaleTimeString();
+
+            playFeedback(true);
+
+            // WebSocket aktifse gönder
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'scan',
+                    barcode: clean,
+                    token: token
+                }));
+            } else {
+                // HTTP POST Fallback
+                document.getElementById('connType').textContent = "HTTP POST";
+                fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcode: clean, token: token })
+                })
+                .then(r => r.json())
+                .then(data => handleServerMessage(data))
+                .catch(err => {
+                    showResult(false, `Gönderilemedi: ${err.message}`);
+                });
+            }
+        }
+
+        // 5. SUNUCUDAN GELEN YANITI GÖSTERME
+        function handleServerMessage(data) {
+            if (data.type === 'scan_result' || data.success !== undefined) {
+                const isSuccess = data.success === true;
+                if (isSuccess) {
+                    const priceStr = data.price ? ` - ₺${Number(data.price).toFixed(2)}` : '';
+                    showResult(true, `✅ ${data.productName || 'Ürün'} sepete eklendi${priceStr}`);
+                    btnToggleCamera.style.display = 'inline-flex';
+                    btnToggleCamera.textContent = '▶️ Yeni Ürün Tara';
+                } else {
+                    showResult(false, `⚠️ ${data.message || 'Ürün bulunamadı!'}`);
+                    // Ürün bulunamadığında kullanıcının talebi: Kamera açık kalmaya devam etsin
+                    if (!isCameraActive) {
+                        startCamera();
+                    }
+                }
+            }
+        }
+
+        function showResult(success, message) {
+            resultBox.className = `result-box ${success ? 'success' : 'error'}`;
+            resultBox.textContent = message;
+            resultBox.style.display = 'block';
+        }
+
+        // 6. BARKOD MOTORLARINI HAZIRLA (ZXing & Apple BarcodeDetector)
+        function initBarcodeEngines() {
+            if (typeof ZXing !== 'undefined' && !codeReader) {
+                try {
+                    const hints = new Map();
+                    const formats = [
+                        ZXing.BarcodeFormat.EAN_13,
+                        ZXing.BarcodeFormat.EAN_8,
+                        ZXing.BarcodeFormat.CODE_128,
+                        ZXing.BarcodeFormat.CODE_39,
+                        ZXing.BarcodeFormat.UPC_A,
+                        ZXing.BarcodeFormat.UPC_E,
+                        ZXing.BarcodeFormat.ITF,
+                        ZXing.BarcodeFormat.CODABAR,
+                        ZXing.BarcodeFormat.QR_CODE
+                    ];
+                    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+                    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                    codeReader = new ZXing.BrowserMultiFormatReader(hints, 100);
+                } catch(e) {
+                    console.error("ZXing başlatma hatası:", e);
+                }
+            }
+
+            if ('BarcodeDetector' in window && !barcodeDetector) {
+                try {
+                    barcodeDetector = new BarcodeDetector();
+                } catch(e) {}
+            }
+        }
+
+        function getCropCanvas() {
+            if (!cropCanvas) {
+                cropCanvas = document.createElement('canvas');
+                cropCanvas.width = 640;
+                cropCanvas.height = 360;
+                try {
+                    cropCtx = cropCanvas.getContext('2d', { willReadFrequently: true });
+                } catch(e) {
+                    cropCtx = cropCanvas.getContext('2d');
+                }
+            }
+            return { cropCanvas, cropCtx };
+        }
+
+        // 7. KAMERA DONANIM YETENEKLERİ (Zoom, Flaş/Işık ve Sürekli Odaklama)
+        function setupCameraCapabilities(stream) {
+            hasZoom = false;
+            hasTorch = false;
+            currentZoom = 1;
+            isTorchOn = false;
+
+            const videoTrack = stream.getVideoTracks()[0];
+            if (!videoTrack) return;
+
+            try {
+                if (videoTrack.getCapabilities) {
+                    const capabilities = videoTrack.getCapabilities();
+
+                    // Zoom Yeteneği (iPhone kamera büyütme)
+                    if (capabilities.zoom) {
+                        hasZoom = true;
+                        maxZoom = capabilities.zoom.max || 2;
+                        btnZoom.textContent = '🔍 2x Yakınlaştır';
+                        btnZoom.style.display = 'inline-flex';
+                    }
+
+                    // Flaş / Işık Yeteneği
+                    if (capabilities.torch) {
+                        hasTorch = true;
+                        btnTorch.textContent = '💡 Işık';
+                        btnTorch.style.display = 'inline-flex';
+                    }
+                }
+
+                // Sürekli otomatik odaklama (Continuous Autofocus) talep et
+                if (videoTrack.applyConstraints) {
+                    videoTrack.applyConstraints({
+                        advanced: [{ focusMode: 'continuous' }]
+                    }).catch(() => {});
+                }
+            } catch(e) {}
+        }
+
+        async function toggleZoom() {
+            if (!hasZoom || !currentStream) return;
+            const videoTrack = currentStream.getVideoTracks()[0];
+            if (!videoTrack) return;
+
+            currentZoom = (currentZoom === 1) ? Math.min(2, maxZoom) : 1;
+            try {
+                await videoTrack.applyConstraints({
+                    advanced: [{ zoom: currentZoom }]
+                });
+                btnZoom.textContent = currentZoom > 1 ? '🔍 1x Normal' : '🔍 2x Yakınlaştır';
+            } catch(e) {}
+        }
+
+        async function toggleTorch() {
+            if (!hasTorch || !currentStream) return;
+            const videoTrack = currentStream.getVideoTracks()[0];
+            if (!videoTrack) return;
+
+            isTorchOn = !isTorchOn;
+            try {
+                await videoTrack.applyConstraints({
+                    advanced: [{ torch: isTorchOn }]
+                });
+                btnTorch.textContent = isTorchOn ? '💡 Işığı Kapat' : '💡 Işık';
+            } catch(e) {}
+        }
+
+        // 8. KAMERA MOTORU (iPhone Safari & Arka Kamera)
+        async function startCamera() {
+            stopCamera();
+
+            cameraErrorBanner.style.display = 'none';
+
+            const isSecure = checkSecureContext();
+            if (!isSecure) {
+                showCameraError(
+                    "Kamera kullanımı için HTTPS bağlantısı gereklidir.",
+                    "Apple iOS Safari, canlı kamera erişimini sadece HTTPS bağlantılarında destekler. Lütfen güvenli bağlantı (HTTPS) kurun veya Fotoğrafla Tara özelliğini kullanın."
+                );
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showCameraError(
+                    "Kamera API'si Desteklenmiyor",
+                    "Cihazınızda navigator.mediaDevices.getUserMedia API'si bulunamadı veya bağlantı güvenli olmadığı için kısıtlandı."
+                );
+                return;
+            }
+
+            try {
+                initBarcodeEngines();
+
+                // iPhone Safari Uyumlu Constraints (Arka Kamera & Yüksek Çözünürlük)
+                const constraints = {
+                    audio: false,
+                    video: {
+                        facingMode: { ideal: currentFacingMode },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+
+                videoElement.srcObject = stream;
+                videoElement.setAttribute('autoplay', 'true');
+                videoElement.setAttribute('playsinline', 'true');
+                videoElement.setAttribute('webkit-playsinline', 'true');
+                videoElement.muted = true;
+
+                cameraPlaceholder.style.display = 'none';
+                videoElement.style.display = 'block';
+                scanOverlay.style.display = 'block';
+
+                btnToggleCamera.style.display = 'none';
+                btnStopCamera.style.display = 'inline-flex';
+                btnSwitchCam.style.display = 'inline-flex';
+
+                isCameraActive = true;
+                await videoElement.play();
+
+                // Kamera zoom/torch yeteneklerini kontrol et
+                setupCameraCapabilities(stream);
+
+                // Tarama döngüsünü başlat
+                startScanningLoop();
+
+            } catch (err) {
+                console.error("Kamera başlatma hatası:", err);
+                stopCamera();
+
+                let errorTitle = "Kamera Başlatılamadı";
+                let errorMsg = err.message || err || "Bilinmeyen kamera hatası";
+
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorTitle = "Kamera İzni Reddedildi";
+                    errorMsg = "iPhone Safari kamera erişim iznini vermediniz. Lütfen Safari adres çubuğundaki 'aA' simgesine dokunup Kamera iznine izin verin.";
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    errorTitle = "Kamera Bulunamadı";
+                    errorMsg = "Cihazınızda kullanılabilir kamera donanımı tespit edilemedi.";
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    errorTitle = "Kamera Meşgul";
+                    errorMsg = "Kamera başka bir uygulama tarafından kullanılıyor olabilir.";
+                }
+
+                showCameraError(errorTitle, errorMsg);
+            }
+        }
+
+        // 9. KESİNTİSİZ ÇİFT MOTORLU BARKOD TARAMA DÖNGÜSÜ
+        function startScanningLoop() {
+            isScanning = true;
+            isScanFrameBusy = false;
+            runScanCycle();
+        }
+
+        async function runScanCycle() {
+            if (!isScanning || !isCameraActive) return;
+
+            if (!isScanFrameBusy && videoElement && videoElement.readyState >= 2 && !videoElement.paused && !videoElement.ended) {
+                isScanFrameBusy = true;
+                try {
+                    // 1. Apple Native BarcodeDetector (Donanımsal anlık QR / Barkod kontrolü)
+                    if (barcodeDetector) {
+                        try {
+                            const detected = await barcodeDetector.detect(videoElement);
+                            if (detected && detected.length > 0 && detected[0].rawValue) {
+                                onScanSuccess(detected[0].rawValue);
+                                isScanFrameBusy = false;
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+
+                    // 2. ZXing Çoklu Format Okuyucu (EAN-13, EAN-8, Code 128, Code 39, UPC-A, UPC-E vb.)
+                    if (codeReader && codeReader.reader) {
+                        // Deneme A: Orta Vizör Alanı (Lazer Çerçevesi Kesiti - 1D barkodlar için çok yüksek hız ve netlik)
+                        try {
+                            const vw = videoElement.videoWidth;
+                            const vh = videoElement.videoHeight;
+                            if (vw > 0 && vh > 0) {
+                                const { cropCanvas: ccv, cropCtx: cctx } = getCropCanvas();
+                                if (cctx) {
+                                    const cropW = Math.floor(vw * 0.85);
+                                    const cropH = Math.floor(vh * 0.45);
+                                    const cropX = Math.floor((vw - cropW) / 2);
+                                    const cropY = Math.floor((vh - cropH) / 2);
+
+                                    cctx.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, ccv.width, ccv.height);
+                                    const lum = new ZXing.HTMLCanvasElementLuminanceSource(ccv);
+                                    const bin = new ZXing.HybridBinarizer(lum);
+                                    const bmp = new ZXing.BinaryBitmap(bin);
+                                    const cropRes = codeReader.reader.decodeWithState(bmp);
+                                    if (cropRes && cropRes.getText()) {
+                                        onScanSuccess(cropRes.getText());
+                                        isScanFrameBusy = false;
+                                        return;
+                                    }
+                                }
+                            }
+                        } catch(e) {}
+
+                        // Deneme B: Tam Video Karesi (Tüm ekran)
+                        try {
+                            const result = codeReader.decode(videoElement);
+                            if (result && result.getText()) {
+                                onScanSuccess(result.getText());
+                                isScanFrameBusy = false;
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+                } catch(err) {
+                    console.error("Tarama döngüsü hatası:", err);
+                } finally {
+                    isScanFrameBusy = false;
+                }
+            }
+
+            if (isScanning) {
+                scanTimerId = setTimeout(runScanCycle, 70);
+            }
+        }
+
+        function stopScanningLoop() {
+            isScanning = false;
+            isScanFrameBusy = false;
+            if (scanTimerId) {
+                clearTimeout(scanTimerId);
+                scanTimerId = null;
+            }
+        }
+
+        function stopCamera() {
+            stopScanningLoop();
+            isCameraActive = false;
+
+            if (currentStream) {
+                try {
+                    currentStream.getTracks().forEach(t => t.stop());
+                } catch(e) {}
+                currentStream = null;
+            }
+
+            if (videoElement) {
+                try {
+                    videoElement.pause();
+                    videoElement.srcObject = null;
+                } catch(e) {}
+                videoElement.style.display = 'none';
+            }
+
+            scanOverlay.style.display = 'none';
+            cameraPlaceholder.style.display = 'flex';
+
+            btnStopCamera.style.display = 'none';
+            btnSwitchCam.style.display = 'none';
+            btnZoom.style.display = 'none';
+            btnTorch.style.display = 'none';
+        }
+
+        function showCameraError(title, message) {
+            cameraErrorTitle.textContent = `⚠️ ${title}`;
+            cameraErrorMessage.textContent = message;
+            cameraErrorBanner.style.display = 'block';
+        }
+
+        async function onScanSuccess(decodedText) {
+            const clean = (decodedText || '').trim();
+            if (!clean) return;
+
+            const now = Date.now();
+            if (clean === lastScannedBarcode && (now - lastScanTime) < 1500) {
+                return;
+            }
+            lastScannedBarcode = clean;
+            lastScanTime = now;
+
+            // Barkod algılandığında kamerayı durdur
+            stopCamera();
+
+            // ERP'ye gönder
+            sendBarcodeToServer(clean);
+        }
+
+        // 10. BUTON DİNLENMELERİ
+        btnStartCamera.addEventListener('click', () => {
+            startCamera();
+        });
+
+        btnToggleCamera.addEventListener('click', () => {
+            startCamera();
+        });
+
+        btnStopCamera.addEventListener('click', () => {
+            stopCamera();
+        });
+
+        btnSwitchCam.addEventListener('click', async () => {
+            currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+            await startCamera();
+        });
+
+        btnZoom.addEventListener('click', () => {
+            toggleZoom();
+        });
+
+        btnTorch.addEventListener('click', () => {
+            toggleTorch();
+        });
+
+        btnRetryPermission.addEventListener('click', () => {
+            startCamera();
+        });
+
+        btnFallbackPhoto.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        btnUploadFile.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Fotoğrafla Barkod Çözümleme
+        fileInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                showResult(true, "📸 Fotoğraf analiz ediliyor...");
+
+                try {
+                    initBarcodeEngines();
+
+                    // Görüntüyü bitmap ve canvas'a aktar
+                    const bmp = await createImageBitmap(file);
+                    const photoCanvas = document.createElement('canvas');
+                    photoCanvas.width = bmp.width;
+                    photoCanvas.height = bmp.height;
+                    const pCtx = photoCanvas.getContext('2d');
+                    pCtx.drawImage(bmp, 0, 0);
+
+                    // 1. Apple / Tarayıcı Donanımsal BarcodeDetector
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const detector = new BarcodeDetector();
+                            const codes = await detector.detect(photoCanvas);
+                            if (codes && codes.length > 0 && codes[0].rawValue) {
+                                onScanSuccess(codes[0].rawValue);
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+
+                    // 2. ZXing Çoklu Format Okuyucu (EAN-13, EAN-8, Code 128 vb.)
+                    if (codeReader && codeReader.reader) {
+                        try {
+                            const lum = new ZXing.HTMLCanvasElementLuminanceSource(photoCanvas);
+                            const bin = new ZXing.HybridBinarizer(lum);
+                            const bBmp = new ZXing.BinaryBitmap(bin);
+                            const res = codeReader.reader.decodeWithState(bBmp);
+                            if (res && res.getText()) {
+                                onScanSuccess(res.getText());
+                                return;
+                            }
+                        } catch(e) {}
+                    }
+
+                    showResult(false, "Fotoğrafta barkod algılanamadı. Lütfen barkod çizgilerinin net ve parlak göründüğü bir fotoğraf çekin.");
+                } catch (err) {
+                    showResult(false, "Fotoğraftan barkod okunamadı: " + (err.message || err));
+                }
+            }
+        });
+
+        // Manuel Barkod Gönderme
+        btnSendManual.addEventListener('click', () => {
+            const val = manualBarcodeInput.value.trim();
+            if (val) {
+                sendBarcodeToServer(val);
+                manualBarcodeInput.value = '';
+            }
+        });
+
+        manualBarcodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                btnSendManual.click();
+            }
+        });
+
+        // 10. SAYFA BAŞLANGICI VE SAYFADAN ÇIKILDIĞINDA OTOMATİK KAPAT
+        window.addEventListener('pagehide', () => { stopCamera(); });
+        window.addEventListener('beforeunload', () => { stopCamera(); });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopCamera();
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkSecureContext();
+            connectWebSocket();
+            initBarcodeEngines();
+        });
+    </script>
+</body>
+</html>

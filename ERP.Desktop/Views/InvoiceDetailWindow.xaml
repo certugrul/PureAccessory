@@ -1,0 +1,129 @@
+<Window x:Class="ERP.Desktop.Views.InvoiceDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fatura Detayı" Height="640" Width="840"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC">
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Başlık -->
+            <Border Grid.Row="0" Background="White" CornerRadius="10" Padding="16,12" Margin="0,0,0,12"
+                    BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="TxtInvoiceTitle" Text="📄 Fatura Detayı" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+                        <TextBlock x:Name="TxtInvoiceSubtitle" Text="Fatura üst bilgileri ve kalem dökümü" FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <Border x:Name="BadgeType" Grid.Column="1" Background="#ECFDF5" CornerRadius="8" Padding="12,6"
+                            BorderBrush="#A7F3D0" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtBadgeTypeText" Text="Alış Faturası" FontWeight="Bold" Foreground="#059669" FontSize="12"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Bilgi Kartı -->
+            <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="16,12" Margin="0,0,0,12"
+                    BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="CARİ / TEDARİKÇİ" FontSize="11" FontWeight="SemiBold" Foreground="#64748B"/>
+                        <TextBlock x:Name="TxtPartyName" Text="-" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="TARİH" FontSize="11" FontWeight="SemiBold" Foreground="#64748B"/>
+                        <TextBlock x:Name="TxtDate" Text="-" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="GİRİŞ/ÇIKIŞ DEPOSU" FontSize="11" FontWeight="SemiBold" Foreground="#64748B"/>
+                        <TextBlock x:Name="TxtWarehouse" Text="-" FontSize="14" FontWeight="Bold" Foreground="#2563EB" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="ÖDEME TÜRÜ / DURUMU" FontSize="11" FontWeight="SemiBold" Foreground="#64748B"/>
+                        <TextBlock x:Name="TxtPaymentInfo" Text="-" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Kalemler Tablosu -->
+            <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="10" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,0,12">
+                <DataGrid x:Name="ItemsGrid" AutoGenerateColumns="False" Background="White"
+                          BorderBrush="#E2E8F0" BorderThickness="1" RowHeight="38" ColumnHeaderHeight="36"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                          HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#F8FAFC"/>
+                            <Setter Property="Foreground" Value="#475569"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="Padding" Value="8,0"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Ürün Kodu" Binding="{Binding ProductCode}" Width="110"/>
+                        <DataGridTextColumn Header="Barkod" Binding="{Binding Barcode}" Width="120"/>
+                        <DataGridTextColumn Header="Ürün Adı" Binding="{Binding ProductName}" Width="*"/>
+                        <DataGridTextColumn Header="Miktar" Binding="{Binding Quantity, StringFormat='{}{0:N0} Adet'}" Width="100"/>
+                        <DataGridTextColumn Header="Birim Fiyat" Binding="{Binding FormattedUnitPrice}" Width="110"/>
+                        <DataGridTextColumn Header="KDV %" Binding="{Binding VatRate, StringFormat='%{0:N0}'}" Width="70"/>
+                        <DataGridTextColumn Header="KDV Tutarı" Binding="{Binding VatAmount, StringFormat='₺{0:N2}'}" Width="100"/>
+                        <DataGridTextColumn Header="Toplam" Binding="{Binding FormattedGrandTotal}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Alt Toplamlar ve Kapat -->
+            <Border Grid.Row="3" Background="White" CornerRadius="10" Padding="16,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtNotes" Text="Not: -" FontSize="12" Foreground="#64748B"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,30,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,3">
+                            <TextBlock Text="Ara Toplam: " Foreground="#64748B"/>
+                            <TextBlock x:Name="TxtSubTotal" Text="₺0,00" FontWeight="SemiBold" Foreground="#1E293B"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="Toplam KDV: " Foreground="#64748B"/>
+                            <TextBlock x:Name="TxtVatTotal" Text="₺0,00" FontWeight="SemiBold" Foreground="#1E293B"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="GENEL TOPLAM" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="TxtGrandTotal" Text="₺0,00" FontSize="22" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

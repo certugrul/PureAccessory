@@ -1,0 +1,33 @@
+## Build, Bin & Publish Çıktıları
+bin/
+obj/
+Release_Publish/
+Temp_Zip_Folder/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Büyük Arşivler ve Setup Paketleri (GitHub boyutu aşılmasın, Releases alanına yüklenecek)
+Releases/
+*.zip
+*.rar
+*.7z
+*.bak
+*.exe
+SQL2025-SSEI-Expr.exe
+
+## Kullanıcı & Yerel Veritabanı Dosyaları
+ERP.Desktop/Data/settings.json
+ERP.Desktop/Data/users.json
+ERP.Desktop/Data/*.db
+ERP.Desktop/Data/*.mdf
+ERP.Desktop/Data/*.ldf
+*.log
+global_crash.txt
+Publish_To_GitHub.ps1
+
+## IDE Dosyaları
+.vs/
+.vscode/
+.idea/

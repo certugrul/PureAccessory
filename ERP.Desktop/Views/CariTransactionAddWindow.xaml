@@ -1,0 +1,78 @@
+<Window x:Class="ERP.Desktop.Views.CariTransactionAddWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cari Hareket Girişi" Height="560" Width="470" MinHeight="500" MinWidth="440"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="📝 Cari Hareket Ekle" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Cari hesaba borç, alacak, tahsilat veya ödeme kaydı işleyin." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Form Alanları -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <!-- Cari Hesabı -->
+                <TextBlock Text="Cari Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="CmbAccounts" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayText"/>
+
+                <!-- İşlem Yönü / Türü -->
+                <TextBlock Text="İşlem Türü *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <ComboBox x:Name="CmbTxType" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                    <ComboBoxItem Content="Borç Girişi (Müşteriye Borç / Tedarikçiye Ödeme)" Tag="BORC" IsSelected="True"/>
+                    <ComboBoxItem Content="Alacak Girişi (Müşteriden Tahsilat / Tedarikçiye Borçlanma)" Tag="ALACAK"/>
+                </ComboBox>
+
+                <!-- Ödeme / Finans Kanalı -->
+                <TextBlock Text="Ödeme / Finans Kanalı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <ComboBox x:Name="CmbPaymentChannel" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" SelectionChanged="CmbPaymentChannel_SelectionChanged">
+                    <ComboBoxItem Content="💵 Nakit (Kasaya Giriş / Çıkış Yap)" Tag="Nakit" IsSelected="True"/>
+                    <ComboBoxItem Content="💳 Banka Hesabı (Havale / EFT)" Tag="Banka Hesabı"/>
+                    <ComboBoxItem Content="📄 Açık Hesap / Virman (Finansal Hareket Yok)" Tag="Açık Hesap"/>
+                </ComboBox>
+
+                <!-- Banka Hesabı Seçimi -->
+                <StackPanel x:Name="PnlBankAccount" Visibility="Collapsed" Margin="0,12,0,0">
+                    <TextBlock Text="Banka Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbBankAccount" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayName"/>
+                </StackPanel>
+
+                <!-- Tutar -->
+                <TextBlock Text="Tutar (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtAmount" Height="40" Padding="10,8" FontSize="16" FontWeight="Bold" Background="White" BorderBrush="#CBD5E1" Foreground="#0284C7"/>
+
+                <!-- Belge / Fiş No -->
+                <TextBlock Text="Belge / Fiş No" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtDocumentNo" Height="36" Padding="8,6" Background="White" BorderBrush="#CBD5E1"/>
+
+                <!-- Tarih -->
+                <TextBlock Text="İşlem Tarihi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <DatePicker x:Name="DpDate" Height="36" Background="White"/>
+
+                <!-- Açıklama -->
+                <TextBlock Text="Açıklama" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtDescription" Height="50" Padding="8,6" Background="White" BorderBrush="#CBD5E1" TextWrapping="Wrap" AcceptsReturn="True"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="95" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+                <Button Content="💾 Hareketi Kaydet" Width="150" Height="38" Background="#059669" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

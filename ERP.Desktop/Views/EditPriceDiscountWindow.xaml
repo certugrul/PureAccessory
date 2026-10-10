@@ -1,0 +1,168 @@
+<Window x:Class="ERP.Desktop.Views.EditPriceDiscountWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ürün Fiyatı &amp; İndirim Düzenle" Height="580" Width="490"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F8FAFC" ShowInTaskbar="False">
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Başlık -->
+            <RowDefinition Height="*"/>    <!-- İçerik Formu -->
+            <RowDefinition Height="Auto"/> <!-- Aksiyon Butonları -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. BAŞLIK -->
+        <Border Grid.Row="0" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🏷️" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtProductName" Text="Ürün Adı" FontSize="18" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TxtProductCodeInfo" Text="Kod: PRD-0001 | Liste Fiyatı: ₺0,00" FontSize="12" Foreground="#64748B" Margin="28,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" x:Name="BadgeStock" Background="#EFF6FF" CornerRadius="8" Padding="10,5" BorderBrush="#BFDBFE" BorderThickness="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtStockInfo" Text="Adet: 1" FontSize="12" FontWeight="SemiBold" Foreground="#2563EB"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 2. FORM İÇERİĞİ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+
+                <!-- BÖLÜM 1: SATIŞ BİRİM FİYATI -->
+                <Border Background="White" CornerRadius="10" Padding="14,12" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                            <TextBlock Text="💵 Satış Birim Fiyatı (₺)" FontSize="13" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnResetToOriginalPrice" Content="🔄 Orijinal Fiyata Dön" Click="ResetToOriginalPrice_Click"
+                                    HorizontalAlignment="Right" Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold"
+                                    FontSize="11" Padding="8,3" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                            </Button>
+                        </Grid>
+
+                        <!-- Fiyat Input -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1,1,0,1" CornerRadius="8,0,0,8" Padding="12,0" VerticalAlignment="Stretch">
+                                <TextBlock Text="₺" FontSize="18" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBox x:Name="TxtUnitPrice" Grid.Column="1" Height="42" FontSize="18" FontWeight="Bold" Foreground="#0F172A"
+                                     Padding="10,0" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" BorderThickness="0,1,1,1"
+                                     TextChanged="PriceOrDiscount_Changed"/>
+                        </Grid>
+
+                        <!-- Hızlı Fiyat Butonları -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="-10 ₺" Click="AdjustPrice_Click" Tag="-10" Margin="0,0,6,0" Padding="8,4" Background="#F8FAFC" BorderBrush="#E2E8F0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                            <Button Content="-5 ₺" Click="AdjustPrice_Click" Tag="-5" Margin="0,0,6,0" Padding="8,4" Background="#F8FAFC" BorderBrush="#E2E8F0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                            <Button Content="+5 ₺" Click="AdjustPrice_Click" Tag="5" Margin="0,0,6,0" Padding="8,4" Background="#F8FAFC" BorderBrush="#E2E8F0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                            <Button Content="+10 ₺" Click="AdjustPrice_Click" Tag="10" Margin="0,0,6,0" Padding="8,4" Background="#F8FAFC" BorderBrush="#E2E8F0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                            <Button Content="+50 ₺" Click="AdjustPrice_Click" Tag="50" Padding="8,4" Background="#F8FAFC" BorderBrush="#E2E8F0" FontWeight="SemiBold" FontSize="11" Cursor="Hand"/>
+                        </StackPanel>
+
+                        <!-- Kalıcı Liste Fiyatı Güncelleme Onay Kutusu -->
+                        <CheckBox x:Name="ChkUpdateMasterPrice" Content="Bu ürünün sistemdeki kalıcı satış fiyatını da güncelle"
+                                  FontSize="12" Foreground="#475569" Margin="0,4,0,0" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- BÖLÜM 2: İNDİRİM UYGULA -->
+                <Border Background="White" CornerRadius="10" Padding="14,12" Margin="0,0,0,12" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="🏷️ İndirim Tanımla" FontSize="13" FontWeight="Bold" Foreground="#334155" VerticalAlignment="Center"/>
+                            <Button Content="❌ İndirimi Sıfırla" Click="ClearDiscount_Click"
+                                    HorizontalAlignment="Right" Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold"
+                                    FontSize="11" Padding="8,3" BorderBrush="#FECACA" BorderThickness="1" Cursor="Hand">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                            </Button>
+                        </Grid>
+
+                        <!-- İndirim Türü Seçimi -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <RadioButton x:Name="RbPercent" Content="% Yüzde İndirimi" Checked="DiscountType_Changed"
+                                         FontSize="12" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,16,0" Cursor="Hand"/>
+                            <RadioButton x:Name="RbAmount" Content="₺ Tutar İndirimi" Checked="DiscountType_Changed"
+                                         FontSize="12" FontWeight="SemiBold" Foreground="#334155" Cursor="Hand"/>
+                        </StackPanel>
+
+                        <!-- İndirim Değeri Girişi -->
+                        <TextBox x:Name="TxtDiscountInput" Height="38" FontSize="16" FontWeight="Bold" Foreground="#0F172A"
+                                 Padding="10,0" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" Margin="0,0,0,8"
+                                 TextChanged="PriceOrDiscount_Changed"/>
+
+                        <!-- Hızlı Yüzde Butonları -->
+                        <StackPanel x:Name="PanelPercentPresets" Orientation="Horizontal">
+                            <Button Content="%5" Click="PresetDiscountPercent_Click" Tag="5" Margin="0,0,5,0" Padding="10,4" Background="#F1F5F9" FontWeight="Bold" FontSize="11" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="%10" Click="PresetDiscountPercent_Click" Tag="10" Margin="0,0,5,0" Padding="10,4" Background="#EFF6FF" Foreground="#2563EB" FontWeight="Bold" FontSize="11" BorderBrush="#BFDBFE" Cursor="Hand"/>
+                            <Button Content="%15" Click="PresetDiscountPercent_Click" Tag="15" Margin="0,0,5,0" Padding="10,4" Background="#F1F5F9" FontWeight="Bold" FontSize="11" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="%20" Click="PresetDiscountPercent_Click" Tag="20" Margin="0,0,5,0" Padding="10,4" Background="#EFF6FF" Foreground="#2563EB" FontWeight="Bold" FontSize="11" BorderBrush="#BFDBFE" Cursor="Hand"/>
+                            <Button Content="%25" Click="PresetDiscountPercent_Click" Tag="25" Margin="0,0,5,0" Padding="10,4" Background="#F1F5F9" FontWeight="Bold" FontSize="11" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="%50" Click="PresetDiscountPercent_Click" Tag="50" Padding="10,4" Background="#FEF3C7" Foreground="#B45309" FontWeight="Bold" FontSize="11" BorderBrush="#FDE68A" Cursor="Hand"/>
+                        </StackPanel>
+
+                        <!-- Hızlı Tutar Butonları -->
+                        <StackPanel x:Name="PanelAmountPresets" Orientation="Horizontal" Visibility="Collapsed">
+                            <Button Content="5 ₺" Click="PresetDiscountAmount_Click" Tag="5" Margin="0,0,5,0" Padding="10,4" Background="#F1F5F9" FontWeight="Bold" FontSize="11" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="10 ₺" Click="PresetDiscountAmount_Click" Tag="10" Margin="0,0,5,0" Padding="10,4" Background="#EFF6FF" Foreground="#2563EB" FontWeight="Bold" FontSize="11" BorderBrush="#BFDBFE" Cursor="Hand"/>
+                            <Button Content="20 ₺" Click="PresetDiscountAmount_Click" Tag="20" Margin="0,0,5,0" Padding="10,4" Background="#F1F5F9" FontWeight="Bold" FontSize="11" BorderBrush="#CBD5E1" Cursor="Hand"/>
+                            <Button Content="50 ₺" Click="PresetDiscountAmount_Click" Tag="50" Margin="0,0,5,0" Padding="10,4" Background="#EFF6FF" Foreground="#2563EB" FontWeight="Bold" FontSize="11" BorderBrush="#BFDBFE" Cursor="Hand"/>
+                            <Button Content="100 ₺" Click="PresetDiscountAmount_Click" Tag="100" Padding="10,4" Background="#FEF3C7" Foreground="#B45309" FontWeight="Bold" FontSize="11" BorderBrush="#FDE68A" Cursor="Hand"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- BÖLÜM 3: ÖZET HESAPLAMA & CANLI ÖNİZLEME -->
+                <Border Background="#F1F5F9" CornerRadius="10" Padding="14,10" BorderBrush="#CBD5E1" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,3">
+                            <TextBlock Text="Satır Brüt Toplamı" FontSize="12" Foreground="#64748B"/>
+                            <TextBlock x:Name="TxtSummaryGross" Text="₺0,00" FontSize="12" FontWeight="SemiBold" Foreground="#334155" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,3">
+                            <TextBlock Text="Hesaplanan İndirim" FontSize="12" Foreground="#64748B"/>
+                            <TextBlock x:Name="TxtSummaryDiscount" Text="-₺0,00 (%0)" FontSize="12" FontWeight="Bold" Foreground="#DC2626" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Separator Margin="0,4,0,6" Background="#CBD5E1"/>
+                        <Grid>
+                            <TextBlock Text="NET SATIR TOPLAMI" FontSize="13" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtSummaryNet" Text="₺0,00" FontSize="20" FontWeight="Bold" Foreground="#16A34A" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 3. AKSİYON BUTONLARI -->
+        <Grid Grid.Row="2" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="✕ Vazgeç" Click="Cancel_Click" Margin="0,0,8,0"
+                    Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" FontSize="13" Padding="0,11"
+                    BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
+
+            <Button Grid.Column="1" Content="✅ Kaydet &amp; Uygula" Click="Apply_Click" Margin="8,0,0,0"
+                    Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="13" Padding="0,11"
+                    BorderThickness="0" Cursor="Hand">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>

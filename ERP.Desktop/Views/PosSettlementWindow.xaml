@@ -1,0 +1,85 @@
+<Window x:Class="ERP.Desktop.Views.PosSettlementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="POS Tahsilatı (Ödeme Geldi)" Height="640" Width="490" MinHeight="520" MinWidth="460"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="💳 POS Tahsilatını Bankaya Aktar" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Kredi kartı satış tutarı banka hesabınıza geçtiğinde tahsilatı onaylayın." FontSize="12" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Satış Özeti Bilgi Kartı -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel Margin="0,0,0,8">
+                <Border Background="#F1F5F9" CornerRadius="8" Padding="12" Margin="0,0,0,14" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Satış Tarihi:" Foreground="#64748B" FontSize="11"/>
+                        <TextBlock x:Name="TxtSaleDate" Grid.Row="0" Grid.Column="1" Text="-" FontWeight="SemiBold" Foreground="#0F172A" FontSize="11" HorizontalAlignment="Right"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Brüt Satış Tutarı:" Foreground="#64748B" FontSize="11" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="TxtGrossAmount" Grid.Row="1" Grid.Column="1" Text="₺0,00" FontWeight="Bold" Foreground="#0F172A" FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Kesilen POS Komisyonu:" Foreground="#64748B" FontSize="11" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="TxtCommission" Grid.Row="2" Grid.Column="1" Text="₺0,00" FontWeight="SemiBold" Foreground="#DC2626" FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Hesaplanan Net Tutar:" Foreground="#1E40AF" FontWeight="Bold" FontSize="12" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="TxtExpectedNet" Grid.Row="3" Grid.Column="1" Text="₺0,00" FontWeight="Bold" Foreground="#1E40AF" FontSize="13" HorizontalAlignment="Right" Margin="0,6,0,0"/>
+                    </Grid>
+                </Border>
+
+                <!-- Gerçek Yatan Tutar -->
+                <TextBlock Text="Hesaba Yatan Gerçek Tutar (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtActualPaid" Height="40" Padding="10,8" FontSize="16" FontWeight="Bold" Background="White" BorderBrush="#CBD5E1" Foreground="#059669"/>
+                <TextBlock Text="Varsayılan olarak komisyon düşülmüş net tutardır, dilerseniz değiştirebilirsiniz." FontSize="10" Foreground="#64748B" Margin="0,2,0,0"/>
+
+                <!-- Yatan Banka Hesabı -->
+                <TextBlock Text="Tahsilatın Yattığı Banka Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <ComboBox x:Name="CmbAccounts" Height="36" Padding="8,4" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayText"/>
+
+                <!-- Gerçek Ödeme Tarihi -->
+                <TextBlock Text="Banka Giriş Tarihi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <DatePicker x:Name="DpPaymentDate" Height="36" Background="White"/>
+
+                <!-- Açıklama -->
+                <TextBlock Text="Açıklama" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,12,0,4"/>
+                <TextBox x:Name="TxtDescription" Height="60" Padding="8,6" Background="White" BorderBrush="#CBD5E1" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="95" Height="38" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+                <Button Content="✅ Tahsilatı Onayla" Width="160" Height="38" Background="#059669" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

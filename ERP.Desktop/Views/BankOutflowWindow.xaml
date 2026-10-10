@@ -1,0 +1,90 @@
+<Window x:Class="ERP.Desktop.Views.BankOutflowWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bankadan Para Çıkışı" Height="620" Width="490"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        ResizeMode="CanResizeWithGrip" MinHeight="520" MinWidth="440">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="➖ Bankadan Para Çıkışı" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+            <TextBlock Text="Tedarikçi ödemesi, masraf veya diğer banka çıkışlarını kaydedin." FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+        </StackPanel>
+
+        <!-- Form (Kaydırılabilir) -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+            <StackPanel Margin="0,0,4,10">
+                <!-- Tutar -->
+                <TextBlock Text="Tutar (₺) *" FontWeight="SemiBold" Foreground="#334155" FontSize="13" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtAmount" Height="44" Padding="12,10" FontSize="18" FontWeight="Bold" Background="White" BorderBrush="#CBD5E1" Foreground="#DC2626"/>
+
+                <!-- Banka Hesabı -->
+                <TextBlock Text="Ödeme Yapılan Banka Hesabı *" FontWeight="SemiBold" Foreground="#334155" FontSize="13" Margin="0,14,0,4"/>
+                <ComboBox x:Name="CmbAccounts" Height="40" Padding="10,6" Background="White" BorderBrush="#CBD5E1" DisplayMemberPath="DisplayText" FontSize="13"/>
+
+                <!-- Çıkış Türü ve Ödeme Yöntemi -->
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Çıkış Türü" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbOutflowType" Height="38" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                            <ComboBoxItem Content="Tedarikçi Ödemesi" IsSelected="True"/>
+                            <ComboBoxItem Content="Gider / Masraf"/>
+                            <ComboBoxItem Content="Kira Ödemesi"/>
+                            <ComboBoxItem Content="Maaş / Personel"/>
+                            <ComboBoxItem Content="Vergi / SGK"/>
+                            <ComboBoxItem Content="Kredi / Faiz Ödemesi"/>
+                            <ComboBoxItem Content="Diğer Çıkış"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Ödeme Yöntemi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbPaymentMethod" Height="38" Padding="8,4" Background="White" BorderBrush="#CBD5E1">
+                            <ComboBoxItem Content="Havale" IsSelected="True"/>
+                            <ComboBoxItem Content="EFT"/>
+                            <ComboBoxItem Content="FAST"/>
+                            <ComboBoxItem Content="Nakit Çekme"/>
+                            <ComboBoxItem Content="Çek"/>
+                            <ComboBoxItem Content="Diğer"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+
+                <!-- İşlem Tarihi -->
+                <TextBlock Text="İşlem Tarihi" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,14,0,4"/>
+                <DatePicker x:Name="DpDate" Height="38" Background="White"/>
+
+                <!-- Açıklama -->
+                <TextBlock Text="Açıklama" FontWeight="SemiBold" Foreground="#334155" FontSize="12" Margin="0,14,0,4"/>
+                <TextBox x:Name="TxtDescription" Height="70" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                         Padding="10,8" FontSize="13" Background="White" BorderBrush="#CBD5E1" Text="Tedarikçi ödemesi"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Butonlar -->
+        <Border Grid.Row="2" BorderThickness="0,1,0,0" BorderBrush="#E2E8F0" Padding="0,16,0,0" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="İptal" Width="100" Height="40" Background="#E2E8F0" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,10,0" Click="Cancel_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+                <Button Content="➖ Çıkışı Kaydet" Width="140" Height="40" Background="#DC2626" Foreground="White" FontWeight="Bold" Click="Save_Click" BorderThickness="0" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
