@@ -36,6 +36,7 @@ public partial class SettingsWindow : Window
 
         TxtReceiptHeader.Text = settings.ReceiptStoreHeader ?? settings.StoreName;
         TxtReceiptFooter.Text = settings.ReceiptFooterNote ?? "Bizi tercih ettiğiniz için teşekkür ederiz!";
+        DpCashStartDate.SelectedDate = settings.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
 
         TxtAppVersionLabel.Text = $"Mevcut Sürüm: v{UpdateService.CurrentVersion}";
         TxtUpdateUrl.Text = settings.UpdateCheckUrl ?? "";
@@ -222,6 +223,11 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void SetDefaultCashDate_Click(object sender, RoutedEventArgs e)
+    {
+        DpCashStartDate.SelectedDate = new DateTime(2026, 10, 8);
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         var settings = new AppSettings
@@ -237,6 +243,7 @@ public partial class SettingsWindow : Window
             CompactMode = ChkCompactMode.IsChecked ?? false,
             ReceiptStoreHeader = string.IsNullOrWhiteSpace(TxtReceiptHeader.Text) ? TxtStoreName.Text.Trim() : TxtReceiptHeader.Text.Trim(),
             ReceiptFooterNote = string.IsNullOrWhiteSpace(TxtReceiptFooter.Text) ? "Bizi tercih ettiğiniz için teşekkür ederiz!" : TxtReceiptFooter.Text.Trim(),
+            CashBalanceStartDate = DpCashStartDate.SelectedDate ?? new DateTime(2026, 10, 8),
             UpdateCheckUrl = TxtUpdateUrl.Text.Trim(),
             AutoCheckUpdates = ChkAutoUpdate.IsChecked ?? true,
             CustomDbConnectionString = string.IsNullOrWhiteSpace(TxtCustomDbConn.Text) ? null : TxtCustomDbConn.Text.Trim(),

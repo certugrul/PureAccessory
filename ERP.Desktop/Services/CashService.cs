@@ -68,9 +68,10 @@ public class CashService
     {
         try
         {
+            var startDate = ThemeService.Current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
             var transactions = await LoadTransactionsAsync();
             decimal balance = 0;
-            foreach (var t in transactions)
+            foreach (var t in transactions.Where(x => x.CreatedAt.Date >= startDate.Date))
             {
                 if (t.IsNegative)
                     balance -= Math.Abs(t.Amount);

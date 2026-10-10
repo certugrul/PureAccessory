@@ -25,6 +25,9 @@ public class AppSettings
     public string ReceiptStoreHeader { get; set; } = "PURE ACCESSORY";
     public string ReceiptFooterNote { get; set; } = "Bizi tercih ettiğiniz için teşekkür ederiz!";
 
+    // Kasa Başlangıç Tarihi Filtresi (Veri kaybı olmadan önceki nakitleri hesaba katmama)
+    public DateTime? CashBalanceStartDate { get; set; } = new DateTime(2026, 10, 8);
+
     // Uzaktan Güncelleme Ayarları (GitHub Releases)
     public string UpdateCheckUrl { get; set; } = "https://github.com/certugrul/PureAccessory";
     public bool AutoCheckUpdates { get; set; } = true;

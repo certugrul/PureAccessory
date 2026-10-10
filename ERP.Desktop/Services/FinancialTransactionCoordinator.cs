@@ -36,6 +36,8 @@ public class FinancialTransactionCoordinator
                 await using var conn = new SqlConnection(_dbService.ConnectionString);
                 await conn.OpenAsync();
 
+                var startDate = ThemeService.Current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
+
                 var sql = @"
                     SELECT ISNULL(SUM(
                         CASE 
@@ -54,9 +56,11 @@ public class FinancialTransactionCoordinator
                             ELSE Amount
                         END
                     ), 0)
-                    FROM CashTransactions;";
+                    FROM CashTransactions
+                    WHERE CreatedAt >= @startDate;";
 
                 await using var cmd = new SqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@startDate", startDate.Date);
                 var result = await cmd.ExecuteScalarAsync();
                 decimal balance = result != null && result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
 

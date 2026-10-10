@@ -51,6 +51,7 @@ public partial class CashView : Page
             }
         }
 
+        ThemeService.ThemeChanged += async _ => await RefreshCashDataAsync();
         Loaded += CashView_Loaded;
     }
 
