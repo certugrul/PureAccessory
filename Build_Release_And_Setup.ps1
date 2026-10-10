@@ -26,10 +26,23 @@ if (-not (Test-Path $releasesDir)) {
     New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
 }
 
-# 2. ERP.Desktop'ı Self-Contained Olarak Derle
+# 1.1 Visual Studio .csproj dosyalarındaki sürüm numarasını güncelle
+Write-Host "Visual Studio proje dosyaları (ERP.Desktop ve ERP.Updater) v$Version olarak güncelleniyor..." -ForegroundColor Cyan
+$desktopProj = Join-Path $rootDir "ERP.Desktop\ERP.Desktop.csproj"
+$updaterProj = Join-Path $rootDir "ERP.Updater\ERP.Updater.csproj"
+
+foreach ($projPath in @($desktopProj, $updaterProj)) {
+    if (Test-Path $projPath) {
+        $content = Get-Content $projPath -Raw
+        $content = [System.Text.RegularExpressions.Regex]::Replace($content, "<Version>.*?</Version>", "<Version>$Version</Version>")
+        $content = [System.Text.RegularExpressions.Regex]::Replace($content, "<AssemblyVersion>.*?</AssemblyVersion>", "<AssemblyVersion>$Version.0</AssemblyVersion>")
+        $content = [System.Text.RegularExpressions.Regex]::Replace($content, "<FileVersion>.*?</FileVersion>", "<FileVersion>$Version.0</FileVersion>")
+        [System.IO.File]::WriteAllText($projPath, $content, [System.Text.Encoding]::UTF8)
+    }
+}
+
 # 2. ERP.Desktop'ı Self-Contained Olarak Derle
 Write-Host "1. ERP.Desktop self-contained (win-x64) olarak derleniyor..." -ForegroundColor White
-$desktopProj = Join-Path $rootDir "ERP.Desktop\ERP.Desktop.csproj"
 & dotnet publish $desktopProj -c Release -r win-x64 --self-contained true -p:Version=$Version -p:AssemblyVersion="$Version.0" -p:FileVersion="$Version.0" -p:InformationalVersion="$Version" -o $publishDir
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERP.Desktop derleme hatası!" -ForegroundColor Red
