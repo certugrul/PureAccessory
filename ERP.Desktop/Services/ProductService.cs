@@ -12,6 +12,17 @@ public class ProductService
     private static readonly string StorageFile = Path.Combine(StorageDirectory, "products.json");
     private static readonly string WarehouseStocksFile = Path.Combine(StorageDirectory, "warehouse_stocks.json");
 
+    private static List<Product>? _cachedProducts;
+    private static DateTime _lastCacheTime = DateTime.MinValue;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(25);
+    private static readonly SemaphoreSlim _productLock = new(1, 1);
+
+    public static void InvalidateCache()
+    {
+        _cachedProducts = null;
+        _lastCacheTime = DateTime.MinValue;
+    }
+
     public ProductService(DatabaseService? dbService = null)
     {
         _dbService = dbService ?? new DatabaseService();
@@ -30,9 +41,22 @@ public class ProductService
         catch { }
     }
 
-    public async Task<List<Product>> GetAllProductsAsync()
+    public async Task<List<Product>> GetAllProductsAsync(bool forceRefresh = false)
     {
-        // 1. Önce SQL Server'dan depodaki gerçek stoklarıyla birlikte çek
+        if (!forceRefresh && _cachedProducts != null && (DateTime.Now - _lastCacheTime) < CacheTtl)
+        {
+            return _cachedProducts.ToList();
+        }
+
+        await _productLock.WaitAsync();
+        try
+        {
+            if (!forceRefresh && _cachedProducts != null && (DateTime.Now - _lastCacheTime) < CacheTtl)
+            {
+                return _cachedProducts.ToList();
+            }
+
+            // 1. Önce SQL Server'dan depodaki gerçek stoklarıyla birlikte çek
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
@@ -77,7 +101,9 @@ public class ProductService
                 {
                     // Yerel önbelleğe senkronize et
                     await SaveAllToLocalJsonAsync(dbList);
-                    return dbList;
+                    _cachedProducts = dbList;
+                    _lastCacheTime = DateTime.Now;
+                    return dbList.ToList();
                 }
             }
             catch (Exception ex)
@@ -91,11 +117,18 @@ public class ProductService
         if (localList.Count > 0)
         {
             await SyncWithWarehouseStocksInternalAsync(localList);
-            return localList;
+            _cachedProducts = localList;
+            _lastCacheTime = DateTime.Now;
+            return localList.ToList();
         }
 
         // 3. Veritabanına ulaşılamadıysa ve yerel kayıt yoksa uyarı için boş liste dön
         return new List<Product>();
+        }
+        finally
+        {
+            _productLock.Release();
+        }
     }
 
     private async Task SyncWithWarehouseStocksInternalAsync(List<Product> products)
@@ -251,6 +284,7 @@ public class ProductService
             if (item.Stock < 0) item.Stock = 0;
             await SaveAllToLocalJsonAsync(products);
         }
+        InvalidateCache();
     }
 
     public async Task<Product> SaveOrUpdateProductAsync(Product product)
@@ -365,6 +399,7 @@ public class ProductService
             catch { }
         }
 
+        InvalidateCache();
         return product;
     }
 
@@ -400,6 +435,7 @@ public class ProductService
                 }
             }
             catch { }
+            InvalidateCache();
 
             // SQL Server bağlıysa pasife al
             bool dbConnected = await _dbService.TestConnectionAsync();

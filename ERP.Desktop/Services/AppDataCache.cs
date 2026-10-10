@@ -111,6 +111,14 @@ public static class AppDataCache
     }
 
     /// <summary>
+    /// Kasa açılışı veya kapanışı yapıldığında önbellekteki oturumu anında günceller.
+    /// </summary>
+    public static void UpdateTodayCashSession(CashSession? session)
+    {
+        TodayCashSession = session;
+    }
+
+    /// <summary>
     /// Herhangi bir işlem (Satış, Kasa Girişi, Ürün Ekleme vb.) yapıldığında
     /// önbellekteki veriyi hızlıca tazelemek için kullanılır.
     /// </summary>

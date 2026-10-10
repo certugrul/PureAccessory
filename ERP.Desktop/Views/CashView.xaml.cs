@@ -65,7 +65,7 @@ public partial class CashView : Page
         try
         {
             var summary = await _cashService.GetCashSummaryAsync(DateTime.Today);
-            var session = await _cashService.GetTodaySessionAsync(DateTime.Today);
+            var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
 
             // Metrik kartlarını doldur
             CardOpeningText.Text = summary.FormattedOpeningCash;
@@ -76,6 +76,7 @@ public partial class CashView : Page
             // Kasa Durumu
             if (session != null && session.Status == "Açık")
             {
+                AppDataCache.UpdateTodayCashSession(session);
                 StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECFDF5"));
                 StatusText.Text = $"🟢 Gün Açık & Kasa Açık (Saat: {session.FormattedOpenedAt} | Başlangıç: {session.FormattedOpeningCash})";
                 StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
@@ -155,10 +156,16 @@ public partial class CashView : Page
     {
         try
         {
-            var dialog = new CashTransactionDialog(isExpense: false, defaultAmount: 200, defaultDescription: "Nakit Takviye")
+            var dialog = new CashTransactionDialog(isExpense: false, defaultAmount: 200, defaultDescription: "Nakit Takviye");
+            try
             {
-                Owner = Window.GetWindow(this)
-            };
+                var parent = Window.GetWindow(this) ?? Application.Current?.MainWindow;
+                if (parent != null && parent.IsVisible)
+                {
+                    dialog.Owner = parent;
+                }
+            }
+            catch { }
 
             if (dialog.ShowDialog() == true)
             {
@@ -186,10 +193,16 @@ public partial class CashView : Page
 
         try
         {
-            var dialog = new CashTransactionDialog(isExpense: true, defaultAmount: 100, defaultDescription: "Günlük Masraf")
+            var dialog = new CashTransactionDialog(isExpense: true, defaultAmount: 100, defaultDescription: "Günlük Masraf");
+            try
             {
-                Owner = Window.GetWindow(this)
-            };
+                var parent = Window.GetWindow(this) ?? Application.Current?.MainWindow;
+                if (parent != null && parent.IsVisible)
+                {
+                    dialog.Owner = parent;
+                }
+            }
+            catch { }
 
             if (dialog.ShowDialog() == true)
             {

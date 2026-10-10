@@ -85,11 +85,11 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBox x:Name="ScanBox" Grid.Column="0" Height="48" FontSize="18" Padding="14,10"
-                             VerticalContentAlignment="Center" BorderBrush="#2563EB" BorderThickness="2"
+                             VerticalContentAlignment="Center" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="2"
                              KeyDown="ScanBox_KeyDown" ToolTip="QR Kod veya Barkod okutun ya da yazıp Enter'a basın..."/>
 
                     <Button Grid.Column="1" Content="➕ Ürünü Ekle" Click="AddScannedProduct_Click" Margin="10,0,0,0" Padding="20,10"
-                            Background="#2563EB" Foreground="White" FontSize="15" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                            Background="{DynamicResource PrimaryBrush}" Foreground="White" FontSize="15" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="8"/>
@@ -141,7 +141,7 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="🛍️ Ürün Menüsü" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
                             <Border Margin="8,0,0,0" Background="#EFF6FF" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
-                                <TextBlock x:Name="ProductCountBadge" Text="0 Ürün" FontSize="11" FontWeight="SemiBold" Foreground="#2563EB"/>
+                                <TextBlock x:Name="ProductCountBadge" Text="0 Ürün" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                             </Border>
                         </StackPanel>
                         <Button Grid.Column="1" Content="🔄 Yenile" Click="RefreshProducts_Click"
@@ -218,7 +218,7 @@
                                             <!-- Fiyat + ✏️ Fiyat Düzenle Butonu + ➕ Sepete Ekle Butonu -->
                                             <Grid Grid.Row="2" Margin="0,2,0,0">
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding FormattedSalePrice}" FontSize="13" FontWeight="Bold" Foreground="#2563EB" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding FormattedSalePrice}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" VerticalAlignment="Center"/>
                                                     <!-- Fiyat Düzenle Butonu -->
                                                     <Button Content="✏️" Click="EditProductCardPrice_Click" Margin="4,0,0,0" Padding="3,1"
                                                             Background="#F1F5F9" BorderThickness="0" FontSize="10" Cursor="Hand" ToolTip="Bu ürünün sistem satış fiyatını güncelle">
@@ -321,7 +321,7 @@
                                                 ToolTip="Fiyatı değiştirmek veya indirim yapmak için tıklayın">
                                             <StackPanel VerticalAlignment="Center">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding FormattedUnitPrice}" FontWeight="Bold" Foreground="#2563EB" FontSize="12.5"/>
+                                                    <TextBlock Text="{Binding FormattedUnitPrice}" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" FontSize="12.5"/>
                                                     <TextBlock Text=" ✏️" FontSize="10" Foreground="#94A3B8"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding FormattedOriginalUnitPrice, StringFormat='(Eski: {0})'}" 
@@ -402,7 +402,7 @@
                         <!-- İşlem Tarihi -->
                         <Grid Margin="0,0,0,3">
                             <TextBlock Text="İşlem Tarihi:" FontSize="12" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center"/>
-                            <TextBlock Text="🔍 Fiş Dökümü" FontSize="11" FontWeight="SemiBold" Foreground="#2563EB" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            <TextBlock Text="🔍 Fiş Dökümü" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                         <Border x:Name="BtnSaleSessionDateCard" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1.5" CornerRadius="8" Padding="10,6" Margin="0,0,0,10"
                                 Cursor="Hand" MouseLeftButtonDown="SaleSessionDate_Click" ToolTip="Tıklayarak bu günün fiş dökümünü görüntüleyin">
@@ -415,7 +415,7 @@
                                 <TextBlock Grid.Column="0" Text="📅" FontSize="15" Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock x:Name="TxtSaleSessionDate" Text="08.10.2026" FontSize="13" FontWeight="Bold" Foreground="#0F172A"/>
-                                    <TextBlock x:Name="TxtSaleSessionInfo" Text="Günün Fiş Dökümünü Gör" FontSize="9.5" FontWeight="SemiBold" Foreground="#2563EB"/>
+                                    <TextBlock x:Name="TxtSaleSessionInfo" Text="Günün Fiş Dökümünü Gör" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </StackPanel>
                                 <Border Grid.Column="2" Background="#DBEAFE" CornerRadius="5" Padding="5,3" VerticalAlignment="Center">
                                     <TextBlock Text="📋 Fişler" FontSize="9.5" FontWeight="Bold" Foreground="#1D4ED8"/>
@@ -517,7 +517,7 @@
                                 <!-- Genel Toplam -->
                                 <Grid>
                                     <TextBlock Text="GENEL TOPLAM" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="GrandTotalText" Text="₺0,00" HorizontalAlignment="Right" FontSize="22" FontWeight="Bold" Foreground="#2563EB"/>
+                                    <TextBlock x:Name="GrandTotalText" Text="₺0,00" HorizontalAlignment="Right" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

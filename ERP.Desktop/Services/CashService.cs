@@ -125,6 +125,9 @@ public class CashService
         sessions.Insert(0, newSession);
         await SaveSessionsAsync(sessions);
 
+        // Önbellekteki oturumu anında güncelle
+        AppDataCache.UpdateTodayCashSession(newSession);
+
         // Kasa açılışı sisteme artı para SOKMAZ. Devreden bakiye olarak gün başlangıcı snapshot'ıdır.
         return newSession;
     }
@@ -475,6 +478,7 @@ public class CashService
         if (openSessions.Count > 0)
         {
             await SaveSessionsAsync(sessions);
+            AppDataCache.UpdateTodayCashSession(null);
         }
         else
         {
@@ -484,6 +488,7 @@ public class CashService
                 latest.Status = "Kapalı";
                 latest.ClosedAt = closeTime;
                 await SaveSessionsAsync(sessions);
+                AppDataCache.UpdateTodayCashSession(null);
             }
         }
     }

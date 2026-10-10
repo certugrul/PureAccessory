@@ -13,6 +13,7 @@ public partial class CashTransactionDialog : Window
     public CashTransactionDialog(bool isExpense, decimal defaultAmount = 100, string defaultDescription = "")
     {
         InitializeComponent();
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
         _isExpense = isExpense;
 
         if (_isExpense)

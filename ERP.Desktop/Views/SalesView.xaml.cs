@@ -36,10 +36,28 @@ public partial class SalesView : Page
         CartGrid.ItemsSource = Cart;
 
         // Önbellekteki ürün ve kasa durumunu anında doldur
-        if (AppDataCache.IsLoaded && AppDataCache.Products.Count > 0)
+        if (AppDataCache.IsLoaded)
         {
-            _allProducts = new List<Product>(AppDataCache.Products);
-            FilterAndDisplayProducts();
+            if (AppDataCache.Products.Count > 0)
+            {
+                _allProducts = new List<Product>(AppDataCache.Products);
+                FilterAndDisplayProducts();
+            }
+
+            var cachedSession = AppDataCache.TodayCashSession;
+            if (cachedSession != null && cachedSession.Status == "Açık")
+            {
+                CashStatusBanner.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECFDF5"));
+                CashStatusBanner.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A7F3D0"));
+                CashStatusIcon.Text = "🟢";
+                CashStatusTitle.Text = "GÜN AÇIK & KASA AÇIK";
+                CashStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
+                CashStatusDesc.Text = $"Gün Açılış Tarihi: {cachedSession.FormattedDate} | Başlangıç Devir Nakiti: {cachedSession.FormattedOpeningCash} | Açılış Saati: {cachedSession.FormattedOpenedAt} | Satış terminali kullanıma hazırdır.";
+                CashStatusDesc.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#065F46"));
+
+                if (TxtSaleSessionDate != null) TxtSaleSessionDate.Text = cachedSession.SessionDate.ToString("dd.MM.yyyy");
+                if (TxtSaleSessionInfo != null) TxtSaleSessionInfo.Text = "Günün Fiş Dökümü (Tıklayın)";
+            }
         }
 
         Loaded += SalesView_Loaded;
@@ -145,22 +163,7 @@ public partial class SalesView : Page
             return new BarcodeScanResult { Success = false, Barcode = input, Message = "Boş barkod" };
         }
 
-        if (isFromPhone)
-        {
-            var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
-            if (session == null || session.Status != "Açık")
-            {
-                // Telefondan okutulduğunda kasayı 0 devir ile arka planda açarak satışı engelleme
-                try
-                {
-                    decimal defaultCash = await _cashService.GetTotalCashBalanceAsync();
-                    await _cashService.OpenCashRegisterAsync(defaultCash, "Telefondan Otomatik Gün Açılışı");
-                    await UpdateCashStatusUIAsync();
-                }
-                catch { }
-            }
-        }
-        else
+        if (!isFromPhone)
         {
             if (!await EnsureCashRegisterOpenAsync())
             {
@@ -168,7 +171,25 @@ public partial class SalesView : Page
             }
         }
 
-        var product = await _productService.FindByScanAsync(input);
+        // Önce bellekteki yüklü ürün listesinde hızlı arama yap (veritabanı kilidi ve gecikmeyi önler)
+        Product? product = null;
+        if (_allProducts != null && _allProducts.Count > 0)
+        {
+            string term = input.Trim();
+            if (term.StartsWith("QR:", StringComparison.OrdinalIgnoreCase)) term = term[3..].Trim();
+            else if (term.StartsWith("ERP:", StringComparison.OrdinalIgnoreCase)) term = term[4..].Trim();
+
+            product = _allProducts.FirstOrDefault(p =>
+                (!string.IsNullOrWhiteSpace(p.QrCode) && p.QrCode.Equals(term, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(p.Barcode) && p.Barcode.Equals(term, StringComparison.OrdinalIgnoreCase)) ||
+                p.Code.Equals(term, StringComparison.OrdinalIgnoreCase))
+                ?? _allProducts.FirstOrDefault(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (product == null)
+        {
+            product = await _productService.FindByScanAsync(input);
+        }
 
         if (product != null)
         {
@@ -1081,9 +1102,15 @@ public partial class SalesView : Page
 
     private async Task<bool> EnsureCashRegisterOpenAsync()
     {
+        if (AppDataCache.TodayCashSession != null && AppDataCache.TodayCashSession.Status == "Açık")
+        {
+            return true;
+        }
+
         var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
         if (session != null && session.Status == "Açık")
         {
+            AppDataCache.UpdateTodayCashSession(session);
             return true;
         }
 

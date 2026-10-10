@@ -995,11 +995,19 @@ public partial class ReportsView : Page
                 Title = "Gün Sonu Notunu Düzenle",
                 Width = 420,
                 Height = 220,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                Owner = Window.GetWindow(this),
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.NoResize,
                 Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"))
             };
+            try
+            {
+                var parent = Window.GetWindow(this) ?? Application.Current?.MainWindow;
+                if (parent != null && parent.IsVisible)
+                {
+                    dialog.Owner = parent;
+                }
+            }
+            catch { }
 
             var grid = new Grid { Margin = new Thickness(16) };
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
