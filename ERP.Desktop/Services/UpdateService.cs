@@ -25,6 +25,38 @@ public static class UpdateService
     /// </summary>
     public const string DefaultGitHubRepo = "https://github.com/certugrul/PureAccessory";
 
+    /// <summary>
+    /// Geliştirme ortamı (Visual Studio kaynak kod klasörü) tespiti.
+    /// Kaynak makinede çalışırken internetten kendi yazdığı sürümü tekrar indirmeye çalışmasını engeller.
+    /// </summary>
+    public static bool IsDevelopmentEnvironment
+    {
+        get
+        {
+            try
+            {
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                // Eğer bin\Debug veya bin\Release altındaysa veya kaynak repo kökünde .sln varsa
+                if (baseDir.Contains(@"\bin\Debug") || baseDir.Contains(@"\bin\Release"))
+                {
+                    return true;
+                }
+
+                var parent = Directory.GetParent(baseDir);
+                while (parent != null)
+                {
+                    if (File.Exists(Path.Combine(parent.FullName, "ERP.sln")))
+                    {
+                        return true;
+                    }
+                    parent = parent.Parent;
+                }
+            }
+            catch { }
+            return false;
+        }
+    }
+
     private static readonly HttpClient _httpClient = CreateHttpClient();
 
     private static HttpClient CreateHttpClient()
