@@ -147,18 +147,17 @@ public partial class SalesView : Page
 
         if (isFromPhone)
         {
-            var session = await _cashService.GetTodaySessionAsync(DateTime.Today);
+            var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
             if (session == null || session.Status != "Açık")
             {
-                ScanFeedbackText.Text = "⚠️ Telefondan ürün okutuldu ancak gün/kasa kapalı!";
-                ScanFeedbackText.Foreground = _redBrush;
-                SoundService.PlayWarning();
-                return new BarcodeScanResult
+                // Telefondan okutulduğunda kasayı 0 devir ile arka planda açarak satışı engelleme
+                try
                 {
-                    Success = false,
-                    Barcode = input,
-                    Message = "Kasa kapalı! Lütfen önce bilgisayardan gün açılışı yapın."
-                };
+                    decimal defaultCash = await _cashService.GetTotalCashBalanceAsync();
+                    await _cashService.OpenCashRegisterAsync(defaultCash, "Telefondan Otomatik Gün Açılışı");
+                    await UpdateCashStatusUIAsync();
+                }
+                catch { }
             }
         }
         else
@@ -1051,7 +1050,7 @@ public partial class SalesView : Page
 
     private async Task<bool> EnsureCashRegisterOpenAsync()
     {
-        var session = await _cashService.GetTodaySessionAsync(DateTime.Today) ?? await _cashService.GetActiveSessionAsync();
+        var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
         if (session != null && session.Status == "Açık")
         {
             return true;
@@ -1083,7 +1082,7 @@ public partial class SalesView : Page
     {
         try
         {
-            var session = await _cashService.GetTodaySessionAsync(DateTime.Today) ?? await _cashService.GetActiveSessionAsync();
+            var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
             if (session != null && session.Status == "Açık")
             {
                 CashStatusBanner.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECFDF5"));

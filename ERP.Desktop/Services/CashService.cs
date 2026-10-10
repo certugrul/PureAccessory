@@ -39,7 +39,19 @@ public class CashService
     {
         var date = (targetDate ?? DateTime.Today).Date;
         var sessions = await LoadSessionsAsync();
-        return sessions.FirstOrDefault(s => s.SessionDate.Date == date && s.Status == "Açık");
+        
+        // 1. Önce tam tarih eşleşmesi olan açık oturumu ara
+        var session = sessions.FirstOrDefault(s => s.SessionDate.Date == date && s.Status == "Açık");
+        if (session != null) return session;
+
+        // 2. Eğer targetDate belirtilmemişse (yani günün aktif kasası soruluyorsa) ve kapatılmamış açık oturum varsa onu dön
+        if (targetDate == null)
+        {
+            var active = sessions.FirstOrDefault(s => s.Status == "Açık");
+            if (active != null) return active;
+        }
+
+        return null;
     }
 
     public async Task<CashSession?> GetActiveSessionAsync()
@@ -53,6 +65,7 @@ public class CashService
         var date = (targetDate ?? DateTime.Today).Date;
         var sessions = await LoadSessionsAsync();
         return sessions.FirstOrDefault(s => s.SessionDate.Date == date && s.Status == "Açık") 
+               ?? sessions.FirstOrDefault(s => s.Status == "Açık")
                ?? sessions.FirstOrDefault(s => s.SessionDate.Date == date);
     }
 

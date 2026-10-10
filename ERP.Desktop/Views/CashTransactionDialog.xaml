@@ -1,0 +1,54 @@
+<Window x:Class="ERP.Desktop.Views.CashTransactionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kasa Nakit İşlemi" Height="360" Width="440"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F8FAFC" ShowInTaskbar="False">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- BAŞLIK -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="TxtIcon" Text="💵" FontSize="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="TxtTitle" Text="Kasaya Nakit Ekle" FontSize="18" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock x:Name="TxtSubtitle" Text="Kasaya eklenecek nakit tutarını ve açıklamasını giriniz" FontSize="12" Foreground="#64748B" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- FORM ALANI -->
+        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="16" BorderBrush="#E2E8F0" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Nakit Tutar (₺) *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtAmount" Height="42" FontSize="20" FontWeight="Bold" Padding="10,4"
+                         VerticalContentAlignment="Center" BorderBrush="#2563EB" BorderThickness="2" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Açıklama *" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtDescription" Height="36" FontSize="13" Padding="10,4"
+                         VerticalContentAlignment="Center" BorderBrush="#CBD5E1" Margin="0,0,0,10"/>
+            </StackPanel>
+        </Border>
+
+        <!-- BUTONLAR -->
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="İptal" Click="Cancel_Click" Margin="0,0,6,0" Height="40"
+                    Background="#F1F5F9" Foreground="#475569" FontWeight="SemiBold" BorderBrush="#CBD5E1" Cursor="Hand">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
+
+            <Button Grid.Column="1" x:Name="BtnConfirm" Content="✓ Onayla ve Kaydet" Click="Confirm_Click" Margin="6,0,0,0" Height="40"
+                    Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>
