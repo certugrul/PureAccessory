@@ -19,6 +19,12 @@ public class UpdateInfo
 
 public static class UpdateService
 {
+    /// <summary>
+    /// ERP sisteminin gömülü (varsayılan) GitHub depo adresi.
+    /// Kullanıcı ayar yapmasa dahi doğrudan buradan güncellemeleri kontrol eder.
+    /// </summary>
+    public const string DefaultGitHubRepo = "https://github.com/certugrul/PureAccessory";
+
     private static readonly HttpClient _httpClient = CreateHttpClient();
 
     private static HttpClient CreateHttpClient()
@@ -65,6 +71,7 @@ public static class UpdateService
     /// <summary>
     /// GitHub Releases API'sini veya doğrudan belirtilen JSON URL'sini kullanarak
     /// en son sürümü ve .zip indirme linkini dinamik olarak çeker.
+    /// URL boş bırakılırsa gömülü DefaultGitHubRepo adresini kullanır.
     /// </summary>
     public static async Task<UpdateInfo?> CheckForUpdatesAsync(string? explicitUrl = null)
     {
@@ -74,9 +81,10 @@ public static class UpdateService
             target = ThemeService.Current?.UpdateCheckUrl;
         }
 
+        // Eğer ayarlarda da boşsa, gömülü varsayılan GitHub reponu kullan
         if (string.IsNullOrWhiteSpace(target))
         {
-            return null; // Güncelleme adresi henüz tanımlanmamış
+            target = DefaultGitHubRepo;
         }
 
         target = target.Trim();

@@ -115,9 +115,8 @@ public partial class App : Application
                 ShutdownMode = ShutdownMode.OnMainWindowClose;
                 mainWin.Show();
 
-                // Arka planda uzaktan güncelleme kontrolü yap (Kullanıcıyı bekletmeden)
-                if (Services.ThemeService.Current?.AutoCheckUpdates == true && 
-                    !string.IsNullOrWhiteSpace(Services.ThemeService.Current?.UpdateCheckUrl))
+                // Arka planda uzaktan güncelleme kontrolü yap (Gömülü GitHub Releases üzerinden kullanıcıyı bekletmeden)
+                if (Services.ThemeService.Current?.AutoCheckUpdates != false)
                 {
                     _ = Task.Run(async () =>
                     {

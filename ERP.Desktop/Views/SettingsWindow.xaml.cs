@@ -163,9 +163,8 @@ public partial class SettingsWindow : Window
         var url = TxtUpdateUrl.Text.Trim();
         if (string.IsNullOrWhiteSpace(url))
         {
-            MessageBox.Show("Lütfen önce geçerli bir Güncelleme Kontrol URL'si giriniz.", "URL Eksik", MessageBoxButton.OK, MessageBoxImage.Warning);
-            TxtUpdateUrl.Focus();
-            return;
+            url = UpdateService.DefaultGitHubRepo;
+            TxtUpdateUrl.Text = url;
         }
 
         try
