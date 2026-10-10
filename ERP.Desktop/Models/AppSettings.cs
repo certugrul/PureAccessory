@@ -21,8 +21,8 @@ public class AppSettings
     public bool SoundEffectsEnabled { get; set; } = true;
     public bool CompactMode { get; set; } = false;
 
-    // Uzaktan Güncelleme Ayarları
-    public string UpdateCheckUrl { get; set; } = "";
+    // Uzaktan Güncelleme Ayarları (GitHub Releases)
+    public string UpdateCheckUrl { get; set; } = "https://github.com/certugrul/PureAccessory";
     public bool AutoCheckUpdates { get; set; } = true;
 
     // Özel Veritabanı Bağlantısı (Uzak SQL Server için)
