@@ -48,8 +48,12 @@ public class DatabaseService
                 return _forcedConnectionString;
 
             var custom = ThemeService.Current?.CustomDbConnectionString;
-            if (!string.IsNullOrWhiteSpace(custom))
+            if (!string.IsNullOrWhiteSpace(custom) && 
+                !custom.Contains("localhost", StringComparison.OrdinalIgnoreCase) && 
+                !custom.Contains(".\\SQLEXPRESS", StringComparison.OrdinalIgnoreCase))
+            {
                 return custom;
+            }
 
             return _workingConnectionString ?? DefaultSupabaseConnectionString;
         }

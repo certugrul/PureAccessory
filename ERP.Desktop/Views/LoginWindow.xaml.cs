@@ -61,7 +61,7 @@ public partial class LoginWindow : Window
         try
         {
             DotDbStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EAB308"));
-            TxtDbStatus.Text = "SQL Server: Bağlantı kontrol ediliyor...";
+            TxtDbStatus.Text = "Veritabanı: Bağlantı kontrol ediliyor...";
 
             var dbService = new DatabaseService();
             bool isConnected = await dbService.TestConnectionAsync();
@@ -69,14 +69,21 @@ public partial class LoginWindow : Window
             if (isConnected)
             {
                 DotDbStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
-                TxtDbStatus.Text = "SQL Server: Bağlı (ERPSystem)";
+                if (dbService.IsPostgres)
+                {
+                    TxtDbStatus.Text = "Bulut DB: Supabase (Aktif & Ortak)";
+                }
+                else
+                {
+                    TxtDbStatus.Text = "Yerel DB: SQL Server (Bağlı)";
+                }
                 TxtDbStatus.ToolTip = dbService.ConnectionString;
             }
             else
             {
                 DotDbStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-                TxtDbStatus.Text = "SQL Server: Bağlantı Yok (Çevrimdışı)";
-                TxtDbStatus.ToolTip = "SQL Server servisi durmuş olabilir veya bağlantı geçersizdir.";
+                TxtDbStatus.Text = "Veritabanı: Bağlantı Yok (Çevrimdışı)";
+                TxtDbStatus.ToolTip = "İnternet veya veritabanı bağlantısı kurulamadı.";
             }
         }
         catch { }

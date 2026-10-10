@@ -67,12 +67,16 @@
 
                 <!-- Hızlı Şablon Butonları -->
                 <TextBlock Text="Hızlı Şablonlar:" FontSize="11" Foreground="#94A3B8" Margin="0,0,0,4"/>
-                <UniformGrid Columns="2" Margin="0,0,0,14">
-                    <Button Content="⚡ .\SQLEXPRESS (Yerel Express)" Click="UseSqlExpress_Click" Margin="0,0,4,0" Padding="8,6"
+                <UniformGrid Columns="3" Margin="0,0,0,14">
+                    <Button Content="☁️ Supabase Bulut (Ortak)" Click="UseSupabase_Click" Margin="0,0,3,0" Padding="6,6"
+                            Background="#064E3B" Foreground="#34D399" BorderBrush="#059669" FontSize="11" FontWeight="Bold" Cursor="Hand">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                    </Button>
+                    <Button Content="⚡ .\SQLEXPRESS (Yerel)" Click="UseSqlExpress_Click" Margin="3,0,3,0" Padding="6,6"
                             Background="#1E293B" Foreground="#93C5FD" BorderBrush="#334155" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                     </Button>
-                    <Button Content="💻 localhost (Varsayılan Yerel)" Click="UseLocalhost_Click" Margin="4,0,0,0" Padding="8,6"
+                    <Button Content="💻 localhost (Yerel)" Click="UseLocalhost_Click" Margin="3,0,0,0" Padding="6,6"
                             Background="#1E293B" Foreground="#93C5FD" BorderBrush="#334155" FontSize="11" FontWeight="SemiBold" Cursor="Hand">
                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                     </Button>

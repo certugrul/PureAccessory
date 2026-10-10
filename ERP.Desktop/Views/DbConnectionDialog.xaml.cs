@@ -30,6 +30,11 @@ public partial class DbConnectionDialog : Window
         await RunTestAsync(currentConn);
     }
 
+    private void UseSupabase_Click(object sender, RoutedEventArgs e)
+    {
+        TxtConnStr.Text = DatabaseService.DefaultSupabaseConnectionString;
+    }
+
     private void UseSqlExpress_Click(object sender, RoutedEventArgs e)
     {
         TxtConnStr.Text = "Server=.\\SQLEXPRESS;Database=ERPSystem;Trusted_Connection=True;TrustServerCertificate=True;";
@@ -48,7 +53,7 @@ public partial class DbConnectionDialog : Window
 
     private async Task<bool> RunTestAsync(string connStr)
     {
-        SetStatusState("Kontrol ediliyor...", "#EAB308", "SQL Server ile bağlantı kuruluyor...");
+        SetStatusState("Kontrol ediliyor...", "#EAB308", "Veritabanı ile bağlantı kuruluyor...");
 
         try
         {
@@ -57,12 +62,13 @@ public partial class DbConnectionDialog : Window
 
             if (ok)
             {
-                SetStatusState("Bağlantı Başarılı!", "#10B981", $"SQL Server aktif ve ERPSystem veritabanına erişildi.");
+                string info = testService.IsPostgres ? "Supabase Bulut PostgreSQL aktif (Tüm cihazlarla ortak)" : "SQL Server aktif (Yerel)";
+                SetStatusState("Bağlantı Başarılı!", "#10B981", info);
                 return true;
             }
             else
             {
-                SetStatusState("Bağlantı Başarısız!", "#EF4444", "Sunucuya bağlanılamadı. SQL Server servisinin çalıştığından emin olun.");
+                SetStatusState("Bağlantı Başarısız!", "#EF4444", "Sunucuya bağlanılamadı. İnternet veya sunucu ayarlarınızı kontrol edin.");
                 return false;
             }
         }

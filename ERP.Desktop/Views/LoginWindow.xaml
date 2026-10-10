@@ -144,7 +144,7 @@
 
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Ellipse x:Name="DotDbStatus" Width="9" Height="9" Fill="#EAB308" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="TxtDbStatus" Text="SQL Server: Kontrol ediliyor..." FontSize="11" Foreground="#94A3B8" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="TxtDbStatus" Text="Veritabanı: Kontrol ediliyor..." FontSize="11" Foreground="#94A3B8" FontWeight="SemiBold"/>
                         </StackPanel>
 
                         <Button Grid.Column="1" Content="⚙️ DB Ayarla" Click="ConfigureDb_Click"
