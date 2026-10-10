@@ -53,10 +53,10 @@ public partial class BankView : Page
     {
         try
         {
-            await LoadSummaryCardsAsync();
             await LoadAccountsAsync();
             await LoadTransactionsAsync();
             await LoadPosTransactionsAsync();
+            LoadSummaryCards();
         }
         catch (Exception ex)
         {
@@ -64,9 +64,9 @@ public partial class BankView : Page
         }
     }
 
-    private async Task LoadSummaryCardsAsync()
+    private void LoadSummaryCards()
     {
-        var summary = await _bankService.GetBankSummaryAsync();
+        var summary = _bankService.CalculateSummary(_accounts, _transactions, _posTransactions);
 
         TxtTotalBalance.Text = summary.FormattedTotalBankBalance;
         TxtTodayInflow.Text = summary.FormattedTodayInflow;
@@ -94,6 +94,12 @@ public partial class BankView : Page
         TxtSummaryOutflow.Text = summary.FormattedTodayOutflow;
         TxtSummaryTransferOut.Text = "₺0,00";
         TxtSummaryTotalOutflow.Text = summary.FormattedTodayOutflow;
+    }
+
+    private async Task LoadSummaryCardsAsync()
+    {
+        LoadSummaryCards();
+        await Task.CompletedTask;
     }
 
     private async Task LoadAccountsAsync()

@@ -694,8 +694,7 @@ public class DebtService
             var updRemSql = @"
                 UPDATE FinancialReminders 
                 SET Status = 'Ödendi',
-                    IsPaid = 1,
-                    PaidAt = @pdate,
+                    IsPaid = true,
                     PaidDate = @pdate,
                     PaidFrom = @pfrom,
                     BankAccountId = @baid,
@@ -703,7 +702,7 @@ public class DebtService
                     PrincipalPaid = @prinPaid,
                     AccruedInterest = @aintPaid,
                     TaxAmount = @taxPaid
-                WHERE DebtId = @did AND (Status = 'Bekliyor' OR IsPaid = 0) AND IsDeleted = 0 AND DueDate <= @pdate";
+                WHERE DebtId = @did AND (Status = 'Bekliyor' OR IsPaid = false) AND IsDeleted = false AND DueDate <= @pdate";
 
             await using var updRemCmd = conn.CreateCommand(updRemSql, tran);
             updRemCmd.AddParam("pdate", paymentDate);

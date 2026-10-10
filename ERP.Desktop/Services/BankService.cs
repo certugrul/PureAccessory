@@ -9,6 +9,7 @@ public class BankService
 {
     private readonly DatabaseService _dbService;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
+    private static bool _isInitialized = false;
     private static readonly string StorageDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
     private static readonly string AccountsFile = Path.Combine(StorageDirectory, "bank_accounts.json");
     private static readonly string TransactionsFile = Path.Combine(StorageDirectory, "bank_transactions.json");
@@ -463,7 +464,43 @@ public class BankService
             };
 
             posList.Insert(0, posItem);
-            await SavePosTransactionsInternalAsync(posList);
+
+            // Veritabanına doğrudan tekil atomik ekleme (700+ kaydı tek tek turlamak yerine anında ekler)
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var insertSql = @"INSERT INTO PosTransactions (Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description)
+                                      VALUES (@id, @sid, @sdate, @gross, @rate, @camt, @net, @expDate, @actDate, @actPaid, @baid, @baname, @stat, @desc);";
+                    await using var cmd = conn.CreateCommand(insertSql);
+                    cmd.AddParam("id", posItem.Id);
+                    cmd.AddParam("sid", posItem.SaleId);
+                    cmd.AddParam("sdate", posItem.SaleDate);
+                    cmd.AddParam("gross", posItem.GrossAmount);
+                    cmd.AddParam("rate", posItem.CommissionRate);
+                    cmd.AddParam("camt", posItem.CommissionAmount);
+                    cmd.AddParam("net", posItem.NetAmount);
+                    cmd.AddParam("expDate", posItem.ExpectedDate);
+                    cmd.AddParam("actDate", posItem.ActualPaymentDate);
+                    cmd.AddParam("actPaid", posItem.ActualPaidAmount);
+                    cmd.AddParam("baid", posItem.BankAccountId);
+                    cmd.AddParam("baname", posItem.BankAccountName);
+                    cmd.AddParam("stat", posItem.Status);
+                    cmd.AddParam("desc", posItem.Description);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch { }
+
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(PosFile, json);
+            }
+            catch { }
 
             return posItem;
         }
@@ -726,16 +763,9 @@ public class BankService
 
     #region Summary
 
-    public async Task<BankSummary> GetBankSummaryAsync(DateTime? targetDate = null)
+    public BankSummary CalculateSummary(List<BankAccount> accounts, List<BankTransaction> transactions, List<PosTransaction> posList, DateTime? targetDate = null)
     {
-        await EnsureInitializedAsync();
-
         var date = (targetDate ?? DateTime.Today).Date;
-
-        var accounts = await GetAllAccountsAsync();
-        var transactions = await GetTransactionsAsync();
-        var posList = await GetPosTransactionsAsync();
-
         var todayTxs = transactions.Where(t => t.CreatedAt.Date == date).ToList();
 
         decimal totalBankBalance = accounts.Sum(a => a.CurrentBalance);
@@ -766,12 +796,26 @@ public class BankService
         };
     }
 
+    public async Task<BankSummary> GetBankSummaryAsync(DateTime? targetDate = null)
+    {
+        await EnsureInitializedAsync();
+
+        var accounts = await GetAllAccountsAsync();
+        var transactions = await GetTransactionsAsync();
+        var posList = await GetPosTransactionsAsync();
+
+        return CalculateSummary(accounts, transactions, posList, targetDate);
+    }
+
     #endregion
 
     #region Internal Load / Save / Seed
 
     private async Task EnsureInitializedAsync()
     {
+        if (_isInitialized) return;
+        _isInitialized = true;
+
         EnsureStorageDirectory();
 
         // 1. Hesaplar dosyası yoksa varsayılan hesapları oluştur

@@ -81,6 +81,14 @@ public static class DbHelper
             s = $"SELECT {remainder} LIMIT {limit}";
         }
 
+        // 6b. "User" veya [User] sütun adını PostgreSQL için küçük harf "user" yap
+        s = Regex.Replace(s, @"\""User\""", "\"user\"", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"\[User\]", "\"user\"", RegexOptions.IgnoreCase);
+
+        // 6c. Boolean karşılaştırmaları (= 1 -> = true, = 0 -> = false)
+        s = Regex.Replace(s, @"\b(IsActive|IsDeleted|IsDefault|IsApplied|IsRecurringMonthly|IsPaid)\s*=\s*1\b", "$1 = true", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"\b(IsActive|IsDeleted|IsDefault|IsApplied|IsRecurringMonthly|IsPaid)\s*=\s*0\b", "$1 = false", RegexOptions.IgnoreCase);
+
         // 7. Tablo adlarını küçük harfe dönüştür
         var tables = new[]
         {
