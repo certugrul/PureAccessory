@@ -62,15 +62,9 @@
                                FontSize="12" Foreground="#7F1D1D" Margin="24,3,0,0"/>
                 </StackPanel>
 
-                <Button x:Name="BtnBannerOpenCash" Grid.Column="1" Content="🌅 Gün Açılışı Yap (Kasayı Aç)" Click="OpenCashFromBanner_Click"
-                        Background="#DC2626" Foreground="White" FontWeight="Bold" FontSize="13"
-                        Padding="18,9" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="8"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
+                <Border Grid.Column="1" Background="#FEE2E2" CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
+                    <TextBlock Text="ℹ️ Kasa menüsünden açınız" FontSize="11.5" FontWeight="Bold" Foreground="#991B1B"/>
+                </Border>
             </Grid>
         </Border>
 
@@ -592,7 +586,7 @@
                         </Border>
 
                         <!-- Satışı Tamamla Butonu -->
-                        <Button Content="✅ Satışı Tamamla" Click="CompleteSale_Click"
+                        <Button x:Name="BtnCompleteSale" Content="✅ Satışı Tamamla" Click="CompleteSale_Click"
                                 Background="#059669" Foreground="White" FontSize="15" FontWeight="Bold"
                                 Padding="0,11" BorderThickness="0" Cursor="Hand">
                             <Button.Resources>

@@ -142,6 +142,54 @@ public partial class DailyReceiptBreakdownWindow : Window
         TxtReceiptFooterTotal.Text = "₺0,00";
     }
 
+    private async void DeleteSelectedReceipt_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReceiptsGrid.SelectedItem is not DailyReceiptRow selected)
+        {
+            MessageBox.Show("Lütfen önce listeden silmek istediğiniz fişi seçin.", "Fiş Seçilmedi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirmMsg = $"⚠️ FİŞ İPTALİ VE SİLME ONAYI\n\n" +
+                         $"• Fiş No       : #{selected.SaleId}\n" +
+                         $"• İşlem Saati  : {selected.FormattedTime}\n" +
+                         $"• Ödeme Türü   : {selected.PaymentTypeBadge}\n" +
+                         $"• Kalem Sayısı : {selected.ItemCount} Kalem ({selected.TotalQuantity:N0} Adet Ürün)\n" +
+                         $"• Fiş Tutarı   : ₺{selected.GrandTotal:N2}\n\n" +
+                         $"Bu fiş silindiğinde:\n" +
+                         $"1. Satılan ürünlerin adetleri depoya geri iade edilecek ve stoklar artırılacak.\n" +
+                         $"2. Kasa ve POS hareketleri iptal edilecek.\n" +
+                         $"3. Fiş kaydı kalıcı olarak kaldırılacak.\n\n" +
+                         $"Bu fişi silmek ve satışı iptal etmek istediğinize emin misiniz?";
+
+        var result = MessageBox.Show(confirmMsg, "Fişi Sil / İptal Et", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            BtnDeleteSelectedReceipt.IsEnabled = false;
+            bool success = await _salesService.DeleteSaleAsync(selected.SaleId);
+            if (success)
+            {
+                MessageBox.Show($"#{selected.SaleId} numaralı fiş başarıyla iptal edildi ve silindi.\nStoklar depoya iade edildi.", 
+                                "Fiş Silindi", MessageBoxButton.OK, MessageBoxImage.Information);
+                await LoadDataAsync();
+            }
+            else
+            {
+                MessageBox.Show("Fiş silinirken bir sorun oluştu.", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Fiş silinemedi: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            BtnDeleteSelectedReceipt.IsEnabled = true;
+        }
+    }
+
     private async void PrevDay_Click(object sender, RoutedEventArgs e)
     {
         _targetDate = _targetDate.AddDays(-1);

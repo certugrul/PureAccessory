@@ -45,8 +45,17 @@ public partial class ProductsView : Page
         {
             Products.Add(p);
         }
-        var totalUnits = Products.Sum(p => p.Stock);
-        ProductCountText.Text = $"{Products.Count} Çeşit Ürün ({totalUnits:N0} Adet Stok)";
+
+        if (Products.Count == 0)
+        {
+            ProductCountText.Text = "0 Ürün (Veritabanı bilgisine ulaşılamadı)";
+            MessageBox.Show("Ürün verilerine veya veritabanına ulaşılamadı!\nLütfen sunucu bağlantınızı kontrol ediniz.", "Bilgiye Ulaşılamadı", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        else
+        {
+            var totalUnits = Products.Sum(p => p.Stock);
+            ProductCountText.Text = $"{Products.Count} Çeşit Ürün ({totalUnits:N0} Adet Stok)";
+        }
         SearchBox.Clear();
     }
 

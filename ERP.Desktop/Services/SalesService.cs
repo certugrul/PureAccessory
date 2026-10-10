@@ -432,4 +432,118 @@ public class SalesService
 
         return new List<Sale>();
     }
+
+    /// <summary>
+    /// Fişi/satışı kalıcı olarak iptal eder ve siler:
+    /// 1. Satıştaki ürün adetlerini depoya ve stoklara geri iade eder.
+    /// 2. Kasa ve POS/banka finansal kayıtlarını temizler/dengeler.
+    /// 3. Satış ve satış kalemlerini hem SQL Server'dan hem yerel JSON'dan siler.
+    /// </summary>
+    public async Task<bool> DeleteSaleAsync(long saleId)
+    {
+        try
+        {
+            var allSales = await GetAllSalesAsync();
+            var targetSale = allSales.FirstOrDefault(s => s.Id == saleId);
+            if (targetSale == null)
+            {
+                throw new InvalidOperationException($"#{saleId} numaralı satış/fiş kaydı bulunamadı.");
+            }
+
+            var defaultWh = await _warehouseService.GetDefaultWarehouseAsync();
+
+            // 1. Stokları depoya geri iade et
+            foreach (var item in targetSale.Items)
+            {
+                try
+                {
+                    await _warehouseService.AddStockAsync(
+                        defaultWh.Id, 
+                        item.ProductId, 
+                        item.Quantity, 
+                        $"Fiş İptali #{saleId}", 
+                        "Satış İptali Stok İadesi", 
+                        "Stok Girişi"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[SalesService] Stok iade hatası: {ex.Message}");
+                }
+            }
+
+            // 2. SQL Server bağlıysa veritabanından temizle
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await conn.OpenAsync();
+
+                    // Kasa hareketlerini sil (bu satışla ilgili olanlar)
+                    var delCashSql = "DELETE FROM CashTransactions WHERE Description LIKE @Pattern";
+                    await using (var cmdCash = new SqlCommand(delCashSql, conn))
+                    {
+                        cmdCash.Parameters.AddWithValue("@Pattern", $"%Satış #{saleId}%");
+                        await cmdCash.ExecuteNonQueryAsync();
+                    }
+
+                    // POS hareketlerini sil
+                    var delPosSql = "DELETE FROM PosTransactions WHERE Description LIKE @Pattern";
+                    await using (var cmdPos = new SqlCommand(delPosSql, conn))
+                    {
+                        cmdPos.Parameters.AddWithValue("@Pattern", $"%Satış #{saleId}%");
+                        await cmdPos.ExecuteNonQueryAsync();
+                    }
+
+                    // Cari hareketleri sil (veresiye ise)
+                    var delCariSql = "DELETE FROM CariTransactions WHERE DocumentNo = @DocNo";
+                    await using (var cmdCari = new SqlCommand(delCariSql, conn))
+                    {
+                        cmdCari.Parameters.AddWithValue("@DocNo", $"Satış #{saleId}");
+                        await cmdCari.ExecuteNonQueryAsync();
+                    }
+
+                    // Satış Kalemlerini sil
+                    var delItemsSql = "DELETE FROM SaleItems WHERE SaleId = @SaleId";
+                    await using (var cmdItems = new SqlCommand(delItemsSql, conn))
+                    {
+                        cmdItems.Parameters.AddWithValue("@SaleId", saleId);
+                        await cmdItems.ExecuteNonQueryAsync();
+                    }
+
+                    // Satışı sil
+                    var delSaleSql = "DELETE FROM Sales WHERE Id = @SaleId";
+                    await using (var cmdSale = new SqlCommand(delSaleSql, conn))
+                    {
+                        cmdSale.Parameters.AddWithValue("@SaleId", saleId);
+                        await cmdSale.ExecuteNonQueryAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[SalesService] SQL satış silme hatası: {ex.Message}");
+                }
+            }
+
+            // 3. Yerel JSON'dan sil
+            try
+            {
+                if (File.Exists(StorageFile))
+                {
+                    var list = await LoadSalesFromLocalJsonAsync();
+                    list.RemoveAll(s => s.Id == saleId);
+                    var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(StorageFile, json);
+                }
+            }
+            catch { }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Fiş silinirken hata oluştu: {ex.Message}", ex);
+        }
+    }
 }

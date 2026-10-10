@@ -19,8 +19,17 @@ public partial class MainWindow : Window
         UpdateStoreBranding();
         ThemeService.ThemeChanged += _ => UpdateStoreBranding();
         Closing += MainWindow_Closing;
-        MainFrame.Navigating += MainFrame_Navigating;
         ApplyUserPermissions();
+
+        // Telefon Scanner sunucusunu ve HTTPS tünelini arka planda otomatik başlat
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await PhoneScannerService.Instance.StartServerAsync();
+            }
+            catch { }
+        });
 
         if (AuthService.CurrentUser?.CanAccessDashboard == true)
         {

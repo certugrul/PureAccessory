@@ -609,6 +609,14 @@
                         token: token,
                         device: /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "iPhone Safari" : "Mobil Cihaz"
                     }));
+
+                    if (!window._heartbeatTimer) {
+                        window._heartbeatTimer = setInterval(() => {
+                            if (ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'ping' }));
+                            }
+                        }, 12000);
+                    }
                 };
 
                 ws.onmessage = (event) => {

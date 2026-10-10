@@ -25,7 +25,7 @@
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="ProductCountText" Text="5 Ürün Kayıtlı" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="#2563EB" Background="#EFF6FF" Padding="12,8" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                               Foreground="{DynamicResource PrimaryBrush}" Background="{DynamicResource PrimaryLightBrush}" Padding="12,8" Margin="0,0,12,0" VerticalAlignment="Center"/>
 
                     <Button Content="🖨️ Barkod / Etiket Baskı" Click="OpenBarcodeCenter_Click"
                             Background="#059669" Foreground="White" FontWeight="Bold" FontSize="14"
@@ -131,8 +131,8 @@
                                     </Button>
 
                                     <Button Content="✏️ Düzenle" Click="EditProduct_Click" Margin="0,0,6,0" Padding="8,4"
-                                            Background="#EFF6FF" Foreground="#2563EB" FontWeight="SemiBold" FontSize="12"
-                                            BorderBrush="#BFDBFE" BorderThickness="1" Cursor="Hand">
+                                            Background="{DynamicResource PrimaryLightBrush}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="SemiBold" FontSize="12"
+                                            BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1" Cursor="Hand">
                                         <Button.Resources>
                                             <Style TargetType="Border">
                                                 <Setter Property="CornerRadius" Value="4"/>

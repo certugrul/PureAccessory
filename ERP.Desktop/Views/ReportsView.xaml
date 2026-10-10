@@ -371,7 +371,7 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Grid Width="50" Margin="4,0" VerticalAlignment="Bottom">
+                                                    <Grid Width="68" Margin="6,0" VerticalAlignment="Bottom">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/> <!-- Değer Yazısı (Tutar) -->
                                                             <RowDefinition Height="Auto"/> <!-- Sütun Çubuğu -->
@@ -381,13 +381,15 @@
                                                         </Grid.RowDefinitions>
 
                                                         <!-- Değer Yazısı -->
-                                                        <TextBlock Grid.Row="0" Text="{Binding DisplayValue}" FontSize="9" FontWeight="Bold" 
-                                                                   Foreground="#1E293B" HorizontalAlignment="Center" Margin="0,0,0,4"
-                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayValue}"/>
+                                                        <Border Grid.Row="0" Background="#F1F5F9" CornerRadius="4" Padding="3,1" Margin="0,0,0,5" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayValue}" FontSize="9.5" FontWeight="Bold" 
+                                                                       Foreground="#1E293B" HorizontalAlignment="Center"
+                                                                       TextTrimming="None" ToolTip="{Binding DisplayValue}"/>
+                                                        </Border>
 
                                                         <!-- Sütun Çubuğu (Bar) -->
-                                                        <Border Grid.Row="1" Height="{Binding BarHeight}" Width="30" MinHeight="4"
-                                                                Background="{Binding BarColor}" CornerRadius="4,4,0,0"
+                                                        <Border Grid.Row="1" Height="{Binding BarHeight}" Width="36" MinHeight="4"
+                                                                Background="{Binding BarColor}" CornerRadius="5,5,0,0"
                                                                 ToolTip="{Binding Tooltip}" Cursor="Hand" HorizontalAlignment="Center">
                                                             <Border.Effect>
                                                                 <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.15" Color="#000000"/>
@@ -398,12 +400,12 @@
                                                         <Rectangle Grid.Row="2" Height="1.5" Fill="#CBD5E1" Margin="0,2,0,3"/>
 
                                                         <!-- Ana Etiket (Örn: 01, Oca, Nakit) -->
-                                                        <TextBlock Grid.Row="3" Text="{Binding Label}" FontSize="10" FontWeight="SemiBold"
+                                                        <TextBlock Grid.Row="3" Text="{Binding Label}" FontSize="10.5" FontWeight="SemiBold"
                                                                    Foreground="#475569" HorizontalAlignment="Center" TextAlignment="Center"
-                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Label}"/>
+                                                                   TextTrimming="None" ToolTip="{Binding Label}"/>
 
                                                         <!-- Alt Etiket (Örn: Pzt, #1) -->
-                                                        <TextBlock Grid.Row="4" Text="{Binding SubLabel}" FontSize="8.5" Foreground="#94A3B8"
+                                                        <TextBlock Grid.Row="4" Text="{Binding SubLabel}" FontSize="9" Foreground="#94A3B8"
                                                                    HorizontalAlignment="Center" TextAlignment="Center"/>
                                                     </Grid>
                                                 </DataTemplate>
@@ -525,18 +527,28 @@
                                 <DataGridTextColumn Header="Net Kâr" Binding="{Binding FormattedProfit}" FontWeight="Bold" Width="100"/>
                                 <DataGridTextColumn Header="Kaynak &amp; Not" Binding="{Binding Notes}" Width="*"/>
                                 
-                                <DataGridTemplateColumn Header="İşlemler" Width="165">
+                                <DataGridTemplateColumn Header="İşlemler" Width="260">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                 <Button Content="⚡ Z Raporu" Click="OpenRowZReport_Click"
-                                                        Padding="5,3" Background="#EFF6FF" Foreground="#2563EB" FontWeight="SemiBold"
+                                                        Padding="6,3" Background="#EFF6FF" Foreground="#2563EB" FontWeight="SemiBold"
                                                         BorderThickness="0" Cursor="Hand" Margin="0,0,4,0">
                                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
                                                 </Button>
                                                 <Button Content="🧾 Fişler" Click="OpenRowReceiptBreakdown_Click"
-                                                        Padding="5,3" Background="#F0FDF4" Foreground="#16A34A" FontWeight="SemiBold"
-                                                        BorderThickness="0" Cursor="Hand">
+                                                        Padding="6,3" Background="#F0FDF4" Foreground="#16A34A" FontWeight="SemiBold"
+                                                        BorderThickness="0" Cursor="Hand" Margin="0,0,4,0">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="✏️ Not" Click="EditClosureNotes_Click"
+                                                        Padding="6,3" Background="#FEF3C7" Foreground="#B45309" FontWeight="SemiBold"
+                                                        BorderThickness="0" Cursor="Hand" Margin="0,0,4,0" ToolTip="Kapanış notunu düzenle">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="🗑️ Sil" Click="DeleteClosure_Click"
+                                                        Padding="6,3" Background="#FEF2F2" Foreground="#DC2626" FontWeight="SemiBold"
+                                                        BorderThickness="0" Cursor="Hand" ToolTip="Bu gün sonu kaydını sil">
                                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
                                                 </Button>
                                             </StackPanel>

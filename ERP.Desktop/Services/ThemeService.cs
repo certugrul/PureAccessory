@@ -71,24 +71,32 @@ public static class ThemeService
                 if (!string.IsNullOrWhiteSpace(settings.PrimaryColor))
                 {
                     var color = (Color)ColorConverter.ConvertFromString(settings.PrimaryColor);
-                    Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(color);
+                    var primaryBrush = new SolidColorBrush(color);
+                    primaryBrush.Freeze();
+                    Application.Current.Resources["PrimaryBrush"] = primaryBrush;
 
                     // Çok açık ton (rozet ve buton arkaplanları için)
                     var lightColor = Color.FromArgb(35, color.R, color.G, color.B);
-                    Application.Current.Resources["PrimaryLightBrush"] = new SolidColorBrush(lightColor);
+                    var lightBrush = new SolidColorBrush(lightColor);
+                    lightBrush.Freeze();
+                    Application.Current.Resources["PrimaryLightBrush"] = lightBrush;
 
                     // Hover tonu (bir tık koyusu)
                     byte rH = (byte)Math.Max(0, color.R - 25);
                     byte gH = (byte)Math.Max(0, color.G - 25);
                     byte bH = (byte)Math.Max(0, color.B - 25);
-                    Application.Current.Resources["PrimaryHoverBrush"] = new SolidColorBrush(Color.FromRgb(rH, gH, bH));
+                    var hoverBrush = new SolidColorBrush(Color.FromRgb(rH, gH, bH));
+                    hoverBrush.Freeze();
+                    Application.Current.Resources["PrimaryHoverBrush"] = hoverBrush;
                 }
 
                 // 2. Sol Menü Rengi
                 if (!string.IsNullOrWhiteSpace(settings.SidebarColor))
                 {
                     var color = (Color)ColorConverter.ConvertFromString(settings.SidebarColor);
-                    Application.Current.Resources["SidebarBrush"] = new SolidColorBrush(color);
+                    var sidebarBrush = new SolidColorBrush(color);
+                    sidebarBrush.Freeze();
+                    Application.Current.Resources["SidebarBrush"] = sidebarBrush;
                 }
 
                 // 3. Karanlık / Aydınlık Mod ve Sayfa Arka Planları

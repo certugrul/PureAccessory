@@ -26,36 +26,20 @@
                         <TextBlock Text="Canlı işletme durumu, anlık zaman takibi ve gün sonu işlemleri" FontSize="13" Foreground="#64748B" Margin="0,4,0,0"/>
                     </StackPanel>
 
-                    <!-- Sağ: Canlı Saat, Tarih Rozeti ve Gün Sonu Aksiyonu -->
+                    <!-- Sağ: Canlı Saat & Tarih Rozeti ve Yenile Butonu -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Canlı Dijital Saat & Tarih Kartı -->
-                        <Border Background="#F1F5F9" CornerRadius="10" Padding="14,8" Margin="0,0,12,0" BorderBrush="#CBD5E1" BorderThickness="1">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                                    <TextBlock x:Name="LiveTimeText" Text="12:00:00" FontSize="22" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right"/>
-                                    <TextBlock x:Name="LiveDateText" Text="01.01.2026 Çarşamba" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Right"/>
-                                </StackPanel>
+                        <Border Background="#F1F5F9" CornerRadius="10" Padding="16,8" Margin="0,0,10,0" BorderBrush="#CBD5E1" BorderThickness="1">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="LiveTimeText" Text="12:00:00" FontSize="22" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right"/>
+                                <TextBlock x:Name="LiveDateText" Text="01.01.2026 Çarşamba" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Right"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Gün Sonu Tarih Seçici -->
-                        <DatePicker x:Name="ClosureDatePicker" Width="130" Height="38" VerticalContentAlignment="Center" Margin="0,0,10,0" ToolTip="Tarih seçimi"/>
-
-                        <!-- Gün Açılışı Butonu (Kasa Kapalıyken Aktif) -->
-                        <Button x:Name="BtnOpenDay" Content="🌅 Gün Açılışı Yap" Click="OpenDay_Click"
-                                Background="#059669" Foreground="White" FontWeight="Bold" FontSize="14"
-                                Padding="16,9" BorderThickness="0" Margin="0,0,8,0" Cursor="Hand">
-                            <Button.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="8"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
-
-                        <!-- Gün Sonu Al Butonu -->
-                        <Button x:Name="BtnTakeClosure" Content="🏁 Gün Sonu Al (Gün Bitişi)" Click="TakeClosure_Click"
-                                Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="14"
-                                Padding="16,9" BorderThickness="0" Cursor="Hand">
+                        <!-- Yenile Butonu -->
+                        <Button Content="🔄 Yenile" Click="RefreshDashboard_Click"
+                                Background="#FFFFFF" Foreground="#334155" FontWeight="Bold" FontSize="13"
+                                Padding="14,9" BorderThickness="1" BorderBrush="#CBD5E1" Cursor="Hand" ToolTip="Dashboard verilerini yenile">
                             <Button.Resources>
                                 <Style TargetType="Border">
                                     <Setter Property="CornerRadius" Value="8"/>
@@ -86,12 +70,12 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Stok Değeri -->
+                <!-- Bugünkü Kredi Kartı Tutarı -->
                 <Border Background="White" CornerRadius="12" Margin="5,0,5,0" Padding="18" BorderBrush="#E2E8F0" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="Toplam Stok Değeri" Foreground="#64748B" FontSize="13" FontWeight="SemiBold"/>
-                        <TextBlock x:Name="CardStockText" Text="₺0,00" FontSize="24" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,0"/>
-                        <TextBlock x:Name="CardStockSubText" Text="Depodaki mevcut ürünler" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
+                        <TextBlock Text="Bugünkü Kredi Kartı Tutarı" Foreground="#64748B" FontSize="13" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CardStockText" Text="₺0,00" FontSize="24" FontWeight="Bold" Foreground="#2563EB" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="CardStockSubText" Text="Bugün POS ile yapılan tahsilatlar" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
 

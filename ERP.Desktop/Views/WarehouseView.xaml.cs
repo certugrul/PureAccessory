@@ -169,6 +169,60 @@ public partial class WarehouseView : Page
         }
     }
 
+    private async void ManualStockIn_Click(object sender, RoutedEventArgs e)
+    {
+        int? whId = null;
+        if (CmbWarehouseSelector.SelectedItem is Warehouse sel && sel.Id > 0)
+        {
+            whId = sel.Id;
+        }
+
+        var win = new StockAdjustmentDialog(isStockIn: true, warehouseId: whId) { Owner = Window.GetWindow(this) };
+        if (win.ShowDialog() == true)
+        {
+            await RefreshStocksAsync();
+        }
+    }
+
+    private async void ManualStockOut_Click(object sender, RoutedEventArgs e)
+    {
+        int? whId = null;
+        if (CmbWarehouseSelector.SelectedItem is Warehouse sel && sel.Id > 0)
+        {
+            whId = sel.Id;
+        }
+
+        var win = new StockAdjustmentDialog(isStockIn: false, warehouseId: whId) { Owner = Window.GetWindow(this) };
+        if (win.ShowDialog() == true)
+        {
+            await RefreshStocksAsync();
+        }
+    }
+
+    private async void RowStockIn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is WarehouseStock stock)
+        {
+            var win = new StockAdjustmentDialog(isStockIn: true, productId: stock.ProductId, warehouseId: stock.WarehouseId) { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() == true)
+            {
+                await RefreshStocksAsync();
+            }
+        }
+    }
+
+    private async void RowStockOut_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is WarehouseStock stock)
+        {
+            var win = new StockAdjustmentDialog(isStockIn: false, productId: stock.ProductId, warehouseId: stock.WarehouseId) { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() == true)
+            {
+                await RefreshStocksAsync();
+            }
+        }
+    }
+
     private void OpenStockMovements_Click(object sender, RoutedEventArgs e)
     {
         var win = new StockMovementsWindow(_warehouseService) { Owner = Window.GetWindow(this) };

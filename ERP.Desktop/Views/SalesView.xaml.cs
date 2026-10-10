@@ -219,35 +219,28 @@ public partial class SalesView : Page
             }
         }
 
-        var existing = Cart.FirstOrDefault(c => c.ProductId == product.Id);
-        decimal currentQty;
-        if (existing != null)
+        // Sepete doğrudan altına yeni satır olarak ekle
+        var newItem = new CartItem
         {
-            existing.Quantity++;
-            currentQty = existing.Quantity;
-            CartGrid.Items.Refresh();
-        }
-        else
-        {
-            currentQty = 1;
-            Cart.Add(new CartItem
-            {
-                ProductId = product.Id,
-                Code = product.Code,
-                Name = product.Name,
-                Barcode = product.Barcode,
-                QrCode = product.QrCode,
-                UnitPrice = product.SalePrice,
-                OriginalUnitPrice = product.SalePrice,
-                UnitCost = product.PurchasePrice,
-                VatRate = product.VatRate,
-                AvailableStock = product.Stock,
-                Quantity = 1
-            });
-        }
+            ProductId = product.Id,
+            Code = product.Code,
+            Name = product.Name,
+            Barcode = product.Barcode,
+            QrCode = product.QrCode,
+            UnitPrice = product.SalePrice,
+            OriginalUnitPrice = product.SalePrice,
+            UnitCost = product.PurchasePrice,
+            VatRate = product.VatRate,
+            AvailableStock = product.Stock,
+            Quantity = 1
+        };
+
+        Cart.Add(newItem);
+        CartGrid.SelectedItem = newItem;
+        CartGrid.ScrollIntoView(newItem);
 
         string sourceTag = isFromPhone ? "📱 Telefondan" : "✅";
-        ScanFeedbackText.Text = $"{sourceTag} {product.Name} sepete eklendi (Fiyat: ₺{product.SalePrice:N2} | Adet: {currentQty})";
+        ScanFeedbackText.Text = $"{sourceTag} {product.Name} sepete eklendi (Fiyat: ₺{product.SalePrice:N2})";
         ScanFeedbackText.Foreground = _greenBrush;
 
         SoundService.PlaySuccess();
@@ -829,7 +822,34 @@ public partial class SalesView : Page
     private void SplitAmounts_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_isUpdatingSplit) return;
-        UpdateSplitPaymentStatusUI();
+        _isUpdatingSplit = true;
+        try
+        {
+            if (ReferenceEquals(sender, TxtSplitCash))
+            {
+                decimal cash = ParseDecimalSafe(TxtSplitCash?.Text);
+                decimal remainCard = Math.Max(0, _currentGrandTotal - cash);
+                if (TxtSplitCard != null)
+                {
+                    TxtSplitCard.Text = remainCard.ToString("N2", _trCulture);
+                }
+            }
+            else if (ReferenceEquals(sender, TxtSplitCard))
+            {
+                decimal card = ParseDecimalSafe(TxtSplitCard?.Text);
+                decimal remainCash = Math.Max(0, _currentGrandTotal - card);
+                if (TxtSplitCash != null)
+                {
+                    TxtSplitCash.Text = remainCash.ToString("N2", _trCulture);
+                }
+            }
+        }
+        catch { }
+        finally
+        {
+            _isUpdatingSplit = false;
+            UpdateSplitPaymentStatusUI();
+        }
     }
 
     private void SplitFiftyFifty_Click(object sender, RoutedEventArgs e)
@@ -872,7 +892,7 @@ public partial class SalesView : Page
         {
             decimal cash = ParseDecimalSafe(TxtSplitCash?.Text);
             decimal remain = Math.Max(0, _currentGrandTotal - cash);
-            if (TxtSplitCard != null) TxtSplitCard.Text = NumberParser.FormatForEditing(remain);
+            if (TxtSplitCard != null) TxtSplitCard.Text = remain.ToString("N2", _trCulture);
         }
         finally
         {
@@ -921,78 +941,84 @@ public partial class SalesView : Page
 
     #endregion
 
+    private bool _isCompletingSale = false;
+
     private async void CompleteSale_Click(object sender, RoutedEventArgs e)
     {
-        if (!await EnsureCashRegisterOpenAsync())
-        {
-            return;
-        }
-
-        if (Cart.Count == 0)
-        {
-            MessageBox.Show("Sepette ürün bulunmuyor. Lütfen önce ürün menüsünden tıklayarak veya QR kod/barkod okutarak ürün ekleyin.", "Sepet Boş", MessageBoxButton.OK, MessageBoxImage.Warning);
-            ScanBox.Focus();
-            return;
-        }
-
-        string paymentType = "Nakit";
-        decimal splitCash = 0m;
-        decimal splitCard = 0m;
-
-        if (RbCreditCard.IsChecked == true)
-        {
-            paymentType = "Kredi Kartı";
-        }
-        else if (RbSplit.IsChecked == true)
-        {
-            paymentType = "Parçalı";
-            splitCash = ParseDecimalSafe(TxtSplitCash?.Text);
-            splitCard = ParseDecimalSafe(TxtSplitCard?.Text);
-            decimal sum = splitCash + splitCard;
-            decimal diff = Math.Abs(_currentGrandTotal - sum);
-
-            if (diff >= 0.01m)
-            {
-                var remaining = _currentGrandTotal - sum;
-                string msg = remaining > 0
-                    ? $"Parçalı ödeme tutarları genel toplam ile eşleşmiyor!\n\n" +
-                      $"• Genel Toplam        : ₺{_currentGrandTotal:N2}\n" +
-                      $"• Girilen Nakit       : ₺{splitCash:N2}\n" +
-                      $"• Girilen Kredi Kartı : ₺{splitCard:N2}\n" +
-                      $"• Kalan Eksik Tutar   : ₺{remaining:N2}\n\n" +
-                      $"Lütfen 'Kalanı Yaz' butonlarını kullanarak veya tutarları düzenleyerek toplamı dengeleyin."
-                    : $"Girilen parçalı ödeme tutarı genel toplamdan fazladır!\n\n" +
-                      $"• Genel Toplam   : ₺{_currentGrandTotal:N2}\n" +
-                      $"• Girilen Toplam : ₺{sum:N2}\n" +
-                      $"• Fazlalık       : ₺{Math.Abs(remaining):N2}\n\n" +
-                      $"Lütfen tutarları kontrol ediniz.";
-
-                MessageBox.Show(msg, "Parçalı Ödeme Uyuşmazlığı", MessageBoxButton.OK, MessageBoxImage.Warning);
-                TxtSplitCash?.Focus();
-                return;
-            }
-        }
-        else if (RbOnAccount.IsChecked == true)
-        {
-            paymentType = "Veresiye";
-        }
-
-        // Satış tarihi DOĞRUDAN gün açılışından alınır (kullanıcı değiştiremez)
-        var session = await _cashService.GetTodaySessionAsync(DateTime.Today) ?? await _cashService.GetActiveSessionAsync();
-        if (session == null || session.Status != "Açık")
-        {
-            MessageBox.Show("Gün henüz açılmadı ve kasa kapalı! Satış yapabilmek için önce gün açılışı yapmalısınız.", "Kasa Kapalı", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var sessionDate = session.SessionDate.Date;
-        var saleDateTime = new DateTime(
-            sessionDate.Year, sessionDate.Month, sessionDate.Day,
-            DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second
-        );
+        if (_isCompletingSale) return;
+        _isCompletingSale = true;
+        if (BtnCompleteSale != null) BtnCompleteSale.IsEnabled = false;
 
         try
         {
+            if (!await EnsureCashRegisterOpenAsync())
+            {
+                return;
+            }
+
+            if (Cart.Count == 0)
+            {
+                MessageBox.Show("Sepette ürün bulunmuyor. Lütfen önce ürün menüsünden tıklayarak veya QR kod/barkod okutarak ürün ekleyin.", "Sepet Boş", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ScanBox.Focus();
+                return;
+            }
+
+            string paymentType = "Nakit";
+            decimal splitCash = 0m;
+            decimal splitCard = 0m;
+
+            if (RbCreditCard.IsChecked == true)
+            {
+                paymentType = "Kredi Kartı";
+            }
+            else if (RbSplit.IsChecked == true)
+            {
+                paymentType = "Parçalı";
+                splitCash = ParseDecimalSafe(TxtSplitCash?.Text);
+                splitCard = ParseDecimalSafe(TxtSplitCard?.Text);
+                decimal sum = splitCash + splitCard;
+                decimal diff = Math.Abs(_currentGrandTotal - sum);
+
+                if (diff >= 0.01m)
+                {
+                    var remaining = _currentGrandTotal - sum;
+                    string msg = remaining > 0
+                        ? $"Parçalı ödeme tutarları genel toplam ile eşleşmiyor!\n\n" +
+                          $"• Genel Toplam        : ₺{_currentGrandTotal:N2}\n" +
+                          $"• Girilen Nakit       : ₺{splitCash:N2}\n" +
+                          $"• Girilen Kredi Kartı : ₺{splitCard:N2}\n" +
+                          $"• Kalan Eksik Tutar   : ₺{remaining:N2}\n\n" +
+                          $"Lütfen tutarları kontrol ediniz."
+                        : $"Girilen parçalı ödeme tutarı genel toplamdan fazladır!\n\n" +
+                          $"• Genel Toplam   : ₺{_currentGrandTotal:N2}\n" +
+                          $"• Girilen Toplam : ₺{sum:N2}\n" +
+                          $"• Fazlalık       : ₺{Math.Abs(remaining):N2}\n\n" +
+                          $"Lütfen tutarları kontrol ediniz.";
+
+                    MessageBox.Show(msg, "Parçalı Ödeme Uyuşmazlığı", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    TxtSplitCash?.Focus();
+                    return;
+                }
+            }
+            else if (RbOnAccount.IsChecked == true)
+            {
+                paymentType = "Veresiye";
+            }
+
+            // Satış tarihi DOĞRUDAN gün açılışından alınır (kullanıcı değiştiremez)
+            var session = await _cashService.GetTodaySessionAsync(DateTime.Today) ?? await _cashService.GetActiveSessionAsync();
+            if (session == null || session.Status != "Açık")
+            {
+                MessageBox.Show("Gün henüz açılmadı ve kasa kapalı! Satış yapabilmek için önce gün açılışı yapmalısınız.", "Kasa Kapalı", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var sessionDate = session.SessionDate.Date;
+            var saleDateTime = new DateTime(
+                sessionDate.Year, sessionDate.Month, sessionDate.Day,
+                DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second
+            );
+
             var sale = await _salesService.CompleteSaleAsync(Cart, paymentType, saleDateTime, _calculatedReceiptDiscount, splitCash, splitCard);
 
             string paymentDisplay = sale.PaymentType == "Parçalı"
@@ -1046,6 +1072,11 @@ public partial class SalesView : Page
         {
             MessageBox.Show($"Satış kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            _isCompletingSale = false;
+            if (BtnCompleteSale != null) BtnCompleteSale.IsEnabled = true;
+        }
     }
 
     private async Task<bool> EnsureCashRegisterOpenAsync()
@@ -1056,24 +1087,13 @@ public partial class SalesView : Page
             return true;
         }
 
-        var result = MessageBox.Show(
-            "Gün henüz açılmadı ve kasa kapalı!\n\nSatış yapabilmek ve ürün ekleyebilmek için gün açılışı yapmanız gerekmektedir.\nŞimdi gün açılışı yapmak ister misiniz?",
-            "Gün Açılışı Gerekli",
-            MessageBoxButton.YesNo,
+        MessageBox.Show(
+            "Gün henüz açılmadı ve kasa kapalıdır!\n\nSatış yapabilmek ve ürün ekleyebilmek için lütfen sol menüdeki 'KASA' bölümüne giderek gün açılışı yapınız.",
+            "Kasa Kapalı",
+            MessageBoxButton.OK,
             MessageBoxImage.Warning);
 
-        if (result == MessageBoxResult.Yes)
-        {
-            var win = new OpenCashWindow { Owner = Window.GetWindow(this) };
-            if (win.ShowDialog() == true)
-            {
-                await UpdateCashStatusUIAsync();
-                await LoadProductsAsync();
-                return true;
-            }
-        }
-
-        ScanFeedbackText.Text = "⚠️ Gün açılışı (kasa açılışı) yapılmadan satış yapılamaz!";
+        ScanFeedbackText.Text = "⚠️ Gün açılışı (kasa açılışı) yapılmadan satış yapılamaz! Lütfen Kasa menüsünden açınız.";
         ScanFeedbackText.Foreground = _redBrush;
         return false;
     }
@@ -1093,9 +1113,6 @@ public partial class SalesView : Page
                 CashStatusDesc.Text = $"Gün Açılış Tarihi: {session.FormattedDate} | Başlangıç Devir Nakiti: {session.FormattedOpeningCash} | Açılış Saati: {session.FormattedOpenedAt} | Satış terminali kullanıma hazırdır.";
                 CashStatusDesc.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#065F46"));
 
-                BtnBannerOpenCash.Content = "✏️ Kasa Durumu / Güncelle";
-                BtnBannerOpenCash.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
-
                 if (TxtSaleSessionDate != null)
                 {
                     TxtSaleSessionDate.Text = session.SessionDate.ToString("dd.MM.yyyy");
@@ -1114,9 +1131,6 @@ public partial class SalesView : Page
                 CashStatusTitle.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
                 CashStatusDesc.Text = "Satış yapabilmek ve ürün okutabilmek için önce gün açılışı yapmalı ve başlangıç nakitini belirlemelisiniz.";
                 CashStatusDesc.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#7F1D1D"));
-
-                BtnBannerOpenCash.Content = "🌅 Gün Açılışı Yap (Kasayı Aç)";
-                BtnBannerOpenCash.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
 
                 if (TxtSaleSessionDate != null)
                 {

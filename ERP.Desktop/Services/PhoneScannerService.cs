@@ -49,12 +49,34 @@ public class PhoneScannerService
 
     private PhoneScannerService() { }
 
+    private static string GetOrCreatePersistentToken()
+    {
+        try
+        {
+            string tokenPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "scanner_token.txt");
+            if (File.Exists(tokenPath))
+            {
+                var tok = File.ReadAllText(tokenPath).Trim();
+                if (!string.IsNullOrEmpty(tok)) return tok;
+            }
+
+            string newTok = "pure-scanner-key";
+            Directory.CreateDirectory(Path.GetDirectoryName(tokenPath)!);
+            File.WriteAllText(tokenPath, newTok);
+            return newTok;
+        }
+        catch
+        {
+            return "pure-scanner-key";
+        }
+    }
+
     public async Task<bool> StartServerAsync(int preferredPort = 5000)
     {
         if (IsRunning) return true;
 
         LocalIp = GetActiveLocalIpAddress();
-        SecurityToken = Guid.NewGuid().ToString("N")[..8];
+        SecurityToken = GetOrCreatePersistentToken();
 
         int portToUse = preferredPort;
         bool bound = false;
@@ -86,6 +108,16 @@ public class PhoneScannerService
         _listenerTask = Task.Run(() => ListenLoopAsync(_cts.Token));
 
         LogMessage?.Invoke($"Sunucu başlatıldı: {ServerUrl}");
+
+        // Otomatik HTTPS Tünelini arka planda başlat
+        if (!string.IsNullOrEmpty(GetCloudflaredBinaryPath()))
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await StartCloudflareTunnelAsync(); } catch { }
+            });
+        }
+
         return true;
     }
 
@@ -486,6 +518,17 @@ public class PhoneScannerService
             if (dto == null) return;
 
             device.LastActiveAt = DateTime.Now;
+
+            if (dto.Type == "ping")
+            {
+                var pongDto = new PhoneMessageDto { Type = "pong" };
+                byte[] pongBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(pongDto));
+                if (socket.State == WebSocketState.Open)
+                {
+                    await socket.SendAsync(new ArraySegment<byte>(pongBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+                return;
+            }
 
             if (dto.Type == "hello" && !string.IsNullOrWhiteSpace(dto.Device))
             {

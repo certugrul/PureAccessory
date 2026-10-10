@@ -32,7 +32,7 @@ public class ProductService
 
     public async Task<List<Product>> GetAllProductsAsync()
     {
-        // 1. Önce SQL Server'dan çekmeyi dene
+        // 1. Önce SQL Server'dan depodaki gerçek stoklarıyla birlikte çek
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
@@ -40,7 +40,18 @@ public class ProductService
             {
                 await using var conn = new SqlConnection(_dbService.ConnectionString);
                 await conn.OpenAsync();
-                var sql = "SELECT Id, Code, Name, Barcode, PurchasePrice, SalePrice, VatRate FROM Products WHERE IsActive = 1";
+                var sql = @"
+                    SELECT p.Id, p.Code, p.Name, p.Barcode, p.PurchasePrice, p.SalePrice, p.VatRate,
+                           ISNULL(ws.TotalStock, 0) AS TotalStock
+                    FROM Products p
+                    LEFT JOIN (
+                        SELECT ProductId, SUM(Quantity) AS TotalStock
+                        FROM WarehouseStocks
+                        GROUP BY ProductId
+                    ) ws ON p.Id = ws.ProductId
+                    WHERE p.IsActive = 1
+                    ORDER BY p.Id ASC";
+
                 await using var cmd = new SqlCommand(sql, conn);
                 await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -58,30 +69,33 @@ public class ProductService
                         PurchasePrice = reader.GetDecimal(4),
                         SalePrice = reader.GetDecimal(5),
                         VatRate = reader.GetDecimal(6),
-                        Stock = 0
+                        Stock = reader.GetDecimal(7)
                     });
                 }
 
                 if (dbList.Count > 0)
                 {
-                    await SyncWithWarehouseStocksInternalAsync(dbList);
+                    // Yerel önbelleğe senkronize et
+                    await SaveAllToLocalJsonAsync(dbList);
                     return dbList;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProductService] SQL Ürün sorgulama hatası: {ex.Message}");
+            }
         }
 
-        // 2. SQL'de yoksa veya bağlı değilse yerel JSON'dan oku
+        // 2. SQL'e ulaşılamadıysa yerel JSON'dan oku
         var localList = await LoadFromLocalJsonAsync();
-        if (localList.Count == 0)
+        if (localList.Count > 0)
         {
-            // İlk kez açılıyorsa örnek hazır ürünler oluştur
-            localList = GetDefaultProducts();
-            await SaveAllToLocalJsonAsync(localList);
+            await SyncWithWarehouseStocksInternalAsync(localList);
+            return localList;
         }
 
-        await SyncWithWarehouseStocksInternalAsync(localList);
-        return localList;
+        // 3. Veritabanına ulaşılamadıysa ve yerel kayıt yoksa uyarı için boş liste dön
+        return new List<Product>();
     }
 
     private async Task SyncWithWarehouseStocksInternalAsync(List<Product> products)
@@ -416,62 +430,50 @@ public class ProductService
             new Product
             {
                 Id = 1,
-                Code = "UR-001",
-                Name = "Coca Cola 330ml Kutu",
-                Barcode = "8690504011234",
-                QrCode = "QR-KOLA-330",
-                PurchasePrice = 20.00m,
-                SalePrice = 35.00m,
+                Code = "PURE001",
+                Name = "Çelik Kolye",
+                Barcode = "0000",
+                QrCode = "QR-PURE001",
+                PurchasePrice = 100.00m,
+                SalePrice = 210.00m,
                 VatRate = 20,
-                Stock = 120
+                Stock = 269
             },
             new Product
             {
                 Id = 2,
-                Code = "UR-002",
-                Name = "Tam Buğday Ekmeği",
-                Barcode = "8690000000002",
-                QrCode = "QR-EKMEK-01",
-                PurchasePrice = 10.00m,
-                SalePrice = 15.00m,
-                VatRate = 1,
-                Stock = 85
+                Code = "PURE002",
+                Name = "Çelik Küpe",
+                Barcode = "0002",
+                QrCode = "QR-PURE002",
+                PurchasePrice = 90.00m,
+                SalePrice = 200.00m,
+                VatRate = 20,
+                Stock = 130
             },
             new Product
             {
                 Id = 3,
-                Code = "UR-003",
-                Name = "Doğal Kaynak Suyu 0.5L",
-                Barcode = "8690000000003",
-                QrCode = "QR-SU-05",
-                PurchasePrice = 5.00m,
-                SalePrice = 10.00m,
-                VatRate = 10,
-                Stock = 250
+                Code = "PURE003",
+                Name = "Çelik Bilezik",
+                Barcode = "8694506266231",
+                QrCode = "QR-PURE003",
+                PurchasePrice = 95.00m,
+                SalePrice = 200.00m,
+                VatRate = 20,
+                Stock = 97
             },
             new Product
             {
                 Id = 4,
-                Code = "UR-004",
-                Name = "Filtre Kahve 250g",
-                Barcode = "8690000000004",
-                QrCode = "QR-KAHVE-250",
-                PurchasePrice = 120.00m,
-                SalePrice = 180.00m,
+                Code = "PURE004",
+                Name = "AÇIK ÜRÜN",
+                Barcode = "",
+                QrCode = "QR-PURE004",
+                PurchasePrice = 0m,
+                SalePrice = 0m,
                 VatRate = 20,
-                Stock = 40
-            },
-            new Product
-            {
-                Id = 5,
-                Code = "UR-005",
-                Name = "Çikolatalı Gofret 40g",
-                Barcode = "8690000000005",
-                QrCode = "QR-GOFRET-01",
-                PurchasePrice = 8.00m,
-                SalePrice = 15.00m,
-                VatRate = 20,
-                Stock = 180
+                Stock = 0
             }
         };
     }

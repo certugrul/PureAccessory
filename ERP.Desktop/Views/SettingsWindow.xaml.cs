@@ -129,16 +129,15 @@ public partial class SettingsWindow : Window
             // Anlık canlı önizleme uygula
             try
             {
-                var color = (Color)ColorConverter.ConvertFromString(hex);
-                Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(color);
-
-                var lightColor = Color.FromArgb(35, color.R, color.G, color.B);
-                Application.Current.Resources["PrimaryLightBrush"] = new SolidColorBrush(lightColor);
-
-                byte rH = (byte)Math.Max(0, color.R - 25);
-                byte gH = (byte)Math.Max(0, color.G - 25);
-                byte bH = (byte)Math.Max(0, color.B - 25);
-                Application.Current.Resources["PrimaryHoverBrush"] = new SolidColorBrush(Color.FromRgb(rH, gH, bH));
+                var previewSettings = new AppSettings
+                {
+                    PrimaryColor = hex,
+                    SidebarColor = _selectedSidebarColor,
+                    DarkModeOption = _selectedModeOption,
+                    CornerRadiusOption = _selectedCornerRadius,
+                    AppFontFamily = _selectedFontFamily
+                };
+                ThemeService.ApplyTheme(previewSettings);
             }
             catch { }
         }

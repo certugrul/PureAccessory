@@ -25,6 +25,28 @@
                                FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Manuel Stok Girişi Butonu -->
+                    <Button Content="📥 Stok Girişi (+)" Click="ManualStockIn_Click" Margin="0,0,10,0"
+                            Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="16,9" BorderThickness="0" Cursor="Hand" ToolTip="Depoya manuel ürün girişi yapın">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
+                    <!-- Manuel Stok Çıkışı Butonu -->
+                    <Button Content="📤 Stok Çıkışı (-)" Click="ManualStockOut_Click" Margin="0,0,10,0"
+                            Background="#DC2626" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Padding="16,9" BorderThickness="0" Cursor="Hand" ToolTip="Depodan manuel zayi/iade ürün çıkışı yapın">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+
                     <!-- Stok Hareketleri Butonu -->
                     <Button Content="📜 Stok Hareketleri" Click="OpenStockMovements_Click" Margin="0,0,10,0"
                             Background="#F1F5F9" Foreground="#334155" FontWeight="Bold" FontSize="13"
@@ -49,7 +71,7 @@
 
                     <!-- Yeni Depo Butonu -->
                     <Button Content="➕ Yeni Depo Oluştur" Click="CreateWarehouse_Click"
-                            Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="13"
+                            Background="{DynamicResource PrimaryBrush}" Foreground="White" FontWeight="Bold" FontSize="13"
                             Padding="18,9" BorderThickness="0" Cursor="Hand">
                         <Button.Resources>
                             <Style TargetType="Border">
@@ -84,7 +106,7 @@
                     BorderBrush="#E2E8F0" BorderThickness="1">
                 <StackPanel>
                     <TextBlock Text="ÜRÜN ÇEŞİDİ" FontSize="12" FontWeight="SemiBold" Foreground="#64748B"/>
-                    <TextBlock x:Name="TxtTotalProductTypes" Text="0" FontSize="24" FontWeight="Bold" Foreground="#2563EB" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="TxtTotalProductTypes" Text="0" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -170,6 +192,21 @@
                             <DataGridTextColumn Header="Birim Satış" Binding="{Binding FormattedSalePrice}" Width="110"/>
                             <DataGridTextColumn Header="Toplam Değer" Binding="{Binding FormattedTotalValue}" Width="120"/>
                             <DataGridTextColumn Header="Durum" Binding="{Binding StockStatus}" Width="100"/>
+
+                            <DataGridTemplateColumn Header="Hızlı İşlem" Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="➕ Ekle" Click="RowStockIn_Click" Margin="0,0,6,0"
+                                                    Background="#ECFDF5" Foreground="#059669" BorderBrush="#A7F3D0" BorderThickness="1"
+                                                    FontWeight="Bold" FontSize="11" Padding="6,3" Cursor="Hand" ToolTip="Bu ürüne stok ekle"/>
+                                            <Button Content="➖ Düş" Click="RowStockOut_Click"
+                                                    Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                                    FontWeight="Bold" FontSize="11" Padding="6,3" Cursor="Hand" ToolTip="Bu üründen stok düş"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </TabItem>

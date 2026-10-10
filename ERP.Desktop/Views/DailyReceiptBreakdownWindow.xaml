@@ -336,20 +336,38 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
 
-                                <!-- Fiş Alt Özeti -->
-                                <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="10,8" Margin="0,8,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <!-- Fiş Alt Özeti & İptal/Silme Butonu -->
+                                <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12,10" Margin="0,8,0,0" BorderBrush="#E2E8F0" BorderThickness="1">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock x:Name="TxtReceiptFooterItemsCount" Text="0 Kalem Ürün" FontSize="11" Foreground="#64748B"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                            <TextBlock Text="Fiş Tutarı:" FontSize="12" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,6,0"/>
-                                            <TextBlock x:Name="TxtReceiptFooterTotal" Text="₺0,00" FontSize="15" FontWeight="Bold" Foreground="#2563EB"/>
-                                        </StackPanel>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="TxtReceiptFooterItemsCount" Text="0 Kalem Ürün" FontSize="11" Foreground="#64748B"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Fiş Tutarı:" FontSize="12" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,6,0"/>
+                                                <TextBlock x:Name="TxtReceiptFooterTotal" Text="₺0,00" FontSize="15" FontWeight="Bold" Foreground="#2563EB"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Fiş İptal / Sil Butonu -->
+                                        <Button Grid.Row="1" x:Name="BtnDeleteSelectedReceipt" Content="🗑️ Bu Fişi İptal Et &amp; Sil (Stokları Geri Al)" 
+                                                Click="DeleteSelectedReceipt_Click" Margin="0,8,0,0"
+                                                Background="#FEF2F2" Foreground="#DC2626" BorderBrush="#FECACA" BorderThickness="1"
+                                                FontWeight="Bold" FontSize="12" Padding="12,8" Cursor="Hand" ToolTip="Bu fişi sistemden tamamen siler, tutarı kasadan düşer ve ürün stoklarını depoya iade eder">
+                                            <Button.Resources>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                </Style>
+                                            </Button.Resources>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </Grid>

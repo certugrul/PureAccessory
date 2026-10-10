@@ -376,4 +376,92 @@ public class ClosureService
 
         return new List<DailyClosure>();
     }
+
+    /// <summary>
+    /// Geçmiş bir gün sonu (Z Raporu) kaydını siler.
+    /// </summary>
+    public async Task<bool> DeleteClosureAsync(long closureId)
+    {
+        try
+        {
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await conn.OpenAsync();
+                    var sql = "DELETE FROM Closures WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@Id", closureId);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ClosureService] SQL Gün sonu silme hatası: {ex.Message}");
+                }
+            }
+
+            // Yerel JSON'dan da sil
+            try
+            {
+                if (File.Exists(StorageFile))
+                {
+                    var list = await LoadFromLocalJsonAsync();
+                    list.RemoveAll(c => c.Id == closureId);
+                    var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(StorageFile, json);
+                }
+            }
+            catch { }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Gün sonu kaydı silinirken hata: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Geçmiş bir gün sonu notunu veya detayını günceller.
+    /// </summary>
+    public async Task<bool> UpdateClosureNotesAsync(long closureId, string notes)
+    {
+        try
+        {
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = new SqlConnection(_dbService.ConnectionString);
+                    await conn.OpenAsync();
+                    var sql = "UPDATE Closures SET Notes = @Notes WHERE Id = @Id";
+                    await using var cmd = new SqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@Notes", (object?)notes ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Id", closureId);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch { }
+            }
+
+            try
+            {
+                if (File.Exists(StorageFile))
+                {
+                    var list = await LoadFromLocalJsonAsync();
+                    var item = list.FirstOrDefault(c => c.Id == closureId);
+                    if (item != null)
+                    {
+                        item.Notes = notes;
+                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(StorageFile, json);
+                    }
+                }
+            }
+            catch { }
+
+            return true;
+        }
+        catch { return false; }
+    }
 }

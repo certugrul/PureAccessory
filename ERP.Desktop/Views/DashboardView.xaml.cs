@@ -53,7 +53,6 @@ public partial class DashboardView : Page
         _warehouseService = new WarehouseService();
         _reminderService = new ReminderService();
 
-        ClosureDatePicker.SelectedDate = DateTime.Today;
         CalendarDaysItemsControl.ItemsSource = _calendarDays;
 
         _clockTimer = new DispatcherTimer
@@ -465,9 +464,6 @@ public partial class DashboardView : Page
                 CardCashText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
                 CardCashSubText.Text = $"🟢 Gün Açık (Kasa: {cashSummary.FormattedOpeningCash})";
                 CardCashSubText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
-
-                BtnOpenDay.Visibility = Visibility.Collapsed;
-                BtnTakeClosure.Visibility = Visibility.Visible;
             }
             else
             {
@@ -475,9 +471,6 @@ public partial class DashboardView : Page
                 CardCashText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
                 CardCashSubText.Text = "🔴 Gün Kapalı (Kasa Açılışı Bekliyor)";
                 CardCashSubText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
-
-                BtnOpenDay.Visibility = Visibility.Visible;
-                BtnTakeClosure.Visibility = Visibility.Visible;
             }
 
             if (lastClosure != null && summary.TotalRevenue == 0)
@@ -496,13 +489,8 @@ public partial class DashboardView : Page
                 CardRevenueSubText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
             }
 
-            var stocks = await _warehouseService.GetWarehouseStocksAsync();
-            var totalStockValue = stocks.Sum(s => s.TotalValue);
-            var totalStockQty = stocks.Sum(s => s.Quantity);
-            var uniqueProductCount = stocks.Select(s => s.ProductId).Distinct().Count();
-
-            CardStockText.Text = $"₺{totalStockValue:N2}";
-            CardStockSubText.Text = $"{uniqueProductCount} çeşit ürün ({totalStockQty:N0} adet)";
+            CardStockText.Text = $"₺{summary.TotalCreditCard:N2}";
+            CardStockSubText.Text = "Bugünkü kredi kartı & POS";
         }
         catch
         {
@@ -510,69 +498,10 @@ public partial class DashboardView : Page
         }
     }
 
-    private async void OpenDay_Click(object sender, RoutedEventArgs e)
+    private async void RefreshDashboard_Click(object sender, RoutedEventArgs e)
     {
-        var win = new OpenCashWindow { Owner = Window.GetWindow(this) };
-        if (win.ShowDialog() == true)
-        {
-            await UpdateDashboardCardsAsync();
-        }
-    }
-
-    private async void TakeClosure_Click(object sender, RoutedEventArgs e)
-    {
-        var targetDate = ClosureDatePicker.SelectedDate ?? DateTime.Today;
-        string dateStr = targetDate.ToString("dd MMMM yyyy", _turkishCulture);
-
-        var summary = await _closureService.CalculateDailySummaryAsync(targetDate);
-        var cashService = new CashService();
-        var cashSummary = await cashService.GetCashSummaryAsync(targetDate);
-
-        if (summary.SalesCount == 0 && summary.TotalRevenue == 0 && !cashSummary.IsOpen)
-        {
-            var closures = await _closureService.GetClosuresAsync();
-            var prevClosure = closures.FirstOrDefault(c => c.ClosureDate.Date == targetDate.Date);
-            string extra = prevClosure != null 
-                ? $"\n(Bugün saat {prevClosure.ClosedAt:HH:mm}'de gün bitişi yapılmış, kasa kapalı ve yeni satış bulunmuyor.)" 
-                : "\n(Kasa zaten kapalı ve henüz satış kaydedilmedi.)";
-
-            MessageBox.Show($"Kapanışı yapılacak açık bir kasa veya satış kaydı bulunmuyor.{extra}", "Kayıt Yok", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var confirmMessage = 
-            $"🗓 {dateStr} GÜN BİTİŞİ & GÜN SONU (Z RAPORU)\n" +
-            $"------------------------------------------\n" +
-            $"• Fiş / Satış Adedi : {summary.SalesCount}\n" +
-            $"• Toplam Ciro       : ₺{summary.TotalRevenue:N2}\n" +
-            $"• Nakit Tahsilat    : ₺{summary.TotalCash:N2}\n" +
-            $"• Kart Tahsilat     : ₺{summary.TotalCreditCard:N2}\n" +
-            $"• Veresiye          : ₺{summary.TotalOnAccount:N2}\n" +
-            $"• Kasa Durumu       : {(cashSummary.IsOpen ? $"AÇIK (Mevcut Nakit: {cashSummary.FormattedCurrentBalance})" : "KAPALI")}\n" +
-            $"• Toplam Maliyet    : ₺{summary.TotalCost:N2}\n" +
-            $"• Toplam Gider      : ₺{summary.TotalExpenses:N2}\n" +
-            $"• Net Tahmini Kâr   : ₺{summary.TotalProfit:N2}\n" +
-            $"------------------------------------------\n" +
-            $"Günü bitirip gün sonunu kaydetmek istiyor musunuz?\n\n(Gün bitişi yapıldığında kasa kapatılacak, göstergeler sıfırlanacak ve yeni gün açılışı yapılana kadar satış terminali kilitlenecektir. Kaydedilen gün sonu Raporlar modülündeki arşive işlenecektir.)";
-
-        var result = MessageBox.Show(confirmMessage, "Gün Bitişi Onayı", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (result == MessageBoxResult.Yes)
-        {
-            bool saved = await _closureService.SaveClosureAsync(summary);
-            if (saved)
-            {
-                MessageBox.Show(
-                    $"{dateStr} günü başarıyla kapatıldı ve gün sonu kaydedildi!\n\n" +
-                    $"📡 Değişen veriler (satışlar, ciro ve kasa hareketleri) merkeze aktarılmak üzere otomatik olarak arşivlendi/gönderildi!\n\n" +
-                    $"Kayıt Raporlar > Geçmiş Gün Sonu (Z Raporu) Arşivi bölümüne eklendi.", 
-                    "Gün Bitişi & Otomatik Senkronizasyon Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
-                await UpdateDashboardCardsAsync();
-            }
-            else
-            {
-                MessageBox.Show("Gün sonu kaydedilirken bir hata oluştu.", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
+        await UpdateDashboardCardsAsync();
+        await LoadRemindersAndBuildCalendarAsync();
     }
 
     private void OpenDebts_Click(object sender, RoutedEventArgs e)

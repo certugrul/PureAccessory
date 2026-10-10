@@ -436,7 +436,7 @@
                 </Button>
 
                 <Button Content="💾 Değişiklikleri Kaydet &amp; Uygula" Click="Save_Click" HorizontalAlignment="Right"
-                        Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="13"
+                        Background="{DynamicResource PrimaryBrush}" Foreground="White" FontWeight="Bold" FontSize="13"
                         Padding="24,10" BorderThickness="0" Cursor="Hand">
                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
                 </Button>

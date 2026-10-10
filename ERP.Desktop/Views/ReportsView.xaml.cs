@@ -102,10 +102,13 @@ public partial class ReportsView : Page
 
     private void UpdateCategoryAndCardsUI()
     {
+        var primaryBrush = Application.Current?.Resources["PrimaryBrush"] as Brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"));
+        var primaryLightBrush = Application.Current?.Resources["PrimaryLightBrush"] as Brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EFF6FF"));
+
         // 1. Kategori Butonları Renkleri
         if (_activeCategory == "DAILY")
         {
-            BtnCategoryDaily.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"));
+            BtnCategoryDaily.Background = primaryBrush;
             BtnCategoryDaily.Foreground = Brushes.White;
             BtnCategoryDaily.BorderThickness = new Thickness(0);
 
@@ -119,7 +122,7 @@ public partial class ReportsView : Page
         }
         else
         {
-            BtnCategoryGeneral.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"));
+            BtnCategoryGeneral.Background = primaryBrush;
             BtnCategoryGeneral.Foreground = Brushes.White;
             BtnCategoryGeneral.BorderThickness = new Thickness(0);
 
@@ -138,9 +141,9 @@ public partial class ReportsView : Page
         {
             if (c.Tag?.ToString() == _selectedReport)
             {
-                c.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB"));
+                c.BorderBrush = primaryBrush;
                 c.BorderThickness = new Thickness(2);
-                c.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EFF6FF"));
+                c.Background = primaryLightBrush;
             }
             else
             {
@@ -312,9 +315,47 @@ public partial class ReportsView : Page
         }
         else
         {
-            TxtPreviewHeader.Text = "⚡ Seçilen tarihe ait kayıtlı Z Raporu bulunamadı.";
-            PreviewDataGrid.ItemsSource = null;
-            ClearChartUI("⚡ Kayıtlı Z Raporu Bulunmuyor");
+            // Gün sonu henüz resmi olarak alınmamış olsa da günün canlı durumunu göster
+            var liveSummary = await _closureService.CalculateDailySummaryAsync(targetDate);
+            var cashService = new CashService();
+            var cashSummary = await cashService.GetCashSummaryAsync(targetDate);
+
+            TxtPreviewHeader.Text = $"⚡ {targetDate:dd.MM.yyyy} CANLI GÜN DURUMU (Henüz Gün Sonu Yapılmadı)";
+            PreviewDataGrid.ItemsSource = new[]
+            {
+                new { Parametre = "Kapanış Durumu", Deger = "⚠️ Gün Sonu Henüz Yapılmadı (Canlı Önizleme)" },
+                new { Parametre = "Bugünkü Satış / Fiş Adedi", Deger = $"{liveSummary.SalesCount} Fiş" },
+                new { Parametre = "Anlık Toplam Ciro", Deger = $"₺{liveSummary.TotalRevenue:N2}" },
+                new { Parametre = "Nakit Tahsilat", Deger = $"₺{liveSummary.TotalCash:N2}" },
+                new { Parametre = "Kredi Kartı Tahsilat", Deger = $"₺{liveSummary.TotalCreditCard:N2}" },
+                new { Parametre = "Veresiye Satış", Deger = $"₺{liveSummary.TotalOnAccount:N2}" },
+                new { Parametre = "Satılan Malların Maliyeti", Deger = $"₺{liveSummary.TotalCost:N2}" },
+                new { Parametre = "Kaydedilen Giderler", Deger = $"₺{liveSummary.TotalExpenses:N2}" },
+                new { Parametre = "Anlık Tahmini Kâr", Deger = $"₺{liveSummary.TotalProfit:N2}" },
+                new { Parametre = "Kasa Başlangıç Devri", Deger = $"₺{cashSummary.OpeningCash:N2}" }
+            };
+
+            // Grafik & KPI
+            TxtChartTitle.Text = $"⚡ {targetDate:dd.MM.yyyy} Canlı Satış ve Tahsilat Dağılımı Grafiği";
+            TxtKpiTotalLabel.Text = "Anlık Ciro";
+            TxtKpiTotalValue.Text = $"₺{liveSummary.TotalRevenue:N2}";
+            TxtKpiAvgLabel.Text = "Ortalama Fiş";
+            decimal avgReceipt = liveSummary.SalesCount > 0 ? liveSummary.TotalRevenue / liveSummary.SalesCount : 0m;
+            TxtKpiAvgValue.Text = $"₺{avgReceipt:N2}";
+            TxtKpiExtraLabel.Text = "Anlık Kâr";
+            TxtKpiExtraValue.Text = $"₺{liveSummary.TotalProfit:N2}";
+
+            var chartItems = new List<ReportChartItem>
+            {
+                new() { Label = "Nakit", SubLabel = "Tahsilat", Value = liveSummary.TotalCash, DisplayValue = $"₺{liveSummary.TotalCash:N0}", BarColor = "#10B981", Tooltip = $"Nakit: ₺{liveSummary.TotalCash:N2}" },
+                new() { Label = "Kredi K.", SubLabel = "Tahsilat", Value = liveSummary.TotalCreditCard, DisplayValue = $"₺{liveSummary.TotalCreditCard:N0}", BarColor = "#2563EB", Tooltip = $"Kredi Kartı: ₺{liveSummary.TotalCreditCard:N2}" },
+                new() { Label = "Veresiye", SubLabel = "Açık Hesap", Value = liveSummary.TotalOnAccount, DisplayValue = $"₺{liveSummary.TotalOnAccount:N0}", BarColor = "#F59E0B", Tooltip = $"Veresiye: ₺{liveSummary.TotalOnAccount:N2}" },
+                new() { Label = "Maliyet", SubLabel = "STMM", Value = liveSummary.TotalCost, DisplayValue = $"₺{liveSummary.TotalCost:N0}", BarColor = "#EF4444", Tooltip = $"Maliyet: ₺{liveSummary.TotalCost:N2}" },
+                new() { Label = "Giderler", SubLabel = "Masraf", Value = liveSummary.TotalExpenses, DisplayValue = $"₺{liveSummary.TotalExpenses:N0}", BarColor = "#DC2626", Tooltip = $"Giderler: ₺{liveSummary.TotalExpenses:N2}" },
+                new() { Label = "Net Kâr", SubLabel = "Dönem Kârı", Value = Math.Max(0, liveSummary.TotalProfit), DisplayValue = $"₺{liveSummary.TotalProfit:N0}", BarColor = "#059669", Tooltip = $"Net Kâr: ₺{liveSummary.TotalProfit:N2}" }
+            };
+
+            RenderChartBars(chartItems);
         }
     }
 
@@ -908,6 +949,94 @@ public partial class ReportsView : Page
         catch (Exception ex)
         {
             MessageBox.Show($"Gün sonu işlemi sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void DeleteClosure_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is DailyClosure closure)
+        {
+            var confirm = MessageBox.Show(
+                $"⚠️ GÜN SONU KAYDINI SİLME ONAYI\n\n" +
+                $"• Tarih : {closure.FormattedDate}\n" +
+                $"• Ciro  : {closure.FormattedRevenue}\n" +
+                $"• Kâr   : {closure.FormattedProfit}\n\n" +
+                $"Bu gün sonu kaydını silmek istediğinize emin misiniz?",
+                "Gün Sonu Sil",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            try
+            {
+                bool ok = await _closureService.DeleteClosureAsync(closure.Id);
+                if (ok)
+                {
+                    MessageBox.Show("Gün sonu kaydı başarıyla silindi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await LoadClosuresAsync();
+                    await RefreshPreviewDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Silinemedi: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private async void EditClosureNotes_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is DailyClosure closure)
+        {
+            var currentNote = closure.Notes ?? "";
+            var dialog = new Window
+            {
+                Title = "Gün Sonu Notunu Düzenle",
+                Width = 420,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = Window.GetWindow(this),
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"))
+            };
+
+            var grid = new Grid { Margin = new Thickness(16) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var lbl = new TextBlock { Text = $"📅 {closure.FormattedDate} Gün Sonu Notu / Açıklaması:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8) };
+            Grid.SetRow(lbl, 0);
+            grid.Children.Add(lbl);
+
+            var txt = new TextBox { Text = currentNote, Height = 65, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(6) };
+            Grid.SetRow(txt, 1);
+            grid.Children.Add(txt);
+
+            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+            Grid.SetRow(btnPanel, 2);
+
+            var btnCancel = new Button { Content = "Vazgeç", Width = 80, Height = 32, Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+            btnCancel.Click += (_, _) => dialog.Close();
+
+            var btnSave = new Button { Content = "Kaydet", Width = 85, Height = 32, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669")), Foreground = Brushes.White, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand };
+            btnSave.Click += async (_, _) =>
+            {
+                await _closureService.UpdateClosureNotesAsync(closure.Id, txt.Text.Trim());
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            btnPanel.Children.Add(btnCancel);
+            btnPanel.Children.Add(btnSave);
+            grid.Children.Add(btnPanel);
+            dialog.Content = grid;
+
+            if (dialog.ShowDialog() == true)
+            {
+                await LoadClosuresAsync();
+            }
         }
     }
 
