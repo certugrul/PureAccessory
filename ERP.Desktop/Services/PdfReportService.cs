@@ -933,4 +933,97 @@ public class PdfReportService
             table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(extra);
         }
     }
+
+    // 7. TEKİL SATIŞ FİŞİ (TERMAL / A6 FİŞ ÇIKTISI)
+    public string GenerateSingleSaleReceiptPdf(Sale sale, string? customPath = null)
+    {
+        var outputPath = customPath ?? GetDefaultOutputPath($"Fis_{sale.Id}_{DateTime.Now:yyyyMMdd_HHmmss}");
+        var settings = ThemeService.Current;
+        string storeHeader = !string.IsNullOrWhiteSpace(settings?.ReceiptStoreHeader) ? settings.ReceiptStoreHeader : (settings?.StoreName ?? "PURE ACCESSORY");
+        string footerNote = !string.IsNullOrWhiteSpace(settings?.ReceiptFooterNote) ? settings.ReceiptFooterNote : "Bizi tercih ettiğiniz için teşekkür ederiz!";
+
+        Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                // Termal Fiş Boyutu (80mm genişlik x dinamik yükseklik)
+                page.ContinuousSize(80, Unit.Millimetre);
+                page.Margin(12);
+                page.DefaultTextStyle(x => x.FontSize(9).FontColor(Colors.Black));
+
+                page.Content().Column(col =>
+                {
+                    col.Spacing(4);
+
+                    // Başlık & Mağaza Adı
+                    col.Item().AlignCenter().Text(storeHeader).Bold().FontSize(12);
+                    if (!string.IsNullOrWhiteSpace(settings?.StoreSubtitle))
+                    {
+                        col.Item().AlignCenter().Text(settings.StoreSubtitle).FontSize(8).FontColor(Colors.Grey.Darken2);
+                    }
+                    col.Item().PaddingVertical(2).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+
+                    // Fiş Üst Bilgileri
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text($"Fiş No: #{sale.Id}").Bold().FontSize(8.5f);
+                        r.RelativeItem().AlignRight().Text($"{sale.SaleDate:dd.MM.yyyy HH:mm}").FontSize(8.5f);
+                    });
+                    col.Item().Text($"Ödeme: {sale.PaymentType}").FontSize(8);
+                    col.Item().PaddingVertical(2).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+
+                    // Ürün Tablosu
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            cols.RelativeColumn(3); // Ürün
+                            cols.RelativeColumn(1); // Adet
+                            cols.RelativeColumn(2); // Tutar
+                        });
+
+                        table.Header(h =>
+                        {
+                            h.Cell().Text("Ürün").Bold().FontSize(8);
+                            h.Cell().AlignCenter().Text("Ad.").Bold().FontSize(8);
+                            h.Cell().AlignRight().Text("Tutar").Bold().FontSize(8);
+                        });
+
+                        foreach (var item in sale.Items)
+                        {
+                            table.Cell().PaddingVertical(2).Text(item.ProductName).FontSize(8);
+                            table.Cell().PaddingVertical(2).AlignCenter().Text($"{item.Quantity:N0}").FontSize(8);
+                            table.Cell().PaddingVertical(2).AlignRight().Text($"₺{item.LineTotal:N2}").FontSize(8);
+                        }
+                    });
+
+                    col.Item().PaddingVertical(2).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+
+                    // Toplamlar
+                    if (sale.DiscountTotal > 0)
+                    {
+                        col.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("İndirim:").FontSize(8);
+                            r.RelativeItem().AlignRight().Text($"-₺{sale.DiscountTotal:N2}").FontSize(8);
+                        });
+                    }
+
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text("TOPLAM TUTAR:").Bold().FontSize(11);
+                        r.RelativeItem().AlignRight().Text($"₺{sale.GrandTotal:N2}").Bold().FontSize(11);
+                    });
+
+                    col.Item().PaddingVertical(4).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+
+                    // Alt Teşekkür Notu
+                    col.Item().AlignCenter().Text(footerNote).FontSize(8).Italic();
+                    col.Item().AlignCenter().Text($"www.pureaccessory.com").FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                });
+            });
+        }).GeneratePdf(outputPath);
+
+        return outputPath;
+    }
 }

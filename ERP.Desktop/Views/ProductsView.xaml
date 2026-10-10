@@ -38,7 +38,7 @@
                     </Button>
 
                     <Button Content="➕ Yeni Ürün Ekle" Click="AddProduct_Click"
-                            Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="14"
+                            Background="{DynamicResource PrimaryBrush}" Foreground="White" FontWeight="Bold" FontSize="14"
                             Padding="18,10" BorderThickness="0" Cursor="Hand">
                         <Button.Resources>
                             <Style TargetType="Border">
@@ -58,7 +58,7 @@
                          VerticalContentAlignment="Center" KeyDown="SearchBox_KeyDown"
                          ToolTip="Ürün adı, barkod, QR kod veya ürün kodu yazıp arayın..."/>
                 <Button Content="🔍 Ürün / QR Ara" Click="Search_Click" Margin="10,0,0,0" Padding="20,8"
-                        Background="#2563EB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                        Background="{DynamicResource PrimaryBrush}" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="6"/>

@@ -67,22 +67,61 @@ public static class ThemeService
         {
             if (Application.Current != null)
             {
+                // 1. Ana Vurgu Rengi ve Türevleri
                 if (!string.IsNullOrWhiteSpace(settings.PrimaryColor))
                 {
                     var color = (Color)ColorConverter.ConvertFromString(settings.PrimaryColor);
                     Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(color);
+
+                    // Çok açık ton (rozet ve buton arkaplanları için)
+                    var lightColor = Color.FromArgb(35, color.R, color.G, color.B);
+                    Application.Current.Resources["PrimaryLightBrush"] = new SolidColorBrush(lightColor);
+
+                    // Hover tonu (bir tık koyusu)
+                    byte rH = (byte)Math.Max(0, color.R - 25);
+                    byte gH = (byte)Math.Max(0, color.G - 25);
+                    byte bH = (byte)Math.Max(0, color.B - 25);
+                    Application.Current.Resources["PrimaryHoverBrush"] = new SolidColorBrush(Color.FromRgb(rH, gH, bH));
                 }
 
+                // 2. Sol Menü Rengi
                 if (!string.IsNullOrWhiteSpace(settings.SidebarColor))
                 {
                     var color = (Color)ColorConverter.ConvertFromString(settings.SidebarColor);
                     Application.Current.Resources["SidebarBrush"] = new SolidColorBrush(color);
                 }
 
-                if (!string.IsNullOrWhiteSpace(settings.PageBackgroundColor))
+                // 3. Karanlık / Aydınlık Mod ve Sayfa Arka Planları
+                if (settings.DarkModeOption == "Koyu")
                 {
-                    var color = (Color)ColorConverter.ConvertFromString(settings.PageBackgroundColor);
-                    Application.Current.Resources["PageBrush"] = new SolidColorBrush(color);
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#334155"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
+                }
+                else if (settings.DarkModeOption == "Yumuşak Gri")
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CBD5E1"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+                }
+                else
+                {
+                    // Varsayılan Açık (Modern Temiz Beyaz/Gri)
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["CardBrush"] = Brushes.White;
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+                }
+
+                // 4. Yazı Tipi (Font Family)
+                if (!string.IsNullOrWhiteSpace(settings.AppFontFamily))
+                {
+                    Application.Current.Resources["AppFontFamily"] = new FontFamily(settings.AppFontFamily);
                 }
             }
         }

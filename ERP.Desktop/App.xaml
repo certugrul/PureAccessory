@@ -4,8 +4,15 @@
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Resources/Styles.xaml"/></ResourceDictionary.MergedDictionaries>
     <SolidColorBrush x:Key="PrimaryBrush" Color="#2563EB"/>
+    <SolidColorBrush x:Key="PrimaryLightBrush" Color="#232563EB"/>
+    <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#1D4ED8"/>
     <SolidColorBrush x:Key="SidebarBrush" Color="#111827"/>
-    <SolidColorBrush x:Key="PageBrush" Color="#F3F4F6"/>
+    <SolidColorBrush x:Key="PageBrush" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#0F172A"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#64748B"/>
+    <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
   </ResourceDictionary></Application.Resources>
 </Application>

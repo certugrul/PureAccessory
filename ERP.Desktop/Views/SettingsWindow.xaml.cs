@@ -11,6 +11,8 @@ public partial class SettingsWindow : Window
 {
     private string _selectedPrimaryColor = "#2563EB";
     private string _selectedSidebarColor = "#111827";
+    private string _selectedModeOption = "Açık";
+    private string _selectedFontFamily = "Segoe UI";
 
     public SettingsWindow()
     {
@@ -25,10 +27,15 @@ public partial class SettingsWindow : Window
         TxtSubtitle.Text = settings.StoreSubtitle;
         _selectedPrimaryColor = settings.PrimaryColor;
         _selectedSidebarColor = settings.SidebarColor;
+        _selectedModeOption = settings.DarkModeOption ?? "Açık";
+        _selectedFontFamily = settings.AppFontFamily ?? "Segoe UI";
 
         ChkSound.IsChecked = settings.SoundEffectsEnabled;
         ChkAutoPrint.IsChecked = settings.AutoPrintReceipt;
         ChkCompactMode.IsChecked = settings.CompactMode;
+
+        TxtReceiptHeader.Text = settings.ReceiptStoreHeader ?? settings.StoreName;
+        TxtReceiptFooter.Text = settings.ReceiptFooterNote ?? "Bizi tercih ettiğiniz için teşekkür ederiz!";
 
         TxtAppVersionLabel.Text = $"Mevcut Sürüm: v{UpdateService.CurrentVersion}";
         TxtUpdateUrl.Text = settings.UpdateCheckUrl ?? "";
@@ -40,6 +47,7 @@ public partial class SettingsWindow : Window
 
         HighlightSelectedColor(_selectedPrimaryColor);
 
+        // Sidebar tonunu seç
         if (_selectedSidebarColor == "#0F172A")
         {
             RbSidebarNavy.IsChecked = true;
@@ -51,6 +59,30 @@ public partial class SettingsWindow : Window
         else
         {
             RbSidebarDark.IsChecked = true;
+        }
+
+        // Görünüm Modunu Seç
+        if (_selectedModeOption == "Koyu")
+        {
+            RbModeDark.IsChecked = true;
+        }
+        else if (_selectedModeOption == "Yumuşak Gri")
+        {
+            RbModeSoft.IsChecked = true;
+        }
+        else
+        {
+            RbModeLight.IsChecked = true;
+        }
+
+        // Fontu Seç
+        foreach (ComboBoxItem item in CmbFontFamily.Items)
+        {
+            if (item.Tag?.ToString() == _selectedFontFamily)
+            {
+                CmbFontFamily.SelectedItem = item;
+                break;
+            }
         }
     }
 
@@ -74,6 +106,14 @@ public partial class SettingsWindow : Window
             {
                 var color = (Color)ColorConverter.ConvertFromString(hex);
                 Application.Current.Resources["PrimaryBrush"] = new SolidColorBrush(color);
+
+                var lightColor = Color.FromArgb(35, color.R, color.G, color.B);
+                Application.Current.Resources["PrimaryLightBrush"] = new SolidColorBrush(lightColor);
+
+                byte rH = (byte)Math.Max(0, color.R - 25);
+                byte gH = (byte)Math.Max(0, color.G - 25);
+                byte bH = (byte)Math.Max(0, color.B - 25);
+                Application.Current.Resources["PrimaryHoverBrush"] = new SolidColorBrush(Color.FromRgb(rH, gH, bH));
             }
             catch { }
         }
@@ -81,6 +121,7 @@ public partial class SettingsWindow : Window
 
     private void HighlightSelectedColor(string hex)
     {
+        string colorName = "Özel Renk";
         foreach (var child in PanelColors.Children)
         {
             if (child is Border b && b.Tag is string tagHex)
@@ -89,6 +130,7 @@ public partial class SettingsWindow : Window
                 {
                     b.BorderBrush = new SolidColorBrush(Colors.Black);
                     b.BorderThickness = new Thickness(3);
+                    colorName = b.ToolTip?.ToString() ?? "Seçili Renk";
                 }
                 else
                 {
@@ -96,6 +138,16 @@ public partial class SettingsWindow : Window
                     b.BorderThickness = new Thickness(1);
                 }
             }
+        }
+
+        if (TxtSelectedColorName != null)
+        {
+            TxtSelectedColorName.Text = colorName;
+            try
+            {
+                TxtSelectedColorName.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+            }
+            catch { }
         }
     }
 
@@ -115,6 +167,61 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void ModeOption_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton rb && rb.Tag is string mode)
+        {
+            _selectedModeOption = mode;
+
+            // Anlık canlı mod değişimi
+            try
+            {
+                if (mode == "Koyu")
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
+                }
+                else if (mode == "Yumuşak Gri")
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                }
+                else
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["CardBrush"] = Brushes.White;
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void FontFamily_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CmbFontFamily.SelectedItem is ComboBoxItem item && item.Tag is string fontName)
+        {
+            _selectedFontFamily = fontName;
+            try
+            {
+                Application.Current.Resources["AppFontFamily"] = new FontFamily(fontName);
+            }
+            catch { }
+        }
+    }
+
+    private void TestSound_Click(object sender, RoutedEventArgs e)
+    {
+        if (ChkSound.IsChecked == true)
+        {
+            SoundService.PlaySuccess();
+            MessageBox.Show("🔔 Ses efekti başarıyla çalındı!", "Ses Testi", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show("Ses efektleri kutusu işaretli olmadığı için ses çalınmadı.", "Ses Kapalı", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         var settings = new AppSettings
@@ -123,9 +230,13 @@ public partial class SettingsWindow : Window
             StoreSubtitle = string.IsNullOrWhiteSpace(TxtSubtitle.Text) ? "Satış & Finans Yönetim Sistemi" : TxtSubtitle.Text.Trim(),
             PrimaryColor = _selectedPrimaryColor,
             SidebarColor = _selectedSidebarColor,
+            DarkModeOption = _selectedModeOption,
+            AppFontFamily = _selectedFontFamily,
             SoundEffectsEnabled = ChkSound.IsChecked ?? true,
             AutoPrintReceipt = ChkAutoPrint.IsChecked ?? false,
             CompactMode = ChkCompactMode.IsChecked ?? false,
+            ReceiptStoreHeader = string.IsNullOrWhiteSpace(TxtReceiptHeader.Text) ? TxtStoreName.Text.Trim() : TxtReceiptHeader.Text.Trim(),
+            ReceiptFooterNote = string.IsNullOrWhiteSpace(TxtReceiptFooter.Text) ? "Bizi tercih ettiğiniz için teşekkür ederiz!" : TxtReceiptFooter.Text.Trim(),
             UpdateCheckUrl = TxtUpdateUrl.Text.Trim(),
             AutoCheckUpdates = ChkAutoUpdate.IsChecked ?? true,
             CustomDbConnectionString = string.IsNullOrWhiteSpace(TxtCustomDbConn.Text) ? null : TxtCustomDbConn.Text.Trim(),

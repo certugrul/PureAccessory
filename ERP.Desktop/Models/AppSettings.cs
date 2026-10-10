@@ -16,10 +16,14 @@ public class AppSettings
     // Sayfa Arka Plan Rengi
     public string PageBackgroundColor { get; set; } = "#F3F4F6";
 
-    // Tercihler
+    // Tercihler & Kişiselleştirmeler
     public bool AutoPrintReceipt { get; set; } = false;
     public bool SoundEffectsEnabled { get; set; } = true;
     public bool CompactMode { get; set; } = false;
+    public string AppFontFamily { get; set; } = "Segoe UI";
+    public string DarkModeOption { get; set; } = "Açık"; // Açık, Koyu, Yumuşak Gri
+    public string ReceiptStoreHeader { get; set; } = "PURE ACCESSORY";
+    public string ReceiptFooterNote { get; set; } = "Bizi tercih ettiğiniz için teşekkür ederiz!";
 
     // Uzaktan Güncelleme Ayarları (GitHub Releases)
     public string UpdateCheckUrl { get; set; } = "https://github.com/certugrul/PureAccessory";

@@ -152,7 +152,7 @@ public partial class SalesView : Page
             {
                 ScanFeedbackText.Text = "⚠️ Telefondan ürün okutuldu ancak gün/kasa kapalı!";
                 ScanFeedbackText.Foreground = _redBrush;
-                try { SystemSounds.Beep.Play(); } catch { }
+                SoundService.PlayWarning();
                 return new BarcodeScanResult
                 {
                     Success = false,
@@ -193,7 +193,7 @@ public partial class SalesView : Page
             ScanFeedbackText.Text = $"⚠️ {sourceTag} '{input}' koduna ait ürün bulunamadı! Lütfen QR / Barkod kontrol edin.";
             ScanFeedbackText.Foreground = _redBrush;
 
-            try { SystemSounds.Beep.Play(); } catch { }
+            SoundService.PlayWarning();
 
             if (!isFromPhone)
             {
@@ -251,7 +251,7 @@ public partial class SalesView : Page
         ScanFeedbackText.Text = $"{sourceTag} {product.Name} sepete eklendi (Fiyat: ₺{product.SalePrice:N2} | Adet: {currentQty})";
         ScanFeedbackText.Foreground = _greenBrush;
 
-        try { SystemSounds.Asterisk.Play(); } catch { }
+        SoundService.PlaySuccess();
 
         RecalculateReceiptDiscount();
         UpdateCartSummary();
@@ -695,11 +695,7 @@ public partial class SalesView : Page
         ScanBox.Text = string.Empty;
         ScanBox.Focus();
 
-        try
-        {
-            SystemSounds.Asterisk.Play();
-        }
-        catch { }
+        SoundService.PlayWarning();
 
         return true;
     }
@@ -1017,6 +1013,21 @@ public partial class SalesView : Page
                 $"Satış gün açılışı tarihine ({sessionDate:dd.MM.yyyy}) işlendi ve stoklar düşüldü.";
 
             MessageBox.Show(receiptInfo, "Satış Kaydedildi", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // 1. Ses Efekti Çal
+            SoundService.PlaySuccess();
+
+            // 2. Otomatik Fiş Yazdırma Tercihi Aktifse Termal PDF Fişi Üret ve Aç
+            if (ThemeService.Current?.AutoPrintReceipt == true)
+            {
+                try
+                {
+                    var pdfReportService = new PdfReportService();
+                    var receiptPdf = pdfReportService.GenerateSingleSaleReceiptPdf(sale);
+                    PdfReportService.OpenPdfFile(receiptPdf);
+                }
+                catch { }
+            }
 
             Cart.Clear();
             if (TxtReceiptDiscount != null) TxtReceiptDiscount.Text = string.Empty;

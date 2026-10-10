@@ -26,7 +26,7 @@
                 <!-- Hızlı Aksiyon Butonları -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="➕ Yeni Cari Kart" Click="AddAccount_Click" Margin="0,0,10,0"
-                            Background="#2563EB" Foreground="White" FontWeight="Bold" Padding="14,9" BorderThickness="0" Cursor="Hand">
+                            Background="{DynamicResource PrimaryBrush}" Foreground="White" FontWeight="Bold" Padding="14,9" BorderThickness="0" Cursor="Hand">
                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
                     </Button>
                     <Button Content="📝 Cari Hareket Ekle" Click="AddTransaction_Click" Margin="0,0,10,0"

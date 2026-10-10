@@ -60,14 +60,25 @@
                     <!-- Bölüm 2: Ana Tema Rengi -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
-                            <TextBlock Text="🎨 Ana Tema Rengi (Vurgu Rengi)" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,4,4"/>
-                            <TextBlock Text="Butonlar, seçimler ve aktif sekmelerde kullanılacak ana renk tonu" FontSize="11" Foreground="#64748B" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,4">
+                                <TextBlock Text="🎨 Ana Tema Rengi (Vurgu Rengi)" FontSize="13" FontWeight="Bold" Foreground="#1E293B"/>
+                                <TextBlock x:Name="TxtSelectedColorName" Text="Klasik Mavi" FontSize="11.5" FontWeight="SemiBold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <TextBlock Text="Butonlar, vurgular, rozetler ve aktif menülerde kullanılacak renk tonu (Tıklayarak anlık canlı önizleyin)" FontSize="11" Foreground="#64748B" Margin="0,0,0,12"/>
 
                             <WrapPanel x:Name="PanelColors" Orientation="Horizontal">
                                 <!-- Mavi -->
                                 <Border x:Name="ColorBlue" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#2563EB"
                                         Background="#2563EB" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
                                         BorderThickness="3" BorderBrush="#BFDBFE" ToolTip="Klasik Mavi"/>
+                                <!-- İndigo / Gece Mavisi -->
+                                <Border x:Name="ColorIndigo" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#4F46E5"
+                                        Background="#4F46E5" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Modern İndigo"/>
+                                <!-- Turkuaz / Okyanus -->
+                                <Border x:Name="ColorTeal" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#0D9488"
+                                        Background="#0D9488" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Okyanus Turkuazı"/>
                                 <!-- Zümrüt Yeşili -->
                                 <Border x:Name="ColorEmerald" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#059669"
                                         Background="#059669" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
@@ -92,7 +103,21 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 3: Sol Menü (Sidebar) Teması -->
+                    <!-- Bölüm 3: Görünüm Modu & Arka Plan (Açık / Koyu / Gri) -->
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="🌓 Görünüm Modu &amp; Sayfa Arka Planı" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                            <TextBlock Text="Çalışma ortamınıza göre genel arka plan kontrastını belirleyin" FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
+
+                            <UniformGrid Columns="3">
+                                <RadioButton x:Name="RbModeLight" Content="☀️ Açık (Temiz)" IsChecked="True" Checked="ModeOption_Checked" Tag="Açık" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbModeSoft" Content="🌫️ Yumuşak Gri" Checked="ModeOption_Checked" Tag="Yumuşak Gri" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbModeDark" Content="🌙 Koyu (Gece)" Checked="ModeOption_Checked" Tag="Koyu" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bölüm 4: Sol Menü (Sidebar) Teması -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="🌑 Sol Menü (Sidebar) Tonu" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
@@ -100,37 +125,78 @@
 
                             <UniformGrid Columns="3">
                                 <RadioButton x:Name="RbSidebarDark" Content="Gece Siyahı" IsChecked="True"
-                                             Checked="SidebarColor_Checked" Tag="#111827" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold"/>
+                                             Checked="SidebarColor_Checked" Tag="#111827" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                                 <RadioButton x:Name="RbSidebarNavy" Content="Koyu Lacivert"
-                                             Checked="SidebarColor_Checked" Tag="#0F172A" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold"/>
+                                             Checked="SidebarColor_Checked" Tag="#0F172A" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                                 <RadioButton x:Name="RbSidebarSlate" Content="Grafit Füme"
-                                             Checked="SidebarColor_Checked" Tag="#1E293B" FontSize="12" FontWeight="SemiBold"/>
+                                             Checked="SidebarColor_Checked" Tag="#1E293B" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 4: Kullanıcı Tercihleri -->
+                    <!-- Bölüm 5: Yazı Tipi (Tipografi) -->
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="🔤 Yazı Tipi (Font Ailesi)" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                            <TextBlock Text="Ekrandaki metinlerin görünüm stilini belirleyin" FontSize="11" Foreground="#64748B" Margin="0,0,0,8"/>
+
+                            <ComboBox x:Name="CmbFontFamily" Height="34" SelectionChanged="FontFamily_SelectionChanged" FontSize="12">
+                                <ComboBoxItem Content="Segoe UI (Modern Varsayılan)" Tag="Segoe UI" IsSelected="True"/>
+                                <ComboBoxItem Content="Arial (Klasik &amp; Okunaklı)" Tag="Arial"/>
+                                <ComboBoxItem Content="Calibri (Yumuşak Çizgiler)" Tag="Calibri"/>
+                                <ComboBoxItem Content="Verdana (Geniş &amp; Net)" Tag="Verdana"/>
+                                <ComboBoxItem Content="Trebuchet MS (Karakteristik)" Tag="Trebuchet MS"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bölüm 6: Kullanıcı Tercihleri & Ses -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="⚡ Ek Özellikler &amp; Tercihler" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,10"/>
 
-                            <CheckBox x:Name="ChkSound" Content="🔊 Satış ve işlem onay ses efektleri aktif" 
-                                      IsChecked="True" Margin="0,0,0,8" FontSize="12" FontWeight="SemiBold"/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="ChkSound" Content="🔊 Satış ve işlem onay ses efektleri aktif" 
+                                          IsChecked="True" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="🔔 Sesi Sına" Click="TestSound_Click" Padding="8,4"
+                                        Background="#EFF6FF" Foreground="#2563EB" BorderBrush="#BFDBFE" BorderThickness="1"
+                                        FontSize="11" FontWeight="Bold" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
 
                             <CheckBox x:Name="ChkAutoPrint" Content="🖨️ Satış tamamlandığında otomatik fiş yazdır" 
                                       IsChecked="False" Margin="0,0,0,8" FontSize="12" FontWeight="SemiBold"/>
 
-                            <CheckBox x:Name="ChkCompactMode" Content="📐 Kompakt arayüz görünümü (Küçük ekranlar için)" 
+                            <CheckBox x:Name="ChkCompactMode" Content="📐 Kompakt arayüz görünümü (Küçük ekranlar için daraltılmış menü)" 
                                       IsChecked="False" FontSize="12" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 5: Uzaktan Güncelleme & Sürüm -->
+                    <!-- Bölüm 7: Fiş Başlık ve Alt Not Özelleştirmesi -->
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="🧾 Fiş Çıktısı Özel Başlık ve Notu" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                            <TextBlock Text="Yazdırılan fişlerin ve PDF raporlarının üzerinde görünecek kurumsal metinler" FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
+
+                            <TextBlock Text="Fiş Başlığı:" FontSize="11.5" Foreground="#475569" Margin="0,0,0,3"/>
+                            <TextBox x:Name="TxtReceiptHeader" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Fiş Altı Teşekkür / Bilgi Notu:" FontSize="11.5" Foreground="#475569" Margin="0,0,0,3"/>
+                            <TextBox x:Name="TxtReceiptFooter" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bölüm 8: Uzaktan Güncelleme & Sürüm -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
                             <Grid Margin="0,0,0,8">
                                 <TextBlock Text="🔄 Uzaktan Güncelleme &amp; Sürüm" FontSize="13" FontWeight="Bold" Foreground="#1E293B"/>
-                                <TextBlock x:Name="TxtAppVersionLabel" Text="Sürüm: v1.0.0" FontSize="12" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                                <TextBlock x:Name="TxtAppVersionLabel" Text="Sürüm: v1.0.8" FontSize="12" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
                             </Grid>
                             <TextBlock Text="Uygulama açılışında sunucuyu denetler ve yeni sürüm varsa otomatik indirir." FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
 

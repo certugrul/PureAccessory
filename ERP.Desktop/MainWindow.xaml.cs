@@ -304,6 +304,18 @@ public partial class MainWindow : Window
             if (TxtBrandSubtitle != null) TxtBrandSubtitle.Text = settings.StoreSubtitle;
             if (TxtSidebarVersion != null) TxtSidebarVersion.Text = $"v{curVer}";
             Title = $"{settings.StoreName} — {settings.StoreSubtitle} (v{curVer})";
+
+            // Kompakt Mod (Sidebar Genişliği)
+            if (SidebarColumn != null)
+            {
+                SidebarColumn.Width = settings.CompactMode ? new GridLength(185) : new GridLength(230);
+            }
+
+            // Yazı Tipi (Font)
+            if (!string.IsNullOrWhiteSpace(settings.AppFontFamily))
+            {
+                FontFamily = new FontFamily(settings.AppFontFamily);
+            }
         }
         catch { }
     }
