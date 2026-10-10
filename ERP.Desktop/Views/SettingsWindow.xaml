@@ -9,8 +9,7 @@
         Background="Transparent"
         ResizeMode="NoResize">
 
-    <Border Background="White" CornerRadius="16" BorderBrush="#CBD5E1" BorderThickness="1.5"
-            MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Border Background="White" CornerRadius="16" BorderBrush="#CBD5E1" BorderThickness="1.5">
         <Border.Effect>
             <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.35" Color="Black"/>
         </Border.Effect>
@@ -22,8 +21,8 @@
                 <RowDefinition Height="Auto"/> <!-- Butonlar -->
             </Grid.RowDefinitions>
 
-            <!-- 1. Üst Başlık & Kapat -->
-            <Grid Grid.Row="0" Margin="0,0,0,16">
+            <!-- 1. Üst Başlık & Kapat (Sürüklenebilir Alan) -->
+            <Grid Grid.Row="0" Margin="0,0,0,16" Background="Transparent" MouseLeftButtonDown="Window_MouseLeftButtonDown">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="38" Height="38" CornerRadius="19" Background="#EFF6FF" Margin="0,0,10,0">
                         <TextBlock Text="⚙️" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>

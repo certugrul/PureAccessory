@@ -121,6 +121,7 @@ public partial class SettingsWindow : Window
 
     private void SelectPrimaryColor_Click(object sender, MouseButtonEventArgs e)
     {
+        e.Handled = true;
         if (sender is Border border && border.Tag is string hex)
         {
             _selectedPrimaryColor = hex;

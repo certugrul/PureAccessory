@@ -843,34 +843,7 @@ public partial class SalesView : Page
     private void SplitAmounts_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_isUpdatingSplit) return;
-        _isUpdatingSplit = true;
-        try
-        {
-            if (ReferenceEquals(sender, TxtSplitCash))
-            {
-                decimal cash = ParseDecimalSafe(TxtSplitCash?.Text);
-                decimal remainCard = Math.Max(0, _currentGrandTotal - cash);
-                if (TxtSplitCard != null)
-                {
-                    TxtSplitCard.Text = remainCard.ToString("N2", _trCulture);
-                }
-            }
-            else if (ReferenceEquals(sender, TxtSplitCard))
-            {
-                decimal card = ParseDecimalSafe(TxtSplitCard?.Text);
-                decimal remainCash = Math.Max(0, _currentGrandTotal - card);
-                if (TxtSplitCash != null)
-                {
-                    TxtSplitCash.Text = remainCash.ToString("N2", _trCulture);
-                }
-            }
-        }
-        catch { }
-        finally
-        {
-            _isUpdatingSplit = false;
-            UpdateSplitPaymentStatusUI();
-        }
+        UpdateSplitPaymentStatusUI();
     }
 
     private void SplitFiftyFifty_Click(object sender, RoutedEventArgs e)
