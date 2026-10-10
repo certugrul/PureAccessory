@@ -83,10 +83,18 @@
                                 <Border x:Name="ColorEmerald" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#059669"
                                         Background="#059669" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
                                         BorderThickness="3" BorderBrush="Transparent" ToolTip="Zümrüt Yeşili"/>
+                                <!-- Orman Yeşili -->
+                                <Border x:Name="ColorGreen" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#16A34A"
+                                        Background="#16A34A" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Canlı Yeşil"/>
                                 <!-- Asil Mor -->
                                 <Border x:Name="ColorPurple" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#7C3AED"
                                         Background="#7C3AED" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
                                         BorderThickness="3" BorderBrush="Transparent" ToolTip="Kraliyet Moru"/>
+                                <!-- Gül Kurusu / Pembe -->
+                                <Border x:Name="ColorPink" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#DB2777"
+                                        Background="#DB2777" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Gül Pembesi"/>
                                 <!-- Yakut Kırmızı -->
                                 <Border x:Name="ColorRose" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#E11D48"
                                         Background="#E11D48" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
@@ -95,6 +103,14 @@
                                 <Border x:Name="ColorAmber" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#D97706"
                                         Background="#D97706" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
                                         BorderThickness="3" BorderBrush="Transparent" ToolTip="Kehribar Turuncu"/>
+                                <!-- Altın Sarısı -->
+                                <Border x:Name="ColorGold" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#CA8A04"
+                                        Background="#CA8A04" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Altın Sarısı"/>
+                                <!-- Çelik Mavisi -->
+                                <Border x:Name="ColorCyan" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#0284C7"
+                                        Background="#0284C7" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
+                                        BorderThickness="3" BorderBrush="Transparent" ToolTip="Çelik Mavisi"/>
                                 <!-- Grafit Koyu -->
                                 <Border x:Name="ColorSlate" MouseLeftButtonDown="SelectPrimaryColor_Click" Tag="#334155"
                                         Background="#334155" Width="44" Height="44" CornerRadius="22" Margin="0,0,10,8" Cursor="Hand"
@@ -103,16 +119,17 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 3: Görünüm Modu & Arka Plan (Açık / Koyu / Gri) -->
+                    <!-- Bölüm 3: Görünüm Modu & Arka Plan (Açık / Koyu / Gri / OLED) -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="🌓 Görünüm Modu &amp; Sayfa Arka Planı" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
                             <TextBlock Text="Çalışma ortamınıza göre genel arka plan kontrastını belirleyin" FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
 
-                            <UniformGrid Columns="3">
-                                <RadioButton x:Name="RbModeLight" Content="☀️ Açık (Temiz)" IsChecked="True" Checked="ModeOption_Checked" Tag="Açık" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                            <UniformGrid Columns="4">
+                                <RadioButton x:Name="RbModeLight" Content="☀️ Açık" IsChecked="True" Checked="ModeOption_Checked" Tag="Açık" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                                 <RadioButton x:Name="RbModeSoft" Content="🌫️ Yumuşak Gri" Checked="ModeOption_Checked" Tag="Yumuşak Gri" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
-                                <RadioButton x:Name="RbModeDark" Content="🌙 Koyu (Gece)" Checked="ModeOption_Checked" Tag="Koyu" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbModeDark" Content="🌙 Koyu (Gece)" Checked="ModeOption_Checked" Tag="Koyu" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbModeOled" Content="🖤 OLED Siyah" Checked="ModeOption_Checked" Tag="Gece Siyahı (OLED)" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
@@ -123,18 +140,37 @@
                             <TextBlock Text="🌑 Sol Menü (Sidebar) Tonu" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
                             <TextBlock Text="Sol navigasyon menüsünün arka plan görünümünü seçiniz" FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
 
-                            <UniformGrid Columns="3">
+                            <UniformGrid Columns="4">
                                 <RadioButton x:Name="RbSidebarDark" Content="Gece Siyahı" IsChecked="True"
                                              Checked="SidebarColor_Checked" Tag="#111827" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                                 <RadioButton x:Name="RbSidebarNavy" Content="Koyu Lacivert"
                                              Checked="SidebarColor_Checked" Tag="#0F172A" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                                 <RadioButton x:Name="RbSidebarSlate" Content="Grafit Füme"
-                                             Checked="SidebarColor_Checked" Tag="#1E293B" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                             Checked="SidebarColor_Checked" Tag="#1E293B" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbSidebarBlack" Content="Derin Siyah"
+                                             Checked="SidebarColor_Checked" Tag="#000000" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 5: Yazı Tipi (Tipografi) -->
+                    <!-- Bölüm 5: Arayüz Köşe Stili (Corner Radius) -->
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="📐 Arayüz Köşe Yuvarlaklığı" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                            <TextBlock Text="Buton ve kartların köşelerinin eğimini belirleyin" FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
+
+                            <UniformGrid Columns="3">
+                                <RadioButton x:Name="RbCornerOval" Content="🫧 Modern Oval (Yuvarlak)" IsChecked="True"
+                                             Checked="CornerRadius_Checked" Tag="Oval" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbCornerSoft" Content="◽ Sade (Hafif Eğim)"
+                                             Checked="CornerRadius_Checked" Tag="Sade" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                                <RadioButton x:Name="RbCornerSharp" Content="⬛ Düz (Keskin Hatlar)"
+                                             Checked="CornerRadius_Checked" Tag="Düz" FontSize="12" FontWeight="SemiBold" Cursor="Hand"/>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bölüm 6: Yazı Tipi (Tipografi) -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="🔤 Yazı Tipi (Font Ailesi)" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
@@ -146,6 +182,8 @@
                                 <ComboBoxItem Content="Calibri (Yumuşak Çizgiler)" Tag="Calibri"/>
                                 <ComboBoxItem Content="Verdana (Geniş &amp; Net)" Tag="Verdana"/>
                                 <ComboBoxItem Content="Trebuchet MS (Karakteristik)" Tag="Trebuchet MS"/>
+                                <ComboBoxItem Content="Tahoma (Net &amp; Yoğun)" Tag="Tahoma"/>
+                                <ComboBoxItem Content="Century Gothic (Zarif &amp; Geometrik)" Tag="Century Gothic"/>
                             </ComboBox>
                         </StackPanel>
                     </Border>

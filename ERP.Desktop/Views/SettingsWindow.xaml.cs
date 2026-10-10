@@ -12,6 +12,7 @@ public partial class SettingsWindow : Window
     private string _selectedPrimaryColor = "#2563EB";
     private string _selectedSidebarColor = "#111827";
     private string _selectedModeOption = "Açık";
+    private string _selectedCornerRadius = "Oval";
     private string _selectedFontFamily = "Segoe UI";
 
     public SettingsWindow()
@@ -28,6 +29,7 @@ public partial class SettingsWindow : Window
         _selectedPrimaryColor = settings.PrimaryColor;
         _selectedSidebarColor = settings.SidebarColor;
         _selectedModeOption = settings.DarkModeOption ?? "Açık";
+        _selectedCornerRadius = settings.CornerRadiusOption ?? "Oval";
         _selectedFontFamily = settings.AppFontFamily ?? "Segoe UI";
 
         ChkSound.IsChecked = settings.SoundEffectsEnabled;
@@ -57,6 +59,10 @@ public partial class SettingsWindow : Window
         {
             RbSidebarSlate.IsChecked = true;
         }
+        else if (_selectedSidebarColor == "#000000")
+        {
+            RbSidebarBlack.IsChecked = true;
+        }
         else
         {
             RbSidebarDark.IsChecked = true;
@@ -67,6 +73,10 @@ public partial class SettingsWindow : Window
         {
             RbModeDark.IsChecked = true;
         }
+        else if (_selectedModeOption == "Gece Siyahı (OLED)")
+        {
+            RbModeOled.IsChecked = true;
+        }
         else if (_selectedModeOption == "Yumuşak Gri")
         {
             RbModeSoft.IsChecked = true;
@@ -74,6 +84,20 @@ public partial class SettingsWindow : Window
         else
         {
             RbModeLight.IsChecked = true;
+        }
+
+        // Köşe Sitilini Seç
+        if (_selectedCornerRadius == "Düz")
+        {
+            RbCornerSharp.IsChecked = true;
+        }
+        else if (_selectedCornerRadius == "Sade")
+        {
+            RbCornerSoft.IsChecked = true;
+        }
+        else
+        {
+            RbCornerOval.IsChecked = true;
         }
 
         // Fontu Seç
@@ -181,16 +205,60 @@ public partial class SettingsWindow : Window
                 {
                     Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
                     Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#334155"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
+                }
+                else if (mode == "Gece Siyahı (OLED)")
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#000000"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#121212"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27272A"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFFF"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A1A1AA"));
                 }
                 else if (mode == "Yumuşak Gri")
                 {
                     Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
                     Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CBD5E1"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
                 }
                 else
                 {
                     Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
                     Application.Current.Resources["CardBrush"] = Brushes.White;
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void CornerRadius_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton rb && rb.Tag is string radiusOption)
+        {
+            _selectedCornerRadius = radiusOption;
+            try
+            {
+                if (radiusOption == "Düz")
+                {
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(0);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(2);
+                }
+                else if (radiusOption == "Sade")
+                {
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(6);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(4);
+                }
+                else
+                {
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(12);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(8);
                 }
             }
             catch { }
@@ -237,6 +305,7 @@ public partial class SettingsWindow : Window
             PrimaryColor = _selectedPrimaryColor,
             SidebarColor = _selectedSidebarColor,
             DarkModeOption = _selectedModeOption,
+            CornerRadiusOption = _selectedCornerRadius,
             AppFontFamily = _selectedFontFamily,
             SoundEffectsEnabled = ChkSound.IsChecked ?? true,
             AutoPrintReceipt = ChkAutoPrint.IsChecked ?? false,

@@ -100,6 +100,14 @@ public static class ThemeService
                     Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"));
                     Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#94A3B8"));
                 }
+                else if (settings.DarkModeOption == "Gece Siyahı (OLED)")
+                {
+                    Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#000000"));
+                    Application.Current.Resources["CardBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#121212"));
+                    Application.Current.Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27272A"));
+                    Application.Current.Resources["TextPrimaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFFF"));
+                    Application.Current.Resources["TextSecondaryBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A1A1AA"));
+                }
                 else if (settings.DarkModeOption == "Yumuşak Gri")
                 {
                     Application.Current.Resources["PageBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
@@ -122,6 +130,24 @@ public static class ThemeService
                 if (!string.IsNullOrWhiteSpace(settings.AppFontFamily))
                 {
                     Application.Current.Resources["AppFontFamily"] = new FontFamily(settings.AppFontFamily);
+                }
+
+                // 5. Köşe Oval / Keskinlik (Corner Radius)
+                if (settings.CornerRadiusOption == "Düz (Keskin)")
+                {
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(0);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(2);
+                }
+                else if (settings.CornerRadiusOption == "Sade (Hafif)")
+                {
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(6);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(4);
+                }
+                else
+                {
+                    // Modern Oval
+                    Application.Current.Resources["CardCornerRadius"] = new CornerRadius(12);
+                    Application.Current.Resources["ButtonCornerRadius"] = new CornerRadius(8);
                 }
             }
         }

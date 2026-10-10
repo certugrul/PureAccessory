@@ -12,6 +12,8 @@
     <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E8F0"/>
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="#0F172A"/>
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#64748B"/>
+    <CornerRadius x:Key="CardCornerRadius">10</CornerRadius>
+    <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
   </ResourceDictionary></Application.Resources>

@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37710.0 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{60DC8134-6EBA-4D2A-ABAB-19D7A0C0C0B0}") = "ERP.Desktop", "ERP.Desktop\ERP.Desktop.csproj", "{A1B2C3D4-E5F6-47A8-9012-123456789001}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.Desktop", "ERP.Desktop\ERP.Desktop.csproj", "{A1B2C3D4-E5F6-47A8-9012-123456789001}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ERP.Updater", "ERP.Updater\ERP.Updater.csproj", "{B2C3D4E5-F6A7-48B9-0123-234567890002}"
 EndProject

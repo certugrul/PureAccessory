@@ -22,6 +22,7 @@ public class AppSettings
     public bool CompactMode { get; set; } = false;
     public string AppFontFamily { get; set; } = "Segoe UI";
     public string DarkModeOption { get; set; } = "Açık"; // Açık, Koyu, Yumuşak Gri
+    public string CornerRadiusOption { get; set; } = "Oval"; // Oval (Modern Yuvarlak), Sade (Hafif), Düz (Keskin)
     public string ReceiptStoreHeader { get; set; } = "PURE ACCESSORY";
     public string ReceiptFooterNote { get; set; } = "Bizi tercih ettiğiniz için teşekkür ederiz!";
 
