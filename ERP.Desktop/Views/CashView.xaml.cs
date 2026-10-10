@@ -153,20 +153,27 @@ public partial class CashView : Page
 
     private async void AddCashIn_Click(object sender, RoutedEventArgs e)
     {
-        // Basit nakit giriş diyaloğu
-        var amountStr = Microsoft.VisualBasic.Interaction.InputBox("Kasaya eklenecek nakit tutarını girin (₺):", "Kasaya Nakit Ekle", "200");
-        if (string.IsNullOrWhiteSpace(amountStr)) return;
+        try
+        {
+            // Basit nakit giriş diyaloğu
+            var amountStr = Microsoft.VisualBasic.Interaction.InputBox("Kasaya eklenecek nakit tutarını girin (₺):", "Kasaya Nakit Ekle", "200");
+            if (string.IsNullOrWhiteSpace(amountStr)) return;
 
-        if (NumberParser.TryParseDecimal(amountStr, out var amount) && amount > 0)
-        {
-            var desc = Microsoft.VisualBasic.Interaction.InputBox("Giriş açıklaması (Örn: Bozuk para takviyesi):", "Açıklama", "Nakit Takviye");
-            await _cashService.AddTransactionAsync("Nakit Giriş", amount, string.IsNullOrWhiteSpace(desc) ? "Kasaya Nakit Ekleme" : desc);
-            await RefreshCashDataAsync();
-            MessageBox.Show($"Kasaya ₺{amount:N2} nakit girişi işlendi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (NumberParser.TryParseDecimal(amountStr, out var amount) && amount > 0)
+            {
+                var desc = Microsoft.VisualBasic.Interaction.InputBox("Giriş açıklaması (Örn: Bozuk para takviyesi):", "Açıklama", "Nakit Takviye");
+                await _cashService.AddTransactionAsync("Nakit Giriş", amount, string.IsNullOrWhiteSpace(desc) ? "Kasaya Nakit Ekleme" : desc);
+                await RefreshCashDataAsync();
+                MessageBox.Show($"Kasaya ₺{amount:N2} nakit girişi işlendi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("Geçerli bir tutar girmediniz.", "Hata", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            MessageBox.Show("Geçerli bir tutar girmediniz.", "Hata", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"Kasaya para eklenirken bir hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -178,39 +185,46 @@ public partial class CashView : Page
             return;
         }
 
-        var amountStr = Microsoft.VisualBasic.Interaction.InputBox("Kasadan çıkacak nakit masraf tutarını girin (₺):", "Kasadan Nakit Çıkar / Masraf", "100");
-        if (string.IsNullOrWhiteSpace(amountStr)) return;
-
-        if (!NumberParser.TryParseDecimal(amountStr, out var amount) || amount <= 0)
+        try
         {
-            MessageBox.Show("Geçerli bir pozitif tutar girmediniz.", "Hata", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
+            var amountStr = Microsoft.VisualBasic.Interaction.InputBox("Kasadan çıkacak nakit masraf tutarını girin (₺):", "Kasadan Nakit Çıkar / Masraf", "100");
+            if (string.IsNullOrWhiteSpace(amountStr)) return;
 
-        // 4. Kural: Kasadaki nakit girilen masraftan küçükse uyarı ver
-        decimal currentCash = await _cashService.GetTotalCashBalanceAsync();
-        if (amount > currentCash)
+            if (!NumberParser.TryParseDecimal(amountStr, out var amount) || amount <= 0)
+            {
+                MessageBox.Show("Geçerli bir pozitif tutar girmediniz.", "Hata", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 4. Kural: Kasadaki nakit girilen masraftan küçükse uyarı ver
+            decimal currentCash = await _cashService.GetTotalCashBalanceAsync();
+            if (amount > currentCash)
+            {
+                var conf = MessageBox.Show(
+                    $"DİKKAT: Kasadaki nakit tutar yetersiz!\n\n" +
+                    $"• Kasadaki Mevcut Nakit : ₺{currentCash:N2}\n" +
+                    $"• Girilen Masraf Tutarı  : ₺{amount:N2}\n" +
+                    $"• Kasa Açığı             : -₺{(amount - currentCash):N2}\n\n" +
+                    "Kasadaki nakit tutarı girilen masraftan küçüktür. Yine de masrafı kaydetmek istiyor musunuz?",
+                    "Kasadaki Tutar Yetersiz",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (conf != MessageBoxResult.Yes) return;
+            }
+
+            var desc = Microsoft.VisualBasic.Interaction.InputBox("Çıkış / Masraf açıklaması (Örn: Çay/Temizlik, Yemek, Kırtasiye):", "Açıklama", "Günlük Masraf");
+            string finalDesc = string.IsNullOrWhiteSpace(desc) ? "Kasadan Nakit Masraf Çıkışı" : desc.Trim();
+
+            await _cashService.AddTransactionAsync("Nakit Çıkış", amount, finalDesc);
+            await _cashService.RecordExpenseAsync(amount, finalDesc, DateTime.Now);
+            await RefreshCashDataAsync();
+            MessageBox.Show($"Kasadan ₺{amount:N2} nakit masraf çıkışı işlendi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
         {
-            var conf = MessageBox.Show(
-                $"DİKKAT: Kasadaki nakit tutar yetersiz!\n\n" +
-                $"• Kasadaki Mevcut Nakit : ₺{currentCash:N2}\n" +
-                $"• Girilen Masraf Tutarı  : ₺{amount:N2}\n" +
-                $"• Kasa Açığı             : -₺{(amount - currentCash):N2}\n\n" +
-                "Kasadaki nakit tutarı girilen masraftan küçüktür. Yine de masrafı kaydetmek istiyor musunuz?",
-                "Kasadaki Tutar Yetersiz",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (conf != MessageBoxResult.Yes) return;
+            MessageBox.Show($"Kasadan masraf/çıkış işlenirken bir hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        var desc = Microsoft.VisualBasic.Interaction.InputBox("Çıkış / Masraf açıklaması (Örn: Çay/Temizlik, Yemek, Kırtasiye):", "Açıklama", "Günlük Masraf");
-        string finalDesc = string.IsNullOrWhiteSpace(desc) ? "Kasadan Nakit Masraf Çıkışı" : desc.Trim();
-
-        await _cashService.AddTransactionAsync("Nakit Çıkış", amount, finalDesc);
-        await _cashService.RecordExpenseAsync(amount, finalDesc, DateTime.Now);
-        await RefreshCashDataAsync();
-        MessageBox.Show($"Kasadan ₺{amount:N2} nakit masraf çıkışı işlendi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private async void CloseRegister_Click(object sender, RoutedEventArgs e)

@@ -270,7 +270,7 @@
                                         <TextBlock Text="📤" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="Mağaza Verilerini Gönder" FontWeight="Bold" FontSize="12"/>
-                                            <TextBlock Text="Satış &amp; ciroyu paketle (.sync)" FontSize="10" Foreground="#64748B"/>
+                                            <TextBlock Text="Son 30 günlük satış &amp; ciroyu paketle (.sync)" FontSize="10" Foreground="#64748B"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </Button>
@@ -284,6 +284,40 @@
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="Düzeltmeleri Uygula" FontWeight="Bold" FontSize="12"/>
                                             <TextBlock Text="Merkezden gelen paketi yükle" FontSize="10" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <!-- TÜM VERİTABANINI DİĞER PC'YE AKTARMA / YEDEK ALMA VE YÜKLEME BUTONLARI -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Tüm Verileri Dışa Aktar (Diğer PC İçin) -->
+                                <Button Grid.Column="0" Click="ExportFullDatabase_Click" Margin="0,0,6,0" Padding="12,10"
+                                        Background="#FEF3C7" Foreground="#B45309" BorderBrush="#FDE68A" BorderThickness="1" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="💾" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Tüm Veritabanını Dışa Aktar" FontWeight="Bold" FontSize="12"/>
+                                            <TextBlock Text="Tüm geçmişi (.sync) paketi yap" FontSize="10" Foreground="#92400E"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Diğer PC'deki Paketi Bu Bilgisayara Aktar -->
+                                <Button Grid.Column="1" Click="ImportFullDatabase_Click" Margin="6,0,0,0" Padding="12,10"
+                                        Background="#EDE9FE" Foreground="#6D28D9" BorderBrush="#DDD6FE" BorderThickness="1" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="📥" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Veri Paketini İçeri Aktar" FontWeight="Bold" FontSize="12"/>
+                                            <TextBlock Text="Diğer PC'den gelen verileri yükle" FontSize="10" Foreground="#5B21B6"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </Button>

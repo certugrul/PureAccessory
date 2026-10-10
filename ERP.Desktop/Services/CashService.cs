@@ -148,7 +148,18 @@ public class CashService
             {
                 await using var conn = new SqlConnection(_dbService.ConnectionString);
                 await conn.OpenAsync();
-                var sql = "INSERT INTO Expenses (Category, Amount, Description, ExpenseDate) VALUES (@cat, @amt, @desc, @date)";
+                var sql = @"
+                    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Expenses')
+                    BEGIN
+                        CREATE TABLE Expenses (
+                            Id BIGINT PRIMARY KEY IDENTITY(1,1),
+                            Category NVARCHAR(100) NOT NULL,
+                            Amount DECIMAL(18,2) NOT NULL,
+                            Description NVARCHAR(500) NULL,
+                            ExpenseDate DATETIME2 NOT NULL DEFAULT GETDATE()
+                        );
+                    END
+                    INSERT INTO Expenses (Category, Amount, Description, ExpenseDate) VALUES (@cat, @amt, @desc, @date);";
                 await using var cmd = new SqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@cat", "Genel Masraf");
                 cmd.Parameters.AddWithValue("@amt", amount);
@@ -398,6 +409,13 @@ public class CashService
                 foreach (var t in transactions)
                 {
                     var sql = @"
+                        IF NOT EXISTS (SELECT 1 FROM CashAccounts WHERE Id = 1)
+                        BEGIN
+                            SET IDENTITY_INSERT CashAccounts ON;
+                            INSERT INTO CashAccounts (Id, Name, Balance) VALUES (1, 'Merkez Kasa', 0);
+                            SET IDENTITY_INSERT CashAccounts OFF;
+                        END
+
                         IF NOT EXISTS (SELECT 1 FROM CashTransactions WHERE Id = @id)
                         BEGIN
                             SET IDENTITY_INSERT CashTransactions ON;
