@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
 
@@ -42,8 +43,13 @@ public partial class PosSettlementWindow : Window
         };
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (!NumberParser.TryParseDecimal(TxtActualPaid.Text, out var actualPaid) || actualPaid <= 0)
         {
             MessageBox.Show("Lütfen hesaba yatan geçerli bir net tutar giriniz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -59,6 +65,13 @@ public partial class PosSettlementWindow : Window
 
         var paymentDate = DpPaymentDate.SelectedDate ?? DateTime.Today;
         var desc = TxtDescription.Text.Trim();
+
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ İşleniyor...";
+        }
 
         try
         {
@@ -84,6 +97,15 @@ public partial class PosSettlementWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Tahsilat işlenirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Tahsilatı Onayla ve Kaydet";
+            }
         }
     }
 

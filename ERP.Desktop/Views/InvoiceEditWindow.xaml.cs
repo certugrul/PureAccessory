@@ -284,8 +284,13 @@ public partial class InvoiceEditWindow : Window
         TxtItemsSummary.Text = $"{Items.Count} Kalem / {totalQty:N0} Adet Ürün Eklendi";
     }
 
+    private bool _isSaving = false;
+
     private async void SaveInvoice_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var invoiceNo = TxtInvoiceNo.Text.Trim();
         if (string.IsNullOrWhiteSpace(invoiceNo))
         {
@@ -382,6 +387,13 @@ public partial class InvoiceEditWindow : Window
         var res = MessageBox.Show(confirmMsg, "Fatura ve Depo Onayı", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (res != MessageBoxResult.Yes) return;
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         var invoice = new Invoice
         {
             InvoiceNo = invoiceNo,
@@ -425,6 +437,15 @@ public partial class InvoiceEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Fatura kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Faturayı Kaydet";
+            }
         }
     }
 

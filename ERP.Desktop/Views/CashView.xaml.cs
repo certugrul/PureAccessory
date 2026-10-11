@@ -124,36 +124,56 @@ public partial class CashView : Page
         }
     }
 
+    private bool _isProcessing = false;
+
     private async void OpenRegister_Click(object sender, RoutedEventArgs e)
     {
-        if (!AuthService.CanTakeClosure && !AuthService.IsAdmin)
+        if (_isProcessing) return;
+        _isProcessing = true;
+        var btn = sender as Button;
+        if (btn != null) btn.IsEnabled = false;
+
+        try
         {
-            MessageBox.Show("Kasa açılış devri belirleme yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
+            if (!AuthService.CanTakeClosure && !AuthService.IsAdmin)
+            {
+                MessageBox.Show("Kasa açılış devri belirleme yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-        if (!NumberParser.TryParseDecimal(TxtOpeningCash.Text, out var openingCash))
+            if (!NumberParser.TryParseDecimal(TxtOpeningCash.Text, out var openingCash))
+            {
+                MessageBox.Show("Lütfen geçerli bir başlangıç nakit tutarı girin.", "Geçersiz Tutar", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TxtOpeningCash.Focus();
+                return;
+            }
+
+            if (openingCash < 0)
+            {
+                MessageBox.Show("Başlangıç nakiti negatif olamaz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var session = await _cashService.OpenCashRegisterAsync(openingCash, "Kullanıcı tarafından açıldı");
+
+            MessageBox.Show($"Kasa gün açılışı başarıyla yapıldı!\n\n• Devreden Açılış Nakiti: ₺{openingCash:N2}\n• Açılış Saati: {session.FormattedOpenedAt}\n\nSatış terminali kullanıma hazırdır.", "Gün Açılışı Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            await RefreshCashDataAsync();
+        }
+        finally
         {
-            MessageBox.Show("Lütfen geçerli bir başlangıç nakit tutarı girin.", "Geçersiz Tutar", MessageBoxButton.OK, MessageBoxImage.Warning);
-            TxtOpeningCash.Focus();
-            return;
+            _isProcessing = false;
+            if (btn != null) btn.IsEnabled = true;
         }
-
-        if (openingCash < 0)
-        {
-            MessageBox.Show("Başlangıç nakiti negatif olamaz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var session = await _cashService.OpenCashRegisterAsync(openingCash, "Kullanıcı tarafından açıldı");
-
-        MessageBox.Show($"Kasa gün açılışı başarıyla yapıldı!\n\n• Devreden Açılış Nakiti: ₺{openingCash:N2}\n• Açılış Saati: {session.FormattedOpenedAt}\n\nSatış terminali kullanıma hazırdır.", "Gün Açılışı Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
-
-        await RefreshCashDataAsync();
     }
 
     private async void AddCashIn_Click(object sender, RoutedEventArgs e)
     {
+        if (_isProcessing) return;
+        _isProcessing = true;
+        var btn = sender as Button;
+        if (btn != null) btn.IsEnabled = false;
+
         try
         {
             var dialog = new CashTransactionDialog(isExpense: false, defaultAmount: 200, defaultDescription: "Nakit Takviye");
@@ -181,18 +201,28 @@ public partial class CashView : Page
         {
             MessageBox.Show($"Kasaya para eklenirken bir hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            _isProcessing = false;
+            if (btn != null) btn.IsEnabled = true;
+        }
     }
 
     private async void AddCashOut_Click(object sender, RoutedEventArgs e)
     {
-        if (!AuthService.CanAddCashExpense && !AuthService.IsAdmin)
-        {
-            MessageBox.Show("Kasadan masraf veya nakit çıkış girme yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
+        if (_isProcessing) return;
+        _isProcessing = true;
+        var btn = sender as Button;
+        if (btn != null) btn.IsEnabled = false;
 
         try
         {
+            if (!AuthService.CanAddCashExpense && !AuthService.IsAdmin)
+            {
+                MessageBox.Show("Kasadan masraf veya nakit çıkış girme yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             var dialog = new CashTransactionDialog(isExpense: true, defaultAmount: 100, defaultDescription: "Günlük Masraf");
             try
             {
@@ -236,30 +266,48 @@ public partial class CashView : Page
         {
             MessageBox.Show($"Kasadan masraf/çıkış işlenirken bir hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            _isProcessing = false;
+            if (btn != null) btn.IsEnabled = true;
+        }
     }
 
     private async void CloseRegister_Click(object sender, RoutedEventArgs e)
     {
-        if (!AuthService.CanTakeClosure && !AuthService.IsAdmin)
+        if (_isProcessing) return;
+        _isProcessing = true;
+        var btn = sender as Button;
+        if (btn != null) btn.IsEnabled = false;
+
+        try
         {
-            MessageBox.Show("Gün bitişi ve kasa kapatma yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            if (!AuthService.CanTakeClosure && !AuthService.IsAdmin)
+            {
+                MessageBox.Show("Gün bitişi ve kasa kapatma yetkiniz bulunmamaktadır!\nLütfen yöneticinize başvurunuz.", "Yetki Yetersiz", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var summary = await _cashService.GetCashSummaryAsync(DateTime.Today);
+            var msg = $"Gün bitişi yapıp kasayı kapatmak istediğinize emin misiniz?\n\n" +
+                      $"• Başlangıç Nakiti : {summary.FormattedOpeningCash}\n" +
+                      $"• Nakit Satışlar   : {summary.FormattedCashSales}\n" +
+                      $"• Manuel Net Giriş : ₺{(summary.CashIn - summary.CashOut):N2}\n" +
+                      $"• Kasadaki Toplam  : {summary.FormattedCurrentBalance}\n\n" +
+                      $"Kasa kapatıldığında gün bitişi gerçekleşecek ve yeni gün açılışı yapılana kadar satış yapılamayacaktır.";
+
+            var res = MessageBox.Show(msg, "Gün Bitişi & Kasa Kapatma Onayı", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (res == MessageBoxResult.Yes)
+            {
+                await _cashService.CloseTodaySessionAsync(DateTime.Today, DateTime.Now);
+                MessageBox.Show("Gün bitişi yapıldı ve kasa kapatıldı.", "Bilgi", MessageBoxButton.OK, MessageBoxImage.Information);
+                await RefreshCashDataAsync();
+            }
         }
-
-        var summary = await _cashService.GetCashSummaryAsync(DateTime.Today);
-        var msg = $"Gün bitişi yapıp kasayı kapatmak istediğinize emin misiniz?\n\n" +
-                  $"• Başlangıç Nakiti : {summary.FormattedOpeningCash}\n" +
-                  $"• Nakit Satışlar   : {summary.FormattedCashSales}\n" +
-                  $"• Manuel Net Giriş : ₺{(summary.CashIn - summary.CashOut):N2}\n" +
-                  $"• Kasadaki Toplam  : {summary.FormattedCurrentBalance}\n\n" +
-                  $"Kasa kapatıldığında gün bitişi gerçekleşecek ve yeni gün açılışı yapılana kadar satış yapılamayacaktır.";
-
-        var res = MessageBox.Show(msg, "Gün Bitişi & Kasa Kapatma Onayı", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (res == MessageBoxResult.Yes)
+        finally
         {
-            await _cashService.CloseTodaySessionAsync(DateTime.Today, DateTime.Now);
-            MessageBox.Show("Gün bitişi yapıldı ve kasa kapatıldı.", "Bilgi", MessageBoxButton.OK, MessageBoxImage.Information);
-            await RefreshCashDataAsync();
+            _isProcessing = false;
+            if (btn != null) btn.IsEnabled = true;
         }
     }
 

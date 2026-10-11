@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
 
@@ -58,8 +59,13 @@ public partial class ReminderPaymentWindow : Window
         PnlBankSelect.Visibility = RbBank.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private bool _isProcessing = false;
+
     private async void Confirm_Click(object sender, RoutedEventArgs e)
     {
+        if (_isProcessing) return;
+        var btn = sender as Button;
+
         string paymentSource = RbBank.IsChecked == true ? "Banka Hesabı" : "Nakit";
         int? bankAccountId = null;
         string? bankAccountName = null;
@@ -77,6 +83,13 @@ public partial class ReminderPaymentWindow : Window
 
         var payDate = DpPaymentDate.SelectedDate ?? DateTime.Today;
         var notes = TxtNotes.Text.Trim();
+
+        _isProcessing = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ İşleniyor...";
+        }
 
         try
         {
@@ -128,6 +141,15 @@ public partial class ReminderPaymentWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Ödeme kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Ödemeyi Onayla ve Kaydet";
+            }
         }
     }
 

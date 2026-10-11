@@ -115,42 +115,47 @@ public partial class DebtPaymentWindow : Window
         }
     }
 
+    private bool _isProcessing = false;
+
     private async void ConfirmPayment_Click(object sender, RoutedEventArgs e)
     {
-        if (!decimal.TryParse(TxtPaymentAmount.Text?.Replace("₺", "")?.Trim(), out decimal amount) || amount <= 0)
-        {
-            MessageBox.Show("Lütfen geçerli bir ödeme tutarı girin.", "Geçersiz Tutar", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        DateTime paymentDate = DpPaymentDate.SelectedDate ?? DateTime.Today;
-
-        int? bankAccountId = null;
-        if (CmbPaymentSource.SelectedItem is ComboBoxItem item && item.Tag is int bId)
-        {
-            bankAccountId = bId;
-
-            // Bakiye kontrolü
-            var selectedBank = _bankAccounts.FirstOrDefault(b => b.Id == bId);
-            if (selectedBank != null && selectedBank.CurrentBalance < amount)
-            {
-                var ask = MessageBox.Show(
-                    $"Seçilen banka hesabının güncel bakiyesi (₺{selectedBank.CurrentBalance:N2}), ödeme tutarından (₺{amount:N2}) düşüktür.\n\n" +
-                    "Yine de işleme devam etmek ve hesabı eksiye / KMH'ye geçirmek istiyor musunuz?",
-                    "Yetersiz Banka Bakiyesi Uyarısı",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (ask != MessageBoxResult.Yes) return;
-            }
-        }
-
-        string paymentType = amount >= _debt.TotalPayableDebt ? "Tam" : (amount == _debt.MinPaymentAmount ? "Asgari" : "Kısmi");
-        string? notes = TxtNotes.Text?.Trim();
+        if (_isProcessing) return;
+        _isProcessing = true;
+        BtnConfirmPayment.IsEnabled = false;
+        BtnConfirmPayment.Content = "⏳ İşleniyor...";
 
         try
         {
-            BtnConfirmPayment.IsEnabled = false;
+            if (!decimal.TryParse(TxtPaymentAmount.Text?.Replace("₺", "")?.Trim(), out decimal amount) || amount <= 0)
+            {
+                MessageBox.Show("Lütfen geçerli bir ödeme tutarı girin.", "Geçersiz Tutar", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            DateTime paymentDate = DpPaymentDate.SelectedDate ?? DateTime.Today;
+
+            int? bankAccountId = null;
+            if (CmbPaymentSource.SelectedItem is ComboBoxItem item && item.Tag is int bId)
+            {
+                bankAccountId = bId;
+
+                // Bakiye kontrolü
+                var selectedBank = _bankAccounts.FirstOrDefault(b => b.Id == bId);
+                if (selectedBank != null && selectedBank.CurrentBalance < amount)
+                {
+                    var ask = MessageBox.Show(
+                        $"Seçilen banka hesabının güncel bakiyesi (₺{selectedBank.CurrentBalance:N2}), ödeme tutarından (₺{amount:N2}) düşüktür.\n\n" +
+                        "Yine de işleme devam etmek ve hesabı eksiye / KMH'ye geçirmek istiyor musunuz?",
+                        "Yetersiz Banka Bakiyesi Uyarısı",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+
+                    if (ask != MessageBoxResult.Yes) return;
+                }
+            }
+
+            string paymentType = amount >= _debt.TotalPayableDebt ? "Tam" : (amount == _debt.MinPaymentAmount ? "Asgari" : "Kısmi");
+            string? notes = TxtNotes.Text?.Trim();
 
             var breakdown = await _debtService.ProcessPaymentAsync(
                 debtId: _debt.Id,
@@ -182,7 +187,9 @@ public partial class DebtPaymentWindow : Window
         }
         finally
         {
+            _isProcessing = false;
             BtnConfirmPayment.IsEnabled = true;
+            BtnConfirmPayment.Content = "💾 Ödemeyi Onayla ve Kaydet";
         }
     }
 

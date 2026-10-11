@@ -112,6 +112,11 @@ public class InvoiceService
         return $"{prefix}-{year}-{(existingMatching + 1):D4}";
     }
 
+    private static readonly SemaphoreSlim _invoiceSaveLock = new(1, 1);
+    private static string? _lastInvoiceFingerprint;
+    private static DateTime _lastInvoiceCompletedTime = DateTime.MinValue;
+    private static Invoice? _lastSavedInvoice;
+
     public async Task<Invoice> SaveInvoiceAsync(Invoice invoice)
     {
         if (invoice.Items == null || invoice.Items.Count == 0)
@@ -133,39 +138,61 @@ public class InvoiceService
         invoice.VatTotal = Math.Round(vatTotal, 2);
         invoice.GrandTotal = Math.Round(subTotal + vatTotal, 2);
 
-        // Depo bilgisini doğrula
-        var warehouses = await _warehouseService.GetAllWarehousesAsync();
-        var wh = warehouses.FirstOrDefault(w => w.Id == invoice.WarehouseId);
-        if (wh != null)
-        {
-            invoice.WarehouseName = wh.Name;
-        }
+        var fp = $"{invoice.InvoiceNo}|{invoice.Type}|{invoice.SupplierOrCustomer}|{invoice.InvoiceDate:yyyyMMdd}|{invoice.Items.Count}|{invoice.Items.Sum(x => x.Quantity)}|{invoice.GrandTotal:F2}";
 
-        // 1. Veritabanına ATOMİK OLARAK kaydet (Stok, Cari, Kasa, Banka tek transaction)
-        if (await _dbService.TestConnectionAsync())
-        {
-            invoice = await _coordinator.SaveInvoiceAtomicAsync(invoice);
-        }
-
-        // 2. Yerel JSON'a yedek olarak kaydet
-        await _semaphore.WaitAsync();
+        await _invoiceSaveLock.WaitAsync();
         try
         {
-            var invoices = await LoadInvoicesInternalAsync();
-            var idx = invoices.FindIndex(i => i.Id == invoice.Id);
-            if (idx >= 0) invoices[idx] = invoice;
-            else invoices.Add(invoice);
+            if (_lastInvoiceFingerprint == fp && 
+                (DateTime.Now - _lastInvoiceCompletedTime).TotalSeconds < 3.0 && 
+                _lastSavedInvoice != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[InvoiceService] Mükerrer fatura kaydı engellendi: {fp}");
+                return _lastSavedInvoice;
+            }
 
-            var json = JsonSerializer.Serialize(invoices, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(InvoicesFile, json);
+            // Depo bilgisini doğrula
+            var warehouses = await _warehouseService.GetAllWarehousesAsync();
+            var wh = warehouses.FirstOrDefault(w => w.Id == invoice.WarehouseId);
+            if (wh != null)
+            {
+                invoice.WarehouseName = wh.Name;
+            }
+
+            // 1. Veritabanına ATOMİK OLARAK kaydet (Stok, Cari, Kasa, Banka tek transaction)
+            if (await _dbService.TestConnectionAsync())
+            {
+                invoice = await _coordinator.SaveInvoiceAtomicAsync(invoice);
+            }
+
+            // 2. Yerel JSON'a yedek olarak kaydet
+            await _semaphore.WaitAsync();
+            try
+            {
+                var invoices = await LoadInvoicesInternalAsync();
+                var idx = invoices.FindIndex(i => i.Id == invoice.Id);
+                if (idx >= 0) invoices[idx] = invoice;
+                else invoices.Add(invoice);
+
+                var json = JsonSerializer.Serialize(invoices, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(InvoicesFile, json);
+            }
+            catch { }
+            finally
+            {
+                _semaphore.Release();
+            }
+
+            _lastInvoiceFingerprint = fp;
+            _lastInvoiceCompletedTime = DateTime.Now;
+            _lastSavedInvoice = invoice;
+
+            return invoice;
         }
-        catch { }
         finally
         {
-            _semaphore.Release();
+            _invoiceSaveLock.Release();
         }
-
-        return invoice;
     }
 
     public async Task<bool> DeleteInvoiceAsync(long invoiceId)

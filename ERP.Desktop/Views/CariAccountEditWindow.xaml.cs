@@ -35,8 +35,13 @@ public partial class CariAccountEditWindow : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var name = TxtName.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -54,6 +59,13 @@ public partial class CariAccountEditWindow : Window
         acc.TaxNo = TxtTaxNo.Text.Trim();
         acc.Address = TxtAddress.Text.Trim();
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _cariService.SaveOrUpdateAccountAsync(acc);
@@ -63,6 +75,15 @@ public partial class CariAccountEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Kaydet";
+            }
         }
     }
 

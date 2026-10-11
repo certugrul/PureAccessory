@@ -82,12 +82,23 @@ public partial class InvoicesView : Page
         await LoadInvoicesAsync();
     }
 
+    private bool _isProcessing = false;
+
     private async void CreateInvoice_Click(object sender, RoutedEventArgs e)
     {
-        var win = new InvoiceEditWindow(_invoiceService, _warehouseService, _productService) { Owner = Window.GetWindow(this) };
-        if (win.ShowDialog() == true)
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try
         {
-            await LoadInvoicesAsync();
+            var win = new InvoiceEditWindow(_invoiceService, _warehouseService, _productService) { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() == true)
+            {
+                await LoadInvoicesAsync();
+            }
+        }
+        finally
+        {
+            _isProcessing = false;
         }
     }
 
@@ -102,6 +113,7 @@ public partial class InvoicesView : Page
 
     private async void DeleteInvoice_Click(object sender, RoutedEventArgs e)
     {
+        if (_isProcessing) return;
         if (sender is Button btn && btn.DataContext is Invoice invoice)
         {
             var confirm = MessageBox.Show(
@@ -118,8 +130,18 @@ public partial class InvoicesView : Page
 
             if (confirm == MessageBoxResult.Yes)
             {
-                await _invoiceService.DeleteInvoiceAsync(invoice.Id);
-                await LoadInvoicesAsync();
+                _isProcessing = true;
+                btn.IsEnabled = false;
+                try
+                {
+                    await _invoiceService.DeleteInvoiceAsync(invoice.Id);
+                    await LoadInvoicesAsync();
+                }
+                finally
+                {
+                    _isProcessing = false;
+                    btn.IsEnabled = true;
+                }
             }
         }
     }

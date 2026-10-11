@@ -936,12 +936,21 @@ public partial class SalesView : Page
     #endregion
 
     private bool _isCompletingSale = false;
+    private DateTime _lastSaleClickTime = DateTime.MinValue;
 
     private async void CompleteSale_Click(object sender, RoutedEventArgs e)
     {
-        if (_isCompletingSale) return;
+        if (_isCompletingSale || (DateTime.Now - _lastSaleClickTime).TotalMilliseconds < 2000) return;
+        _lastSaleClickTime = DateTime.Now;
         _isCompletingSale = true;
-        if (BtnCompleteSale != null) BtnCompleteSale.IsEnabled = false;
+        if (BtnCompleteSale != null)
+        {
+            BtnCompleteSale.IsEnabled = false;
+            BtnCompleteSale.Content = "⏳ İşleniyor...";
+        }
+
+        List<CartItem>? cartSnapshot = null;
+        decimal snapshotDiscount = 0;
 
         try
         {
@@ -1013,7 +1022,18 @@ public partial class SalesView : Page
                 DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second
             );
 
-            var sale = await _salesService.CompleteSaleAsync(Cart, paymentType, saleDateTime, _calculatedReceiptDiscount, splitCash, splitCard);
+            // Mükerrer satışları önlemek için sepetin kopyasını alıp UI sepetini hemen boşaltıyoruz
+            cartSnapshot = Cart.ToList();
+            snapshotDiscount = _calculatedReceiptDiscount;
+
+            Cart.Clear();
+            if (TxtReceiptDiscount != null) TxtReceiptDiscount.Text = string.Empty;
+            if (TxtSplitCash != null) TxtSplitCash.Text = string.Empty;
+            if (TxtSplitCard != null) TxtSplitCard.Text = string.Empty;
+            _calculatedReceiptDiscount = 0;
+            UpdateCartSummary();
+
+            var sale = await _salesService.CompleteSaleAsync(cartSnapshot, paymentType, saleDateTime, snapshotDiscount, splitCash, splitCard);
 
             string paymentDisplay = sale.PaymentType == "Parçalı"
                 ? $"Parçalı (₺{sale.CashAmount:N2} Nakit + ₺{sale.CardAmount:N2} Kredi Kartı)"
@@ -1048,13 +1068,6 @@ public partial class SalesView : Page
                 catch { }
             }
 
-            Cart.Clear();
-            if (TxtReceiptDiscount != null) TxtReceiptDiscount.Text = string.Empty;
-            if (TxtSplitCash != null) TxtSplitCash.Text = string.Empty;
-            if (TxtSplitCard != null) TxtSplitCard.Text = string.Empty;
-            _calculatedReceiptDiscount = 0;
-            UpdateCartSummary();
-
             ScanFeedbackText.Text = $"✅ Son Satış (Fiş #{sale.Id} - ₺{sale.GrandTotal:N2} [{paymentDisplay}]) başarıyla kaydedildi.";
             ScanFeedbackText.Foreground = _greenBrush;
             ScanBox.Focus();
@@ -1064,12 +1077,23 @@ public partial class SalesView : Page
         }
         catch (Exception ex)
         {
+            // Beklenmeyen hata oluştuysa ve satış tamamlanamadıysa sepeti geri yükle
+            if (cartSnapshot != null && Cart.Count == 0)
+            {
+                foreach (var item in cartSnapshot) Cart.Add(item);
+                _calculatedReceiptDiscount = snapshotDiscount;
+                UpdateCartSummary();
+            }
             MessageBox.Show($"Satış kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
             _isCompletingSale = false;
-            if (BtnCompleteSale != null) BtnCompleteSale.IsEnabled = true;
+            if (BtnCompleteSale != null)
+            {
+                BtnCompleteSale.IsEnabled = true;
+                BtnCompleteSale.Content = "✅ Satışı Tamamla";
+            }
         }
     }
 

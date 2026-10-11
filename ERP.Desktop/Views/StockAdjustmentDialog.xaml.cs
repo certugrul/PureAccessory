@@ -108,22 +108,30 @@ public partial class StockAdjustmentDialog : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        _isSaving = true;
+
         if (CmbWarehouse.SelectedValue is not int warehouseId)
         {
+            _isSaving = false;
             MessageBox.Show("Lütfen hedef depoyu seçin.", "Depo Seçilmedi", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (CmbProducts.SelectedItem is not Product selectedProduct)
         {
+            _isSaving = false;
             MessageBox.Show("Lütfen ürün seçin.", "Ürün Seçilmedi", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (!decimal.TryParse(TxtQuantity.Text?.Trim(), out decimal qty) || qty <= 0)
         {
+            _isSaving = false;
             MessageBox.Show("Lütfen geçerli bir adet girin (0'dan büyük olmalıdır).", "Geçersiz Adet", MessageBoxButton.OK, MessageBoxImage.Warning);
             TxtQuantity.Focus();
             return;
@@ -172,6 +180,7 @@ public partial class StockAdjustmentDialog : Window
         }
         finally
         {
+            _isSaving = false;
             BtnSave.IsEnabled = true;
         }
     }

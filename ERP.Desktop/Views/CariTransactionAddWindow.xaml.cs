@@ -62,8 +62,13 @@ public partial class CariTransactionAddWindow : Window
         PnlBankAccount.Visibility = tag == "Banka Hesabı" ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (CmbAccounts.SelectedItem is not CariAccount account)
         {
             MessageBox.Show("Lütfen bir cari hesabı seçiniz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -115,6 +120,13 @@ public partial class CariTransactionAddWindow : Window
         var desc = TxtDescription.Text.Trim();
         var date = DpDate.SelectedDate ?? DateTime.Today;
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _cariService.AddTransactionAsync(
@@ -135,6 +147,15 @@ public partial class CariTransactionAddWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Hareket kaydedilirken hata: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Hareketi Kaydet";
+            }
         }
     }
 

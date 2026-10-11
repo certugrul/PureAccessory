@@ -32,8 +32,13 @@ public partial class BankInflowWindow : Window
         };
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (!NumberParser.TryParseDecimal(TxtAmount.Text, out var amount) || amount <= 0)
         {
             MessageBox.Show("Lütfen geçerli bir pozitif tutar giriniz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -78,6 +83,13 @@ public partial class BankInflowWindow : Window
             }
         }
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             // 1. Bankaya para girişi
@@ -107,6 +119,15 @@ public partial class BankInflowWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Para girişi kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Girişi Kaydet";
+            }
         }
     }
 

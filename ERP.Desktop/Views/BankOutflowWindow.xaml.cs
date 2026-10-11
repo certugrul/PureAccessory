@@ -32,8 +32,13 @@ public partial class BankOutflowWindow : Window
         };
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (!NumberParser.TryParseDecimal(TxtAmount.Text, out var amount) || amount <= 0)
         {
             MessageBox.Show("Lütfen geçerli bir pozitif tutar giriniz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -70,6 +75,13 @@ public partial class BankOutflowWindow : Window
             desc = $"{outflowType} ({paymentMethod})";
         }
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _bankService.AddTransactionAsync(
@@ -89,6 +101,15 @@ public partial class BankOutflowWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Para çıkışı kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Çıkışı Kaydet";
+            }
         }
     }
 

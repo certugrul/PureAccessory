@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
 
@@ -34,8 +35,13 @@ public partial class WarehouseEditWindow : Window
         Loaded += (s, e) => TxtName.Focus();
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var name = TxtName.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -57,6 +63,13 @@ public partial class WarehouseEditWindow : Window
         warehouse.Description = TxtDescription.Text.Trim();
         warehouse.IsDefault = ChkIsDefault.IsChecked == true;
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             ResultWarehouse = await _warehouseService.SaveOrUpdateWarehouseAsync(warehouse);
@@ -66,6 +79,15 @@ public partial class WarehouseEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Depo kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Depoyu Kaydet";
+            }
         }
     }
 

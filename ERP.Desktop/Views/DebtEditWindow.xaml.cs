@@ -88,8 +88,13 @@ public partial class DebtEditWindow : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var title = TxtTitle.Text.Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -165,6 +170,13 @@ public partial class DebtEditWindow : Window
         debt.InterestRate = intRate;
         debt.MinPaymentAmount = minPay;
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _debtService.SaveOrUpdateDebtAsync(debt, AuthService.CurrentUser?.FullName ?? "Yönetici");
@@ -174,6 +186,15 @@ public partial class DebtEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Kaydet";
+            }
         }
     }
 

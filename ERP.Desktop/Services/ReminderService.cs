@@ -470,6 +470,7 @@ public class ReminderService
             var list = await LoadRemindersInternalAsync();
             reminder = list.FirstOrDefault(r => r.Id == reminderId);
             if (reminder == null) return null;
+            if (reminder.Status == "Ödendi") return reminder;
 
             // Eğer bir Borç ise: DebtService ile atomik ödeme yap
             if (reminder.DebtId.HasValue && reminder.DebtId.Value > 0)

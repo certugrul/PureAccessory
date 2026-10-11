@@ -36,8 +36,13 @@ public partial class GeneralExpenseEditWindow : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var title = TxtTitle.Text.Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -70,6 +75,13 @@ public partial class GeneralExpenseEditWindow : Window
         item.DayOfMonth = day;
         item.Description = desc;
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _reminderService.SaveOrUpdateGeneralExpenseAsync(item);
@@ -79,6 +91,15 @@ public partial class GeneralExpenseEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Kaydet";
+            }
         }
     }
 

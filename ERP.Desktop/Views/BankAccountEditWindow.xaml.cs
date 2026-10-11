@@ -43,8 +43,13 @@ public partial class BankAccountEditWindow : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var bankName = CmbBankName.Text.Trim();
         var accountName = TxtAccountName.Text.Trim();
 
@@ -101,6 +106,13 @@ public partial class BankAccountEditWindow : Window
             _account.ActualBalance = openingBal;
         }
 
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
+
         try
         {
             await _bankService.SaveOrUpdateAccountAsync(_account);
@@ -110,6 +122,15 @@ public partial class BankAccountEditWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Banka hesabı kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Kaydet";
+            }
         }
     }
 

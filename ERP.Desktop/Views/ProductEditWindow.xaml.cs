@@ -134,8 +134,13 @@ public partial class ProductEditWindow : Window
         }
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         var code = TxtCode.Text.Trim();
         var name = TxtName.Text.Trim();
 
@@ -173,10 +178,33 @@ public partial class ProductEditWindow : Window
         _product.VatRate = vatRate;
         _product.Stock = stock;
 
-        await _productService.SaveOrUpdateProductAsync(_product);
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Kaydediliyor...";
+        }
 
-        DialogResult = true;
-        Close();
+        try
+        {
+            await _productService.SaveOrUpdateProductAsync(_product);
+
+            DialogResult = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ürün kaydedilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Ürünü Kaydet";
+            }
+        }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)

@@ -84,8 +84,13 @@ public partial class WarehouseTransferWindow : Window
         }
     }
 
+    private bool _isProcessing = false;
+
     private async void Transfer_Click(object sender, RoutedEventArgs e)
     {
+        if (_isProcessing) return;
+        var btn = sender as Button;
+
         if (CmbSourceWarehouse.SelectedItem is not Warehouse src)
         {
             MessageBox.Show("Lütfen kaynak depoyu seçin.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -117,6 +122,13 @@ public partial class WarehouseTransferWindow : Window
             return;
         }
 
+        _isProcessing = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Transfer Yapılıyor...";
+        }
+
         try
         {
             await _warehouseService.TransferStockAsync(src.Id, tgt.Id, prod.Id, qty, TxtDescription.Text.Trim());
@@ -127,6 +139,15 @@ public partial class WarehouseTransferWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Transfer sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Transferi Gerçekleştir";
+            }
         }
     }
 

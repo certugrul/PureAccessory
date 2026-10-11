@@ -132,28 +132,50 @@ public class CashService
         return newSession;
     }
 
+    private static readonly SemaphoreSlim _cashLock = new(1, 1);
+    private static string? _lastCashFingerprint;
+    private static DateTime _lastCashTime = DateTime.MinValue;
+
     public async Task AddTransactionAsync(string type, decimal amount, string description, long? sessionId = null, string? sourceDocumentType = null, long? sourceDocumentId = null)
     {
-        var transactions = await LoadTransactionsAsync();
-        long sid = sessionId ?? (await GetTodaySessionAsync())?.Id ?? 1;
-
-        var tx = new CashTransaction
+        var fp = $"{type}|{amount:F2}|{description}|{sessionId}|{sourceDocumentType}|{sourceDocumentId}";
+        await _cashLock.WaitAsync();
+        try
         {
-            Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
-            SessionId = sid,
-            CreatedAt = DateTime.Now,
-            Type = type,
-            Amount = amount,
-            Description = description,
-            SourceDocumentType = sourceDocumentType,
-            SourceDocumentId = sourceDocumentId
-        };
+            if (_lastCashFingerprint == fp && (DateTime.Now - _lastCashTime).TotalSeconds < 2.5)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CashService] Mükerrer kasa hareketi engellendi: {fp}");
+                return;
+            }
 
-        transactions.Insert(0, tx);
-        await SaveTransactionsAsync(transactions);
+            var transactions = await LoadTransactionsAsync();
+            long sid = sessionId ?? (await GetTodaySessionAsync())?.Id ?? 1;
 
-        // Kasa bakiyesini merkezi olarak güncelle
-        await GetTotalCashBalanceAsync();
+            var tx = new CashTransaction
+            {
+                Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
+                SessionId = sid,
+                CreatedAt = DateTime.Now,
+                Type = type,
+                Amount = amount,
+                Description = description,
+                SourceDocumentType = sourceDocumentType,
+                SourceDocumentId = sourceDocumentId
+            };
+
+            transactions.Insert(0, tx);
+            await SaveTransactionsAsync(transactions);
+
+            _lastCashFingerprint = fp;
+            _lastCashTime = DateTime.Now;
+
+            // Kasa bakiyesini merkezi olarak güncelle
+            await GetTotalCashBalanceAsync();
+        }
+        finally
+        {
+            _cashLock.Release();
+        }
     }
 
     public async Task RecordExpenseAsync(decimal amount, string description, DateTime date)

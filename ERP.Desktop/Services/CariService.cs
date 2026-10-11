@@ -156,6 +156,11 @@ public class CariService
         }
     }
 
+    private static readonly SemaphoreSlim _cariTxLock = new(1, 1);
+    private static string? _lastCariFingerprint;
+    private static DateTime _lastCariTime = DateTime.MinValue;
+    private static CariTransaction? _lastCariTxResult;
+
     public async Task<CariTransaction> AddTransactionAsync(
         int cariAccountId,
         string transactionType,
@@ -169,82 +174,110 @@ public class CariService
         long? invoiceId = null,
         long? saleId = null)
     {
-        // 1. Veritabanına atomik ve ilişkili finans (Kasa/Banka) hareketiyle kaydet
-        if (await _dbService.TestConnectionAsync())
-        {
-            var txResult = await _coordinator.ProcessCariTransactionAsync(
-                cariAccountId,
-                transactionType,
-                debit,
-                credit,
-                documentNo,
-                description,
-                paymentMethod,
-                bankAccountId,
-                customDate);
+        var fp = $"{cariAccountId}|{transactionType}|{debit:F2}|{credit:F2}|{documentNo}|{paymentMethod}|{bankAccountId}";
 
-            // Yerel JSON'a da yedekle
-            await _semaphore.WaitAsync();
-            try
-            {
-                var transactions = await LoadTransactionsInternalAsync();
-                var accounts = await LoadAccountsInternalAsync();
-                txResult.CariAccountName = accounts.FirstOrDefault(a => a.Id == cariAccountId)?.Name ?? $"Cari #{cariAccountId}";
-                transactions.Insert(0, txResult);
-                var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(TransactionsFile, json);
-            }
-            catch { }
-            finally
-            {
-                _semaphore.Release();
-            }
-
-            return txResult;
-        }
-
-        // Yerel JSON Fallback
-        await _semaphore.WaitAsync();
+        await _cariTxLock.WaitAsync();
         try
         {
-            var accounts = await LoadAccountsInternalAsync();
-            var account = accounts.FirstOrDefault(a => a.Id == cariAccountId);
-            if (account == null)
+            if (_lastCariFingerprint == fp && 
+                (DateTime.Now - _lastCariTime).TotalSeconds < 2.5 && 
+                _lastCariTxResult != null)
             {
-                throw new InvalidOperationException($"Cari hesap bulunamadı! (Id: {cariAccountId})");
+                System.Diagnostics.Debug.WriteLine($"[CariService] Mükerrer cari hareket engellendi: {fp}");
+                return _lastCariTxResult;
             }
 
-            // Bakiye güncelleme: Borç (+) artırır, Alacak (-) azaltır
-            account.Balance += (debit - credit);
+            CariTransaction resultTx;
 
-            var transactions = await LoadTransactionsInternalAsync();
-            var tx = new CariTransaction
+            // 1. Veritabanına atomik ve ilişkili finans (Kasa/Banka) hareketiyle kaydet
+            if (await _dbService.TestConnectionAsync())
             {
-                Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
-                CreatedAt = customDate ?? DateTime.Now,
-                CariAccountId = account.Id,
-                CariAccountName = account.Name,
-                TransactionType = transactionType,
-                DocumentNo = documentNo,
-                Debit = debit,
-                Credit = credit,
-                BalanceAfter = account.Balance,
-                Description = description,
-                PaymentMethod = paymentMethod,
-                InvoiceId = invoiceId,
-                SaleId = saleId
-            };
+                var txResult = await _coordinator.ProcessCariTransactionAsync(
+                    cariAccountId,
+                    transactionType,
+                    debit,
+                    credit,
+                    documentNo,
+                    description,
+                    paymentMethod,
+                    bankAccountId,
+                    customDate);
 
-            transactions.Insert(0, tx);
+                // Yerel JSON'a da yedekle
+                await _semaphore.WaitAsync();
+                try
+                {
+                    var transactions = await LoadTransactionsInternalAsync();
+                    var accounts = await LoadAccountsInternalAsync();
+                    txResult.CariAccountName = accounts.FirstOrDefault(a => a.Id == cariAccountId)?.Name ?? $"Cari #{cariAccountId}";
+                    transactions.Insert(0, txResult);
+                    var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(TransactionsFile, json);
+                }
+                catch { }
+                finally
+                {
+                    _semaphore.Release();
+                }
 
-            await SaveAccountsInternalAsync(accounts);
-            await SaveTransactionsInternalAsync(transactions);
+                resultTx = txResult;
+            }
+            else
+            {
+                // Yerel JSON Fallback
+                await _semaphore.WaitAsync();
+                try
+                {
+                    var accounts = await LoadAccountsInternalAsync();
+                    var account = accounts.FirstOrDefault(a => a.Id == cariAccountId);
+                    if (account == null)
+                    {
+                        throw new InvalidOperationException($"Cari hesap bulunamadı! (Id: {cariAccountId})");
+                    }
 
-            return tx;
+                    // Bakiye güncelleme: Borç (+) artırır, Alacak (-) azaltır
+                    account.Balance += (debit - credit);
+
+                    var transactions = await LoadTransactionsInternalAsync();
+                    var tx = new CariTransaction
+                    {
+                        Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
+                        CreatedAt = customDate ?? DateTime.Now,
+                        CariAccountId = account.Id,
+                        CariAccountName = account.Name,
+                        TransactionType = transactionType,
+                        DocumentNo = documentNo,
+                        Debit = debit,
+                        Credit = credit,
+                        BalanceAfter = account.Balance,
+                        Description = description,
+                        PaymentMethod = paymentMethod,
+                        InvoiceId = invoiceId,
+                        SaleId = saleId
+                    };
+
+                    transactions.Insert(0, tx);
+
+                    await SaveAccountsInternalAsync(accounts);
+                    await SaveTransactionsInternalAsync(transactions);
+
+                    resultTx = tx;
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            }
+
+            _lastCariFingerprint = fp;
+            _lastCariTime = DateTime.Now;
+            _lastCariTxResult = resultTx;
+
+            return resultTx;
         }
         finally
         {
-            _semaphore.Release();
+            _cariTxLock.Release();
         }
     }
 

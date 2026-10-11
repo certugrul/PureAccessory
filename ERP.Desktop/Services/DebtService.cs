@@ -487,6 +487,11 @@ public class DebtService
     /// 8. DebtTransactions hareket kaydı ekler
     /// 9. FinancialAuditLogs yazar
     /// </summary>
+    private static readonly SemaphoreSlim _paymentLock = new(1, 1);
+    private static string? _lastPaymentFingerprint;
+    private static DateTime _lastPaymentTime = DateTime.MinValue;
+    private static PaymentBreakdown? _lastBreakdown;
+
     public async Task<PaymentBreakdown> ProcessPaymentAsync(
         int debtId,
         decimal paymentAmount,
@@ -499,15 +504,27 @@ public class DebtService
         if (paymentAmount <= 0)
             throw new ArgumentException("Ödeme tutarı 0'dan büyük olmalıdır.");
 
-        await using var conn = _dbService.CreateConnection();
-        await conn.OpenAsync();
-        await using var tran = await conn.BeginTransactionAsync();
-
+        var fp = $"{debtId}|{paymentAmount:F2}|{paymentType}|{fromBankAccountId}|{paymentDate:yyyyMMdd}";
+        await _paymentLock.WaitAsync();
         try
         {
-            // 1. Borcu kilitli oku
-            var selectSql = @"
-                SELECT Id, Title, DebtType, BankAccountId, TotalAmount, RemainingAmount, PrincipalAmount, 
+            if (_lastPaymentFingerprint == fp && 
+                (DateTime.Now - _lastPaymentTime).TotalSeconds < 3.0 && 
+                _lastBreakdown != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DebtService] Mükerrer borç ödemesi engellendi: {fp}");
+                return _lastBreakdown;
+            }
+
+            await using var conn = _dbService.CreateConnection();
+            await conn.OpenAsync();
+            await using var tran = await conn.BeginTransactionAsync();
+
+            try
+            {
+                // 1. Borcu kilitli oku
+                var selectSql = @"
+                    SELECT Id, Title, DebtType, BankAccountId, TotalAmount, RemainingAmount, PrincipalAmount, 
                        AccruedInterest, AccruedTax, MinPaymentAmount, TotalInstallments, RemainingInstallments, 
                        LastInterestCalculationDate, StartDate, Status
                 FROM FinancialDebts WITH (UPDLOCK, ROWLOCK)
@@ -749,12 +766,22 @@ public class DebtService
                 tran);
 
             await tran.CommitAsync();
+
+            _lastPaymentFingerprint = fp;
+            _lastPaymentTime = DateTime.Now;
+            _lastBreakdown = breakdown;
+
             return breakdown;
+            }
+            catch
+            {
+                await tran.RollbackAsync();
+                throw;
+            }
         }
-        catch
+        finally
         {
-            await tran.RollbackAsync();
-            throw;
+            _paymentLock.Release();
         }
     }
 }

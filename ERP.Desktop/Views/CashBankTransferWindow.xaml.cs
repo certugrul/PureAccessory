@@ -32,8 +32,13 @@ public partial class CashBankTransferWindow : Window
         };
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (!NumberParser.TryParseDecimal(TxtAmount.Text, out var amount) || amount <= 0)
         {
             MessageBox.Show("Lütfen geçerli bir pozitif tutar giriniz.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -50,6 +55,13 @@ public partial class CashBankTransferWindow : Window
         bool isCashToBank = (CmbDirection.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "CashToBank";
         var date = DpDate.SelectedDate ?? DateTime.Today;
         var desc = TxtDescription.Text.Trim();
+
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ Aktarılıyor...";
+        }
 
         try
         {
@@ -101,6 +113,15 @@ public partial class CashBankTransferWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Transfer gerçekleştirilirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Transferi Gerçekleştir";
+            }
         }
     }
 

@@ -33,6 +33,11 @@ public class SalesService
         catch { }
     }
 
+    private static readonly SemaphoreSlim _saleLock = new(1, 1);
+    private static string? _lastSaleFingerprint;
+    private static DateTime _lastSaleCompletedTime = DateTime.MinValue;
+    private static Sale? _lastCompletedSale;
+
     public async Task<Sale> CompleteSaleAsync(
         IEnumerable<CartItem> cartItems, 
         string paymentType, 
@@ -46,6 +51,22 @@ public class SalesService
         {
             throw new InvalidOperationException("Sepet boş, satış yapılamaz.");
         }
+
+        // Idempotency fingerprint
+        var currentFingerprint = string.Join(";", itemsList.OrderBy(x => x.ProductId).Select(x => $"{x.ProductId}:{x.Quantity}:{x.UnitPrice}:{x.DiscountAmount}"))
+            + $"|{paymentType}|{receiptDiscount:F2}|{cashAmount:F2}|{cardAmount:F2}";
+
+        await _saleLock.WaitAsync();
+        try
+        {
+            // Mükerrer satış çağrısı kontrolü: 3.5 saniye içinde aynı sepet tekrar gelirse mevcut satışı dön
+            if (_lastSaleFingerprint == currentFingerprint && 
+                (DateTime.Now - _lastSaleCompletedTime).TotalSeconds < 3.5 && 
+                _lastCompletedSale != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SalesService] Mükerrer satış çağrısı engellendi. Mevcut Fiş #{_lastCompletedSale.Id} dönülüyor.");
+                return _lastCompletedSale;
+            }
 
         var saleDate = customDate ?? DateTime.Now;
 
@@ -220,7 +241,16 @@ public class SalesService
             catch { }
         }
 
+        _lastSaleFingerprint = currentFingerprint;
+        _lastSaleCompletedTime = DateTime.Now;
+        _lastCompletedSale = sale;
+
         return sale;
+        }
+        finally
+        {
+            _saleLock.Release();
+        }
     }
 
     public async Task<List<Sale>> GetSalesForDateAsync(DateTime date)

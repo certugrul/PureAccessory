@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using ERP.Desktop.Models;
 using ERP.Desktop.Services;
 
@@ -47,8 +48,13 @@ public partial class PosBatchSettlementWindow : Window
         };
     }
 
+    private bool _isSaving = false;
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSaving) return;
+        var btn = sender as Button;
+
         if (_pendingList.Count == 0)
         {
             MessageBox.Show("Tahsil edilecek bekleyen POS fişi bulunamadı.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -70,6 +76,13 @@ public partial class PosBatchSettlementWindow : Window
 
         var paymentDate = DpPaymentDate.SelectedDate ?? DateTime.Today;
         var posIds = _pendingList.Select(p => p.Id).ToList();
+
+        _isSaving = true;
+        if (btn != null)
+        {
+            btn.IsEnabled = false;
+            btn.Content = "⏳ İşleniyor...";
+        }
 
         try
         {
@@ -94,6 +107,15 @@ public partial class PosBatchSettlementWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Toplu tahsilat işlenirken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            if (btn != null)
+            {
+                btn.IsEnabled = true;
+                btn.Content = "💾 Toplu Tahsilatı Onayla ve Kaydet";
+            }
         }
     }
 
