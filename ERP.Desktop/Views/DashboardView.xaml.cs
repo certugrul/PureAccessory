@@ -64,6 +64,18 @@ public partial class DashboardView : Page
         UpdateClock();
 
         Loaded += DashboardView_Loaded;
+        Unloaded += DashboardView_Unloaded;
+        FinancialSyncBus.FinancialDataChanged += OnFinancialDataChanged;
+    }
+
+    private void DashboardView_Unloaded(object sender, RoutedEventArgs e)
+    {
+        FinancialSyncBus.FinancialDataChanged -= OnFinancialDataChanged;
+    }
+
+    private async void OnFinancialDataChanged(FinancialChangeType type, object? payload)
+    {
+        await Dispatcher.InvokeAsync(async () => await UpdateDashboardCardsAsync());
     }
 
     private async void DashboardView_Loaded(object sender, RoutedEventArgs e)

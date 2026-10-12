@@ -24,6 +24,24 @@ public partial class BankView : Page
         CmbPosStatus.SelectedIndex = 1;
 
         Loaded += BankView_Loaded;
+        Unloaded += BankView_Unloaded;
+        FinancialSyncBus.FinancialDataChanged += OnFinancialDataChanged;
+    }
+
+    private void BankView_Unloaded(object sender, RoutedEventArgs e)
+    {
+        FinancialSyncBus.FinancialDataChanged -= OnFinancialDataChanged;
+    }
+
+    private async void OnFinancialDataChanged(FinancialChangeType type, object? payload)
+    {
+        if (type == FinancialChangeType.PosSales ||
+            type == FinancialChangeType.PosSettlement ||
+            type == FinancialChangeType.BankTransaction ||
+            type == FinancialChangeType.CashBankTransfer)
+        {
+            await Dispatcher.InvokeAsync(async () => await LoadAllDataAsync());
+        }
     }
 
     private async void BankView_Loaded(object sender, RoutedEventArgs e)

@@ -21,11 +21,173 @@ public class FinancialTransactionCoordinator
         _dbService = dbService ?? new DatabaseService();
     }
 
-    #region Kasa Bakiyesi (Merkezi Hesaplama)
+    #region Kasa İşlemleri (Atomik, Anında ve Doğrulanmış)
 
     /// <summary>
-    /// Kasadaki toplam nakit bakiyeyi merkezi CashTransactions hareketlerinden hesaplar.
-    /// Hiçbir harici tablo veya bağımsız bakiye değişkeni kullanmaz.
+    /// Kasadan masraf / nakit çıkışını tek bir atomik veritabanı transaction'ında kaydeder.
+    /// Expenses, CashTransactions ve CashAccounts bakiyesini aynı anda ve kilit altında günceller.
+    /// İşlem bitiminde DB'den doğrulanmış yeni bakiyeyi döner ve ekranları senkronize eder.
+    /// </summary>
+    public async Task<decimal> RecordCashExpenseAtomicAsync(decimal amount, string description, DateTime date, string category = "Genel Masraf")
+    {
+        if (amount <= 0) throw new ArgumentException("Masraf tutarı 0'dan büyük olmalıdır.");
+
+        await _semaphore.WaitAsync();
+        try
+        {
+            decimal newBalance = 0;
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+                await using var tx = await conn.BeginTransactionAsync();
+                try
+                {
+                    // 1. Expenses tablosuna ekle
+                    var expSql = "INSERT INTO Expenses (Category, Amount, Description, ExpenseDate) VALUES (@cat, @amt, @desc, @date);";
+                    await using (var expCmd = conn.CreateCommand(_dbService.NormalizeSql(expSql), tx))
+                    {
+                        expCmd.AddParam("cat", category);
+                        expCmd.AddParam("amt", amount);
+                        expCmd.AddParam("desc", description);
+                        expCmd.AddParam("date", date);
+                        await expCmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 2. CashTransactions tablosuna çıkış hareketi ekle
+                    var cashTxSql = @"
+                        INSERT INTO CashTransactions (SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType)
+                        VALUES (1, 1, 'Nakit Çıkış', @amt, @desc, @created, 'EXPENSE');";
+                    await using (var cashTxCmd = conn.CreateCommand(_dbService.NormalizeSql(cashTxSql), tx))
+                    {
+                        cashTxCmd.AddParam("amt", amount);
+                        cashTxCmd.AddParam("desc", description);
+                        cashTxCmd.AddParam("created", date);
+                        await cashTxCmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 3. CashAccounts bakiyesini atomik olarak düş
+                    var updAccSql = "UPDATE CashAccounts SET Balance = Balance - @amt WHERE Id = 1;";
+                    await using (var updCmd = conn.CreateCommand(_dbService.NormalizeSql(updAccSql), tx))
+                    {
+                        updCmd.AddParam("amt", amount);
+                        await updCmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 4. Doğrulanmış bakiyeyi DB'den oku
+                    var readSql = "SELECT Balance FROM CashAccounts WHERE Id = 1;";
+                    await using (var readCmd = conn.CreateCommand(_dbService.NormalizeSql(readSql), tx))
+                    {
+                        var res = await readCmd.ExecuteScalarAsync();
+                        newBalance = res != null && res != DBNull.Value ? Convert.ToDecimal(res) : 0m;
+                    }
+
+                    await tx.CommitAsync();
+                }
+                catch
+                {
+                    await tx.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                // Çevrimdışı fallback
+                var cashService = new CashService(_dbService);
+                await cashService.AddTransactionAsync("Nakit Çıkış", amount, description);
+                newBalance = await GetCentralCashBalanceAsync();
+            }
+
+            // Önbelleği güncelle ve tüm ekranlara canlı bildir
+            AppDataCache.UpdateCashState(null, newBalance);
+            FinancialSyncBus.Notify(FinancialChangeType.CashExpense, newBalance);
+
+            return newBalance;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Kasaya nakit giriş / para ekleme işlemini tek bir atomik veritabanı transaction'ında kaydeder.
+    /// CashTransactions ve CashAccounts bakiyesini aynı anda günceller.
+    /// </summary>
+    public async Task<decimal> RecordCashInflowAtomicAsync(decimal amount, string description, DateTime date)
+    {
+        if (amount <= 0) throw new ArgumentException("Giriş tutarı 0'dan büyük olmalıdır.");
+
+        await _semaphore.WaitAsync();
+        try
+        {
+            decimal newBalance = 0;
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+                await using var tx = await conn.BeginTransactionAsync();
+                try
+                {
+                    // 1. CashTransactions tablosuna giriş hareketi ekle
+                    var cashTxSql = @"
+                        INSERT INTO CashTransactions (SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType)
+                        VALUES (1, 1, 'Nakit Giriş', @amt, @desc, @created, 'MANUAL_IN');";
+                    await using (var cashTxCmd = conn.CreateCommand(_dbService.NormalizeSql(cashTxSql), tx))
+                    {
+                        cashTxCmd.AddParam("amt", amount);
+                        cashTxCmd.AddParam("desc", description);
+                        cashTxCmd.AddParam("created", date);
+                        await cashTxCmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 2. CashAccounts bakiyesini atomik olarak artır
+                    var updAccSql = "UPDATE CashAccounts SET Balance = Balance + @amt WHERE Id = 1;";
+                    await using (var updCmd = conn.CreateCommand(_dbService.NormalizeSql(updAccSql), tx))
+                    {
+                        updCmd.AddParam("amt", amount);
+                        await updCmd.ExecuteNonQueryAsync();
+                    }
+
+                    // 3. Doğrulanmış bakiyeyi DB'den oku
+                    var readSql = "SELECT Balance FROM CashAccounts WHERE Id = 1;";
+                    await using (var readCmd = conn.CreateCommand(_dbService.NormalizeSql(readSql), tx))
+                    {
+                        var res = await readCmd.ExecuteScalarAsync();
+                        newBalance = res != null && res != DBNull.Value ? Convert.ToDecimal(res) : 0m;
+                    }
+
+                    await tx.CommitAsync();
+                }
+                catch
+                {
+                    await tx.RollbackAsync();
+                    throw;
+                }
+            }
+            else
+            {
+                // Çevrimdışı fallback
+                var cashService = new CashService(_dbService);
+                await cashService.AddTransactionAsync("Nakit Giriş", amount, description);
+                newBalance = await GetCentralCashBalanceAsync();
+            }
+
+            // Önbelleği güncelle ve tüm ekranlara canlı bildir
+            AppDataCache.UpdateCashState(null, newBalance);
+            FinancialSyncBus.Notify(FinancialChangeType.CashInflow, newBalance);
+
+            return newBalance;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Kasadaki toplam nakit bakiyeyi merkezi CashAccounts tablosundan anında çeker.
+    /// Geçmiş iki yılı tekrar hesaplamaz; DB'deki tekil satırı doğrudan okur.
     /// </summary>
     public async Task<decimal> GetCentralCashBalanceAsync()
     {
@@ -36,8 +198,6 @@ public class FinancialTransactionCoordinator
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
-                // Doğrudan veritabanındaki CashAccounts (Merkez Kasa) satırından anında çek
-                // (Geçmiş yılları tekrar tekrar toplayıp bilgisayarı yormaz)
                 var sql = "SELECT Balance FROM CashAccounts WHERE Id = 1;";
                 await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
                 var result = await cmd.ExecuteScalarAsync();
@@ -50,7 +210,6 @@ public class FinancialTransactionCoordinator
                 }
                 else
                 {
-                    // Kasa hesabı henüz yoksa 0 bakiye ile oluştur
                     var insSql = "INSERT INTO CashAccounts (Id, Name, Balance) VALUES (1, 'Merkez Kasa', 0);";
                     await using var insCmd = conn.CreateCommand(_dbService.NormalizeSql(insSql));
                     await insCmd.ExecuteNonQueryAsync();
@@ -898,8 +1057,16 @@ public class FinancialTransactionCoordinator
             }
         }
 
-        // 3. Kasa hesabını merkezi olarak güncelle
-        await GetCentralCashBalanceAsync();
+        // 3. Kasa hesabını merkezi olarak güncelle ve ekranlara bildir
+        var newCash = await GetCentralCashBalanceAsync();
+        if (sale.CashAmount > 0)
+        {
+            FinancialSyncBus.Notify(FinancialChangeType.CashSales, newCash);
+        }
+        if (sale.CardAmount > 0)
+        {
+            FinancialSyncBus.Notify(FinancialChangeType.PosSales, sale.CardAmount);
+        }
     }
 
     #endregion

@@ -69,6 +69,7 @@ public partial class SalesView : Page
         _phoneService.DeviceConnected += OnPhoneDeviceConnected;
         _phoneService.DeviceDisconnected += OnPhoneDeviceDisconnected;
         _phoneService.BarcodeReceived += OnBarcodeFromPhoneReceivedAsync;
+        FinancialSyncBus.FinancialDataChanged += OnFinancialDataChanged;
         UpdatePhoneBadgeUI();
 
         await UpdateCashStatusUIAsync();
@@ -81,6 +82,15 @@ public partial class SalesView : Page
         _phoneService.DeviceConnected -= OnPhoneDeviceConnected;
         _phoneService.DeviceDisconnected -= OnPhoneDeviceDisconnected;
         _phoneService.BarcodeReceived -= OnBarcodeFromPhoneReceivedAsync;
+        FinancialSyncBus.FinancialDataChanged -= OnFinancialDataChanged;
+    }
+
+    private async void OnFinancialDataChanged(FinancialChangeType type, object? payload)
+    {
+        if (type == FinancialChangeType.DayClosure || type == FinancialChangeType.CashExpense || type == FinancialChangeType.CashInflow)
+        {
+            await Dispatcher.InvokeAsync(async () => await UpdateCashStatusUIAsync());
+        }
     }
 
     private void OnPhoneDeviceConnected(ConnectedPhoneDevice device)

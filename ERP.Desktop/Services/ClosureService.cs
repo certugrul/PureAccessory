@@ -270,6 +270,9 @@ public class ClosureService
         }
         catch { }
 
+        // 5. Ekranları gün sonu hakkında haberdar et
+        FinancialSyncBus.Notify(FinancialChangeType.DayClosure, closure);
+
         return true;
     }
 

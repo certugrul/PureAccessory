@@ -12,6 +12,8 @@ namespace ERP.Desktop;
 
 public partial class MainWindow : Window
 {
+    private readonly Dictionary<Type, Page> _pageCache = new();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -33,19 +35,19 @@ public partial class MainWindow : Window
 
         if (AuthService.CurrentUser?.CanAccessDashboard == true)
         {
-            MainFrame.Navigate(new DashboardView());
+            NavigateToPage<DashboardView>();
         }
         else if (AuthService.CurrentUser?.CanAccessSales == true)
         {
-            MainFrame.Navigate(new SalesView());
+            NavigateToPage<SalesView>();
         }
         else if (AuthService.CurrentUser?.CanAccessProducts == true)
         {
-            MainFrame.Navigate(new ProductsView());
+            NavigateToPage<ProductsView>();
         }
         else
         {
-            MainFrame.Navigate(new ReportsView());
+            NavigateToPage<ReportsView>();
         }
     }
 
@@ -134,6 +136,17 @@ public partial class MainWindow : Window
         }
     }
 
+    private void NavigateToPage<T>() where T : Page, new()
+    {
+        if (!_pageCache.TryGetValue(typeof(T), out var page))
+        {
+            page = new T();
+            _pageCache[typeof(T)] = page;
+        }
+
+        NavigateSafely(page);
+    }
+
     private void NavigateSafely(Page targetPage)
     {
         var user = AuthService.CurrentUser;
@@ -188,7 +201,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (targetPage is SalesView && MainFrame.Content is SalesView)
+        if (MainFrame.Content == targetPage)
         {
             return;
         }
@@ -329,31 +342,31 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private void Dashboard_Click(object s, RoutedEventArgs e) => NavigateSafely(new DashboardView());
-    private void Sales_Click(object s, RoutedEventArgs e) => NavigateSafely(new SalesView());
-    private void Products_Click(object s, RoutedEventArgs e) => NavigateSafely(new ProductsView());
-    private void Warehouse_Click(object s, RoutedEventArgs e) => NavigateSafely(new WarehouseView());
-    private void Cari_Click(object s, RoutedEventArgs e) => NavigateSafely(new CariView());
-    private void Cash_Click(object s, RoutedEventArgs e) => NavigateSafely(new CashView());
-    private void Bank_Click(object s, RoutedEventArgs e) => NavigateSafely(new BankView());
+    private void Dashboard_Click(object s, RoutedEventArgs e) => NavigateToPage<DashboardView>();
+    private void Sales_Click(object s, RoutedEventArgs e) => NavigateToPage<SalesView>();
+    private void Products_Click(object s, RoutedEventArgs e) => NavigateToPage<ProductsView>();
+    private void Warehouse_Click(object s, RoutedEventArgs e) => NavigateToPage<WarehouseView>();
+    private void Cari_Click(object s, RoutedEventArgs e) => NavigateToPage<CariView>();
+    private void Cash_Click(object s, RoutedEventArgs e) => NavigateToPage<CashView>();
+    private void Bank_Click(object s, RoutedEventArgs e) => NavigateToPage<BankView>();
     private void Debts_Click(object s, RoutedEventArgs e)
     {
         try
         {
-            NavigateSafely(new DebtsView());
+            NavigateToPage<DebtsView>();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Borç & Finans sayfası yüklenirken hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
-    private void Invoices_Click(object s, RoutedEventArgs e) => NavigateSafely(new InvoicesView());
-    private void Reports_Click(object s, RoutedEventArgs e) => NavigateSafely(new ReportsView());
+    private void Invoices_Click(object s, RoutedEventArgs e) => NavigateToPage<InvoicesView>();
+    private void Reports_Click(object s, RoutedEventArgs e) => NavigateToPage<ReportsView>();
     private void Users_Click(object s, RoutedEventArgs e)
     {
         try
         {
-            NavigateSafely(new UsersView());
+            NavigateToPage<UsersView>();
         }
         catch (Exception ex)
         {

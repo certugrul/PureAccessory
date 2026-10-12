@@ -710,6 +710,8 @@ public class BankService
             posItem.Id,
             "POS",
             paymentDate);
+
+        FinancialSyncBus.Notify(FinancialChangeType.PosSettlement, posItem);
     }
 
     public async Task SettleBatchPosTransactionsAsync(
@@ -905,6 +907,7 @@ public class BankService
                 }
             }
             catch { }
+            FinancialSyncBus.Notify(FinancialChangeType.PosSettlement, posItem);
         }
         finally
         {

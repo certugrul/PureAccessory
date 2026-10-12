@@ -20,7 +20,27 @@ public partial class CashView : Page
         LedgerGrid.ItemsSource = Transactions;
 
         ThemeService.ThemeChanged += async _ => await RefreshCashDataAsync();
+        FinancialSyncBus.FinancialDataChanged += OnFinancialDataChanged;
         Loaded += CashView_Loaded;
+        Unloaded += CashView_Unloaded;
+    }
+
+    private void CashView_Unloaded(object sender, RoutedEventArgs e)
+    {
+        FinancialSyncBus.FinancialDataChanged -= OnFinancialDataChanged;
+    }
+
+    private async void OnFinancialDataChanged(FinancialChangeType type, object? payload)
+    {
+        // Kasa hareketlerini etkileyen herhangi bir işlemde anında UI tazele
+        if (type == FinancialChangeType.CashExpense ||
+            type == FinancialChangeType.CashInflow ||
+            type == FinancialChangeType.CashSales ||
+            type == FinancialChangeType.CashBankTransfer ||
+            type == FinancialChangeType.DayClosure)
+        {
+            await Dispatcher.InvokeAsync(async () => await RefreshCashDataAsync());
+        }
     }
 
     private async void CashView_Loaded(object sender, RoutedEventArgs e)
@@ -166,9 +186,12 @@ public partial class CashView : Page
                 var amount = dialog.ResultAmount;
                 var desc = dialog.ResultDescription;
 
-                await _cashService.AddTransactionAsync("Nakit Giriş", amount, desc);
+                // Atomik olarak DB'ye yaz, bakiyeyi artır ve doğrulanmış bakiyeyi al
+                var coordinator = new FinancialTransactionCoordinator();
+                decimal verifiedBalance = await coordinator.RecordCashInflowAtomicAsync(amount, desc, DateTime.Now);
+
                 await RefreshCashDataAsync();
-                MessageBox.Show($"Kasaya ₺{amount:N2} nakit girişi başarıyla işlendi.", "Nakit Girişi Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Kasaya ₺{amount:N2} nakit girişi başarıyla işlendi.\nGüncel Kasa Bakiyesi: ₺{verifiedBalance:N2}", "Nakit Girişi Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
@@ -230,10 +253,12 @@ public partial class CashView : Page
                     if (conf != MessageBoxResult.Yes) return;
                 }
 
-                await _cashService.AddTransactionAsync("Nakit Çıkış", amount, desc);
-                await _cashService.RecordExpenseAsync(amount, desc, DateTime.Now);
+                // Atomik olarak DB'ye yaz, bakiyeyi düş ve doğrulanmış bakiyeyi hemen al
+                var coordinator = new FinancialTransactionCoordinator();
+                decimal verifiedBalance = await coordinator.RecordCashExpenseAtomicAsync(amount, desc, DateTime.Now);
+
                 await RefreshCashDataAsync();
-                MessageBox.Show($"Kasadan ₺{amount:N2} nakit masraf çıkışı işlendi.", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Kasadan ₺{amount:N2} nakit masraf çıkışı işlendi.\nGüncel Kasa Bakiyesi: ₺{verifiedBalance:N2}", "Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         catch (Exception ex)
