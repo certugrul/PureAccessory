@@ -36,55 +36,26 @@ public class FinancialTransactionCoordinator
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
-                var startDate = ThemeService.Current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
-
-                var sql = @"
-                    SELECT ISNULL(SUM(
-                        CASE 
-                            WHEN Type IN (
-                                'Giriş', 'Nakit Giriş', 'Nakit Satış', 'Bankadan Transfer', 
-                                'Tahsilat', 'Nakit Tahsilat', 'Nakit Tahsilat (Cari)', 
-                                'Nakit Giriş (Fatura)', 'Nakit Giriş (Fatura İptal)',
-                                'Kasa Açılış Bakiyesi', 'Kasa Girişi', 'Kasa Düzeltme (+)'
-                            ) THEN Amount
-                            WHEN Type IN (
-                                'Çıkış', 'Nakit Çıkış', 'Bankaya Transfer', 
-                                'Ödeme', 'Nakit Ödeme', 'Nakit Ödeme (Cari)', 
-                                'Nakit Çıkış (Fatura)', 'Nakit Çıkış (Fatura İptal)',
-                                'Masraf', 'Gider', 'Nakit Masraf / Gider', 'Kasa Düzeltme (-)'
-                            ) OR Type LIKE '%Çıkış%' OR Type LIKE '%Gider%' THEN -Amount
-                            ELSE Amount
-                        END
-                    ), 0)
-                    FROM CashTransactions
-                    WHERE CreatedAt >= @startDate;";
-
-                await using var cmd = conn.CreateCommand(sql);
-                cmd.AddParam("startDate", startDate.Date);
+                // Doğrudan veritabanındaki CashAccounts (Merkez Kasa) satırından anında çek
+                // (Geçmiş yılları tekrar tekrar toplayıp bilgisayarı yormaz)
+                var sql = "SELECT Balance FROM CashAccounts WHERE Id = 1;";
+                await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
                 var result = await cmd.ExecuteScalarAsync();
-                decimal balance = result != null && result != DBNull.Value ? Convert.ToDecimal(result) : 0m;
 
-                // CashAccounts (Id = 1) tablosunu da anında güncel tut
-                try
+                if (result != null && result != DBNull.Value)
                 {
-                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CashAccounts WHERE Id = 1");
-                    int exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
-                    if (exists > 0)
-                    {
-                        using var updCmd = conn.CreateCommand("UPDATE CashAccounts SET Balance = @bal WHERE Id = 1");
-                        updCmd.AddParam("bal", balance);
-                        await updCmd.ExecuteNonQueryAsync();
-                    }
-                    else
-                    {
-                        using var insCmd = conn.CreateCommand("INSERT INTO CashAccounts (Id, Name, Balance) VALUES (1, 'Merkez Kasa', @bal)");
-                        insCmd.AddParam("bal", balance);
-                        await insCmd.ExecuteNonQueryAsync();
-                    }
+                    decimal balance = Convert.ToDecimal(result);
+                    AppDataCache.UpdateCashState(null, balance);
+                    return balance;
                 }
-                catch { }
-
-                return balance;
+                else
+                {
+                    // Kasa hesabı henüz yoksa 0 bakiye ile oluştur
+                    var insSql = "INSERT INTO CashAccounts (Id, Name, Balance) VALUES (1, 'Merkez Kasa', 0);";
+                    await using var insCmd = conn.CreateCommand(_dbService.NormalizeSql(insSql));
+                    await insCmd.ExecuteNonQueryAsync();
+                    return 0m;
+                }
             }
         }
         catch { }
@@ -903,6 +874,12 @@ public class FinancialTransactionCoordinator
                 insCashCmd.AddParam("created", sale.SaleDate);
                 insCashCmd.AddParam("saleId", sale.Id);
                 await insCashCmd.ExecuteNonQueryAsync();
+
+                // Nakit tutarı doğrudan veritabanındaki CashAccounts bakiyesine ekle
+                var updCashAccSql = "UPDATE CashAccounts SET Balance = Balance + @amt WHERE Id = 1;";
+                await using var updCashAccCmd = conn.CreateCommand(_dbService.NormalizeSql(updCashAccSql));
+                updCashAccCmd.AddParam("amt", sale.CashAmount);
+                await updCashAccCmd.ExecuteNonQueryAsync();
             }
         }
 

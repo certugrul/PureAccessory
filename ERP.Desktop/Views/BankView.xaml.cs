@@ -23,23 +23,6 @@ public partial class BankView : Page
         DpTxEnd.SelectedDate = DateTime.Today;
         CmbPosStatus.SelectedIndex = 1;
 
-        // Önbellekteki banka verilerini anında ekrana bağla
-        if (AppDataCache.IsLoaded && AppDataCache.BankSummary != null)
-        {
-            var summary = AppDataCache.BankSummary;
-            TxtTotalBalance.Text = summary.FormattedTotalBankBalance;
-            TxtTodayInflow.Text = summary.FormattedTodayInflow;
-            TxtTodayOutflow.Text = summary.FormattedTodayOutflow;
-            TxtPendingGrossPos.Text = summary.FormattedPendingGrossPos;
-            TxtPendingNetPos.Text = summary.FormattedPendingNetPos;
-
-            if (AppDataCache.BankAccounts.Count > 0)
-            {
-                _accounts = new List<BankAccount>(AppDataCache.BankAccounts);
-                AccountsGrid.ItemsSource = _accounts;
-            }
-        }
-
         Loaded += BankView_Loaded;
     }
 

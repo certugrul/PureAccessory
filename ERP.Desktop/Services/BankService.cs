@@ -1072,43 +1072,30 @@ public class BankService
 
         EnsureStorageDirectory();
 
-        // 1. Hesaplar dosyası yoksa varsayılan hesapları oluştur
-        if (!File.Exists(AccountsFile))
+        // 1. Hesapları öncelikle doğrudan veritabanından çek
+        if (await _dbService.TestConnectionAsync())
+        {
+            await LoadAccountsInternalAsync();
+        }
+        else if (!File.Exists(AccountsFile))
         {
             var initialAccounts = new List<BankAccount>
             {
                 new BankAccount
                 {
                     Id = 1,
-                    BankName = "Ziraat Bankası",
-                    AccountName = "Ana Ticari Hesap",
-                    Iban = "TR12 0001 0000 1234 5678 9012 34",
-                    AccountNumber = "12345678-5001",
-                    Branch = "Kadıköy Şubesi",
+                    BankName = "Ana Ticari Banka",
+                    AccountName = "Vadesiz Ticari Hesap",
+                    Iban = "",
+                    AccountNumber = "",
+                    Branch = "Merkez",
                     Currency = "TRY",
-                    OpeningBalance = 7894.13m,
-                    CurrentBalance = 7894.13m,
-                    ActualBalance = 7894.13m,
-                    PosCommissionRate = 3.99m,
-                    PosValourDays = 2,
-                    IsDefault = true,
-                    IsActive = true
-                },
-                new BankAccount
-                {
-                    Id = 2,
-                    BankName = "İş Bankası",
-                    AccountName = "POS Tahsilat Hesabı",
-                    Iban = "TR64 0006 4000 9876 5432 1098 76",
-                    AccountNumber = "98765432-5002",
-                    Branch = "Levent Şubesi",
-                    Currency = "TRY",
-                    OpeningBalance = 50450.00m,
-                    CurrentBalance = 50450.00m,
-                    ActualBalance = 50450.00m,
-                    PosCommissionRate = 3.49m,
+                    OpeningBalance = 0m,
+                    CurrentBalance = 0m,
+                    ActualBalance = 0m,
+                    PosCommissionRate = 0m,
                     PosValourDays = 1,
-                    IsDefault = false,
+                    IsDefault = true,
                     IsActive = true
                 }
             };
@@ -1277,6 +1264,13 @@ public class BankService
                 }
                 if (list.Count > 0)
                 {
+                    try
+                    {
+                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(AccountsFile, json);
+                        AppDataCache.UpdateBankAccounts(list);
+                    }
+                    catch { }
                     return list;
                 }
             }

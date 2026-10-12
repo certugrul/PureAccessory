@@ -19,38 +19,6 @@ public partial class CashView : Page
         _cashService = new CashService();
         LedgerGrid.ItemsSource = Transactions;
 
-        // Önbellekteki kasa durumunu anında ekrana yansıt (beklemesiz)
-        if (AppDataCache.IsLoaded && AppDataCache.TodayCashSummary != null)
-        {
-            var summary = AppDataCache.TodayCashSummary;
-            CardOpeningText.Text = summary.FormattedOpeningCash;
-            CardCashSalesText.Text = summary.FormattedCashSales;
-            CardManualText.Text = $"₺{(summary.CashIn - summary.CashOut):N2}";
-            CardTotalBalanceText.Text = summary.FormattedCurrentBalance;
-
-            var session = AppDataCache.TodayCashSession;
-            if (session != null && session.Status == "Açık")
-            {
-                StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ECFDF5"));
-                StatusText.Text = $"🟢 Gün Açık & Kasa Açık (Saat: {session.FormattedOpenedAt} | Başlangıç: {session.FormattedOpeningCash})";
-                StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
-                OpeningTitleText.Text = "💵 Gün Açık (Kasa Oturumu Aktif)";
-                BtnOpenRegister.Content = "✏️ Başlangıç Nakitini Güncelle";
-                BtnCloseRegister.Visibility = Visibility.Visible;
-                TxtOpeningCash.Text = session.OpeningCash.ToString("N2", CultureInfo.CurrentCulture);
-            }
-            else
-            {
-                StatusBadge.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF2F2"));
-                StatusText.Text = "🔴 Gün Kapalı / Kasa Kapalı (Açılış Bekliyor)";
-                StatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
-                OpeningTitleText.Text = "💵 Gün Açılışı & Kasa Devir Nakiti";
-                BtnOpenRegister.Content = "🌅 Gün Açılışı Yap (Kasayı Aç)";
-                BtnCloseRegister.Visibility = Visibility.Collapsed;
-                TxtOpeningCash.Text = NumberParser.FormatForEditing(AppDataCache.CentralCashBalance);
-            }
-        }
-
         ThemeService.ThemeChanged += async _ => await RefreshCashDataAsync();
         Loaded += CashView_Loaded;
     }

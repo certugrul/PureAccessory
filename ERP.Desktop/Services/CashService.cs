@@ -221,6 +221,16 @@ public class CashService
                     {
                         tx.Id = Convert.ToInt64(scalar);
                     }
+
+                    if (sourceDocumentType != "ADJUSTMENT")
+                    {
+                        var updCashSql = tx.IsNegative 
+                            ? "UPDATE CashAccounts SET Balance = Balance - @amt WHERE Id = 1;"
+                            : "UPDATE CashAccounts SET Balance = Balance + @amt WHERE Id = 1;";
+                        await using var updCmd = conn.CreateCommand(_dbService.NormalizeSql(updCashSql));
+                        updCmd.AddParam("amt", Math.Abs(tx.Amount));
+                        await updCmd.ExecuteNonQueryAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
