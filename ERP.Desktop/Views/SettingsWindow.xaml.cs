@@ -38,12 +38,10 @@ public partial class SettingsWindow : Window
 
         TxtReceiptHeader.Text = settings.ReceiptStoreHeader ?? settings.StoreName;
         TxtReceiptFooter.Text = settings.ReceiptFooterNote ?? "Bizi tercih ettiğiniz için teşekkür ederiz!";
-        DpCashStartDate.SelectedDate = settings.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
 
         TxtAppVersionLabel.Text = $"Mevcut Sürüm: v{UpdateService.CurrentVersion}";
         TxtUpdateUrl.Text = settings.UpdateCheckUrl ?? "";
         ChkAutoUpdate.IsChecked = settings.AutoCheckUpdates;
-        TxtCustomDbConn.Text = settings.CustomDbConnectionString ?? "";
 
         ChkAutoSyncOnClosure.IsChecked = settings.AutoSyncOnClosure;
         TxtAutoSyncTargetDir.Text = settings.AutoSyncTargetDirectory ?? "";
@@ -291,13 +289,9 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void SetDefaultCashDate_Click(object sender, RoutedEventArgs e)
-    {
-        DpCashStartDate.SelectedDate = new DateTime(2026, 10, 8);
-    }
-
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        var current = ThemeService.Current;
         var settings = new AppSettings
         {
             StoreName = string.IsNullOrWhiteSpace(TxtStoreName.Text) ? "Pure Accessory Otomasyon" : TxtStoreName.Text.Trim(),
@@ -312,10 +306,10 @@ public partial class SettingsWindow : Window
             CompactMode = ChkCompactMode.IsChecked ?? false,
             ReceiptStoreHeader = string.IsNullOrWhiteSpace(TxtReceiptHeader.Text) ? TxtStoreName.Text.Trim() : TxtReceiptHeader.Text.Trim(),
             ReceiptFooterNote = string.IsNullOrWhiteSpace(TxtReceiptFooter.Text) ? "Bizi tercih ettiğiniz için teşekkür ederiz!" : TxtReceiptFooter.Text.Trim(),
-            CashBalanceStartDate = DpCashStartDate.SelectedDate ?? new DateTime(2026, 10, 8),
+            CashBalanceStartDate = current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8),
             UpdateCheckUrl = TxtUpdateUrl.Text.Trim(),
             AutoCheckUpdates = ChkAutoUpdate.IsChecked ?? true,
-            CustomDbConnectionString = string.IsNullOrWhiteSpace(TxtCustomDbConn.Text) ? null : TxtCustomDbConn.Text.Trim(),
+            CustomDbConnectionString = current?.CustomDbConnectionString,
             AutoSyncOnClosure = ChkAutoSyncOnClosure.IsChecked ?? true,
             AutoSyncTargetDirectory = string.IsNullOrWhiteSpace(TxtAutoSyncTargetDir.Text) ? null : TxtAutoSyncTargetDir.Text.Trim()
         };
@@ -570,36 +564,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void TestDbConn_Click(object sender, RoutedEventArgs e)
-    {
-        var connStr = TxtCustomDbConn.Text?.Trim();
-        var dbService = new DatabaseService(string.IsNullOrWhiteSpace(connStr) ? null : connStr);
 
-        var ok = await dbService.TestConnectionAsync();
-        if (ok)
-        {
-            MessageBox.Show($"SQL Server bağlantısı BAŞARILI!\n\nBağlanılan Adres:\n{dbService.ConnectionString}", "Bağlantı Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        else
-        {
-            MessageBox.Show("SQL Server bağlantısı KURULAMADI!\n\nLütfen SQL Server servisinin çalıştığından ve bağlantı dizesinin doğruluğundan emin olun.", "Bağlantı Hatası", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
-
-    private async void AutoDetectDb_Click(object sender, RoutedEventArgs e)
-    {
-        var dbService = new DatabaseService();
-        var ok = await dbService.EnsureDatabaseExistsAndDetectAsync();
-        if (ok)
-        {
-            TxtCustomDbConn.Text = dbService.ConnectionString;
-            MessageBox.Show($"Yerel SQL Server başarıyla tespit edildi ve ERPSystem veritabanı bağlandı!\n\n{dbService.ConnectionString}", "Algılama Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        else
-        {
-            MessageBox.Show("Yerel bilgisayarda çalışan SQL Server örneği bulunamadı.\nLütfen SQL Server Express servisinin çalıştığını kontrol ediniz.", "Sunucu Bulunamadı", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {

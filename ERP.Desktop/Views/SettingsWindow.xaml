@@ -228,30 +228,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 8: Kasa Nakit Başlangıç Tarihi Filtresi -->
-                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,4">
-                                <TextBlock Text="📅 Kasa Nakit Başlangıç Tarihi" FontSize="13" FontWeight="Bold" Foreground="#1E293B"/>
-                                <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="6,2" HorizontalAlignment="Right">
-                                    <TextBlock Text="08.10.2026 Aktif" FontSize="10.5" FontWeight="Bold" Foreground="#059669"/>
-                                </Border>
-                            </Grid>
-                            <TextBlock Text="08.10.2026 tarihinden önceki Excel/eski nakit hareketlerini silmeden kasa toplamından geçici olarak hariç tutar. Sistem nakit bakiyesini sadece bu tarihten itibaren sayar." FontSize="11" Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,10"/>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <DatePicker x:Name="DpCashStartDate" Height="32" VerticalContentAlignment="Center" FontSize="12"/>
-                                <Button Grid.Column="1" Content="08.10.2026 Yap" Click="SetDefaultCashDate_Click" Margin="8,0,0,0" Padding="10,0"
-                                        Background="#EFF6FF" Foreground="#2563EB" BorderBrush="#BFDBFE" FontWeight="Bold" FontSize="11" Cursor="Hand">
-                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                                </Button>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
 
                     <!-- Bölüm 9: Uzaktan Güncelleme & Sürüm -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
@@ -398,31 +374,7 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Bölüm 7: Merkezi SQL Server Bağlantısı (İsteğe Bağlı) -->
-                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="🗄️ Uzak / Merkezi SQL Server Bağlantısı" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
-                            <TextBlock Text="Başka bir bilgisayara kurulduğunda ana bilgisayarın IP adresini buraya girebilirsiniz (Boş bırakılırsa yerel sunucu kullanılır)." FontSize="11" Foreground="#64748B" Margin="0,0,0,10"/>
 
-                            <TextBox x:Name="TxtCustomDbConn" Height="34" Padding="8,0" VerticalContentAlignment="Center" FontSize="11" BorderBrush="#CBD5E1"
-                                     ToolTip="Örnek: Server=192.168.1.100;Database=ERPSystem;User Id=sa;Password=...;TrustServerCertificate=True;"/>
-
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="🔌 Bağlantıyı Test Et" Click="TestDbConn_Click" Margin="0,0,4,0" Padding="10,8"
-                                        Background="#EFF6FF" Foreground="#2563EB" BorderBrush="#BFDBFE" FontWeight="Bold" FontSize="11.5" Cursor="Hand">
-                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                                </Button>
-                                <Button Grid.Column="1" Content="🔍 Yerel SQL'i Otomatik Algıla" Click="AutoDetectDb_Click" Margin="4,0,0,0" Padding="10,8"
-                                        Background="#F0FDF4" Foreground="#15803D" BorderBrush="#BBF7D0" FontWeight="Bold" FontSize="11.5" Cursor="Hand">
-                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                                </Button>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </ScrollViewer>
 

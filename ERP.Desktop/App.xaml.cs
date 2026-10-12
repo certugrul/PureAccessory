@@ -95,6 +95,28 @@ public partial class App : Application
             }
             catch { }
 
+            // Uygulamayı açmadan önce güncellemeleri denetle (Geliştirme ortamı değilse)
+            if (!Services.UpdateService.IsDevelopmentEnvironment && Services.ThemeService.Current?.AutoCheckUpdates != false)
+            {
+                try
+                {
+                    var checkTask = Services.UpdateService.CheckForUpdatesAsync();
+                    if (Task.WhenAny(checkTask, Task.Delay(4000)).Result == checkTask)
+                    {
+                        var update = checkTask.Result;
+                        if (update != null)
+                        {
+                            var updateWin = new Views.UpdateWindow(update);
+                            updateWin.ShowDialog();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[App] Açılış öncesi güncelleme kontrolü: {ex.Message}");
+                }
+            }
+
             // SQL Server ERPSystem veritabanı tablolarını ve JSON senkronizasyonunu başlat
             try
             {
@@ -114,28 +136,6 @@ public partial class App : Application
                 MainWindow = mainWin;
                 ShutdownMode = ShutdownMode.OnMainWindowClose;
                 mainWin.Show();
-
-                // Arka planda uzaktan güncelleme kontrolü yap (Sadece dağıtılan istemcilerde, geliştirici/kaynak PC'de tetiklenmez)
-                if (!Services.UpdateService.IsDevelopmentEnvironment && Services.ThemeService.Current?.AutoCheckUpdates != false)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(3000);
-                        try
-                        {
-                            var update = await Services.UpdateService.CheckForUpdatesAsync();
-                            if (update != null)
-                            {
-                                Dispatcher.Invoke(() =>
-                                {
-                                    var updateWin = new Views.UpdateWindow(update) { Owner = mainWin };
-                                    updateWin.ShowDialog();
-                                });
-                            }
-                        }
-                        catch { }
-                    });
-                }
             }
             else
             {

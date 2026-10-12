@@ -62,9 +62,7 @@
                                FontSize="12" Foreground="#7F1D1D" Margin="24,3,0,0"/>
                 </StackPanel>
 
-                <Border Grid.Column="1" Background="#FEE2E2" CornerRadius="8" Padding="12,8" VerticalAlignment="Center">
-                    <TextBlock Text="ℹ️ Kasa menüsünden açınız" FontSize="11.5" FontWeight="Bold" Foreground="#991B1B"/>
-                </Border>
+
             </Grid>
         </Border>
 

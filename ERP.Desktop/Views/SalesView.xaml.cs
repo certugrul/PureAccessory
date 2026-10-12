@@ -1127,7 +1127,7 @@ public partial class SalesView : Page
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
 
-        ScanFeedbackText.Text = "⚠️ Gün açılışı (kasa açılışı) yapılmadan satış yapılamaz! Lütfen Kasa menüsünden açınız.";
+        ScanFeedbackText.Text = "⚠️ Gün açılışı (kasa açılışı) yapılmadan satış yapılamaz!";
         ScanFeedbackText.Foreground = _redBrush;
         return false;
     }
