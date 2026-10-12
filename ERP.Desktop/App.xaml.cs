@@ -95,19 +95,27 @@ public partial class App : Application
             }
             catch { }
 
-            // Uygulamayı açmadan önce güncellemeleri denetle (Geliştirme ortamı değilse)
-            if (!Services.UpdateService.IsDevelopmentEnvironment && Services.ThemeService.Current?.AutoCheckUpdates != false)
+            // Uygulamayı açmadan önce güncellemeleri denetle
+            bool shouldCheckUpdates = !e.Args.Contains("--no-update-check") && Services.ThemeService.Current?.AutoCheckUpdates != false;
+            if (shouldCheckUpdates)
             {
                 try
                 {
                     var checkTask = Services.UpdateService.CheckForUpdatesAsync();
-                    if (Task.WhenAny(checkTask, Task.Delay(4000)).Result == checkTask)
+                    if (Task.WhenAny(checkTask, Task.Delay(6000)).Result == checkTask)
                     {
                         var update = checkTask.Result;
                         if (update != null)
                         {
                             var updateWin = new Views.UpdateWindow(update);
-                            updateWin.ShowDialog();
+                            bool? dialogResult = updateWin.ShowDialog();
+                            
+                            // Eğer güncelleme zorunluysa ve kullanıcı güncellemeden kapattıysa uygulamayı açma
+                            if (update.Mandatory && dialogResult != true)
+                            {
+                                Shutdown(0);
+                                return;
+                            }
                         }
                     }
                 }

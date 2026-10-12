@@ -367,25 +367,11 @@ public static class UpdateService
 
         // 2. Updater.exe'yi bul
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var updaterPath = Path.Combine(appDir, "Tools", "Updater.exe");
-        if (!File.Exists(updaterPath))
-        {
-            updaterPath = Path.Combine(appDir, "Updater.exe");
-        }
+        var updaterPath = FindUpdaterPath(appDir);
 
         if (!File.Exists(updaterPath))
         {
-            // Eğer Updater.exe henüz Tools içinde yoksa üst veya bin klasöründe ara
-            var altPath = Path.Combine(appDir, "..", "..", "..", "..", "ERP.Updater", "bin", "Release", "net10.0-windows", "Updater.exe");
-            if (File.Exists(altPath))
-            {
-                updaterPath = altPath;
-            }
-        }
-
-        if (!File.Exists(updaterPath))
-        {
-            throw new FileNotFoundException("Updater.exe güncelleyici bileşeni bulunamadı.");
+            throw new FileNotFoundException($"Updater.exe güncelleyici bileşeni bulunamadı.\nAranan konum: {updaterPath}");
         }
 
         // 3. Updater.exe'yi çalıştır ve ERP'yi kapat
@@ -393,7 +379,7 @@ public static class UpdateService
         var startInfo = new ProcessStartInfo
         {
             FileName = updaterPath,
-            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{tempZip}\" --exe \"ERP.Desktop.exe\"",
+            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{tempZip}\" --exe ERP.Desktop.exe",
             UseShellExecute = true,
             WorkingDirectory = appDir
         };
@@ -401,10 +387,14 @@ public static class UpdateService
         Process.Start(startInfo);
 
         // 4. ERP'yi kapat
-        Application.Current.Dispatcher.Invoke(() =>
+        try
         {
-            Application.Current.Shutdown();
-        });
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                Application.Current.Shutdown();
+            });
+        }
+        catch { }
         Environment.Exit(0);
     }
 
@@ -416,41 +406,68 @@ public static class UpdateService
         }
 
         var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var updaterPath = Path.Combine(appDir, "Tools", "Updater.exe");
-        if (!File.Exists(updaterPath))
-        {
-            updaterPath = Path.Combine(appDir, "Updater.exe");
-        }
+        var updaterPath = FindUpdaterPath(appDir);
 
         if (!File.Exists(updaterPath))
         {
-            var altPath = Path.Combine(appDir, "..", "..", "..", "..", "ERP.Updater", "bin", "Release", "net10.0-windows", "Updater.exe");
-            if (File.Exists(altPath))
-            {
-                updaterPath = altPath;
-            }
-        }
-
-        if (!File.Exists(updaterPath))
-        {
-            throw new FileNotFoundException("Updater.exe güncelleyici bileşeni bulunamadı.");
+            throw new FileNotFoundException($"Updater.exe güncelleyici bileşeni bulunamadı.\nAranan konum: {updaterPath}");
         }
 
         var currentPid = Process.GetCurrentProcess().Id;
         var startInfo = new ProcessStartInfo
         {
             FileName = updaterPath,
-            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{zipFilePath}\" --exe \"ERP.Desktop.exe\"",
+            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{zipFilePath}\" --exe ERP.Desktop.exe",
             UseShellExecute = true,
             WorkingDirectory = appDir
         };
 
         Process.Start(startInfo);
 
-        Application.Current.Dispatcher.Invoke(() =>
+        try
         {
-            Application.Current.Shutdown();
-        });
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                Application.Current.Shutdown();
+            });
+        }
+        catch { }
         Environment.Exit(0);
+    }
+
+    private static string FindUpdaterPath(string appDir)
+    {
+        var candidates = new List<string>
+        {
+            Path.Combine(appDir, "Tools", "Updater.exe"),
+            Path.Combine(appDir, "Updater.exe"),
+            Path.Combine(appDir, "..", "Release_Publish", "Tools", "Updater.exe"),
+            Path.Combine(appDir, "..", "..", "..", "..", "Release_Publish", "Tools", "Updater.exe"),
+            Path.Combine(appDir, "..", "..", "..", "..", "ERP.Updater", "bin", "Release", "net9.0-windows", "win-x64", "publish", "Updater.exe"),
+            Path.Combine(appDir, "..", "..", "..", "..", "ERP.Updater", "bin", "Release", "net9.0-windows", "win-x64", "Updater.exe"),
+            Path.Combine(appDir, "..", "..", "..", "..", "ERP.Updater", "bin", "Release", "net9.0-windows", "Updater.exe")
+        };
+
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var full = Path.GetFullPath(path);
+                if (File.Exists(full))
+                {
+                    var targetTools = Path.Combine(appDir, "Tools");
+                    if (!Directory.Exists(targetTools)) Directory.CreateDirectory(targetTools);
+                    var targetExe = Path.Combine(targetTools, "Updater.exe");
+                    if (!File.Exists(targetExe) || targetExe != full)
+                    {
+                        try { File.Copy(full, targetExe, true); return targetExe; } catch { }
+                    }
+                    return full;
+                }
+            }
+            catch { }
+        }
+
+        return Path.Combine(appDir, "Tools", "Updater.exe");
     }
 }

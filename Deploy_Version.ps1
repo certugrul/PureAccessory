@@ -61,7 +61,7 @@ if ($status) {
 # 3. GitHub'a Push et ve GitHub Release olarak ZIP paketini yayınla
 Write-Host "`n>>> ADIM 3: GitHub'a push ediliyor ve Release yukleniyor..." -ForegroundColor Cyan
 $zipFile = Join-Path $rootDir "Releases\PureAccessory_Update_v$Version.zip"
-& powershell -ExecutionPolicy Bypass -File (Join-Path $rootDir "Publish_To_GitHub.ps1") -Version $Version -ZipPath $zipFile
+& powershell -ExecutionPolicy Bypass -File (Join-Path $rootDir "Publish_To_GitHub.ps1") -Version $Version -ZipPath $zipFile -ChangeLog $Message
 if ($LASTEXITCODE -ne 0) {
     Write-Host "GitHub yüklemesi başarısız oldu!" -ForegroundColor Red
     exit 1
