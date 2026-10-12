@@ -547,17 +547,37 @@ public class BankService
 
             posList.Insert(0, posItem);
 
-            // Veritabanına doğrudan tekil atomik ekleme (700+ kaydı tek tek turlamak yerine anında ekler)
+            // Veritabanına doğrudan tekil atomik ekleme (SQL düzeyinde çift kayıt engelli)
             try
             {
                 if (await _dbService.TestConnectionAsync())
                 {
                     await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
-                    var insertSql = @"INSERT INTO PosTransactions (Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description)
-                                      VALUES (@id, @sid, @sdate, @gross, @rate, @camt, @net, @expDate, @actDate, @actPaid, @baid, @baname, @stat, @desc);";
-                    await using var cmd = conn.CreateCommand(insertSql);
-                    cmd.AddParam("id", posItem.Id);
+
+                    // SQL Seviyesinde Mükerrer Kontrolü (Aynı SaleId veya son 15 saniyede aynı tutar varsa engelle)
+                    var checkSql = @"
+                        SELECT COUNT(*) FROM PosTransactions 
+                        WHERE (SaleId = @sid AND @sid > 0) 
+                           OR (GrossAmount = @gross AND Status = 'Bekliyor' AND SaleDate >= @minDate AND SaleDate <= @maxDate);";
+                    await using (var checkCmd = conn.CreateCommand(_dbService.NormalizeSql(checkSql)))
+                    {
+                        checkCmd.AddParam("sid", posItem.SaleId ?? 0);
+                        checkCmd.AddParam("gross", posItem.GrossAmount);
+                        checkCmd.AddParam("minDate", posItem.SaleDate.AddSeconds(-15));
+                        checkCmd.AddParam("maxDate", posItem.SaleDate.AddSeconds(15));
+                        int dupCount = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+                        if (dupCount > 0)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[BankService] SQL düzeyinde mükerrer POS kaydı engellendi: SaleId {posItem.SaleId}, Tutar {posItem.GrossAmount}");
+                            return posItem;
+                        }
+                    }
+
+                    var insertSql = @"INSERT INTO PosTransactions (SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description)
+                                      VALUES (@sid, @sdate, @gross, @rate, @camt, @net, @expDate, @actDate, @actPaid, @baid, @baname, @stat, @desc);
+                                      SELECT SCOPE_IDENTITY();";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(insertSql));
                     cmd.AddParam("sid", posItem.SaleId);
                     cmd.AddParam("sdate", posItem.SaleDate);
                     cmd.AddParam("gross", posItem.GrossAmount);
@@ -571,7 +591,11 @@ public class BankService
                     cmd.AddParam("baname", posItem.BankAccountName);
                     cmd.AddParam("stat", posItem.Status);
                     cmd.AddParam("desc", posItem.Description);
-                    await cmd.ExecuteNonQueryAsync();
+                    var scalar = await cmd.ExecuteScalarAsync();
+                    if (scalar != null && scalar != DBNull.Value)
+                    {
+                        posItem.Id = Convert.ToInt64(scalar);
+                    }
                 }
             }
             catch { }

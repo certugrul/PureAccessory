@@ -156,20 +156,8 @@ public class SalesService
             sale.CardAmount = 0m;
         }
 
-        // 1. Yerel JSON'a kalıcı olarak ekle
-        await SaveSaleToLocalJsonAsync(sale);
-
-        // 2. SQL Server bağlıysa veritabanına ekle (Çevrimiçi modda coordinator gerçek SaleId ile oluşturur)
+        // 1. SQL Server bağlıysa önce veritabanına ekle ve gerçek SaleId'yi al
         bool dbConnected = await _dbService.TestConnectionAsync();
-        if (!dbConnected && sale.CardAmount > 0)
-        {
-            try
-            {
-                var bankService = new BankService(_dbService);
-                await bankService.RecordPosSaleAsync(sale.Id, sale.SaleDate, sale.CardAmount);
-            }
-            catch { }
-        }
 
         if (dbConnected)
         {
@@ -239,6 +227,19 @@ public class SalesService
             }
             catch { }
         }
+        else if (sale.CardAmount > 0)
+        {
+            // Yalnızca veritabanı tamamen çevrimdışıysa yerel POS kaydı oluştur
+            try
+            {
+                var bankService = new BankService(_dbService);
+                await bankService.RecordPosSaleAsync(sale.Id, sale.SaleDate, sale.CardAmount);
+            }
+            catch { }
+        }
+
+        // Yerel JSON'a gerçek/son SaleId ile kaydet
+        await SaveSaleToLocalJsonAsync(sale);
 
         _lastSaleFingerprint = currentFingerprint;
         _lastSaleCompletedTime = DateTime.Now;
