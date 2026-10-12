@@ -36,10 +36,8 @@ public class BranchSyncService
             CreatedAt = DateTime.Now
         };
 
-        // 1. Satışları ve Satış Kalemlerini Getir
-        var allSales = await _salesService.GetAllSalesAsync();
-        package.Sales = allSales
-            .Where(s => s.SaleDate >= start && s.SaleDate <= end)
+        // 1. Satışları ve Satış Kalemlerini Getir (Hedeflenen tarih aralığını doğrudan DB'den çek)
+        package.Sales = (await _salesService.GetSalesBetweenDatesAsync(start, end))
             .OrderBy(s => s.SaleDate)
             .ToList();
 

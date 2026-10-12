@@ -257,7 +257,11 @@ public class SalesService
     {
         var start = date.Date;
         var end = start.AddDays(1);
+        return await GetSalesBetweenDatesAsync(start, end);
+    }
 
+    public async Task<List<Sale>> GetSalesBetweenDatesAsync(DateTime startDate, DateTime endDate)
+    {
         try
         {
             if (await _dbService.TestConnectionAsync())
@@ -274,8 +278,8 @@ public class SalesService
 
                 await using (var cmd = conn.CreateCommand(saleSql))
                 {
-                    cmd.AddParam("StartDate", start);
-                    cmd.AddParam("EndDate", end);
+                    cmd.AddParam("StartDate", startDate);
+                    cmd.AddParam("EndDate", endDate);
                     await using var reader = await cmd.ExecuteReaderAsync();
                     while (await reader.ReadAsync())
                     {
@@ -358,11 +362,11 @@ public class SalesService
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SalesService] GetSalesForDateAsync hatası: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[SalesService] GetSalesBetweenDatesAsync hatası: {ex.Message}");
         }
 
         var localSales = await LoadSalesFromLocalJsonAsync();
-        return localSales.Where(s => s.SaleDate.Date == date.Date).ToList();
+        return localSales.Where(s => s.SaleDate >= startDate && s.SaleDate < endDate).ToList();
     }
 
     public async Task<DailyReceiptBreakdownData> GetDailyReceiptBreakdownAsync(DateTime date)

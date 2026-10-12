@@ -23,6 +23,16 @@ public partial class MainWindow : Window
         Closing += MainWindow_Closing;
         ApplyUserPermissions();
 
+        // Frame navigasyon geçmişini temizle: Sayfalar arası geçişte eski görsel ağaçların RAM'de birikmesini önle
+        MainFrame.Navigated += (s, e) =>
+        {
+            try
+            {
+                while (MainFrame.NavigationService.RemoveBackEntry() != null) { }
+            }
+            catch { }
+        };
+
         // Telefon Scanner sunucusunu ve HTTPS tünelini arka planda otomatik başlat
         _ = Task.Run(async () =>
         {

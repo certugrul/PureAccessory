@@ -170,7 +170,12 @@
                     <DataGrid x:Name="StocksGrid" AutoGenerateColumns="False" Background="White" Margin="0,10,0,0"
                               BorderBrush="#E2E8F0" BorderThickness="1" RowHeight="42" ColumnHeaderHeight="38"
                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single">
+                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F8FAFC"/>
@@ -216,7 +221,12 @@
                     <DataGrid x:Name="WarehousesGrid" AutoGenerateColumns="False" Background="White" Margin="0,10,0,0"
                               BorderBrush="#E2E8F0" BorderThickness="1" RowHeight="42" ColumnHeaderHeight="38"
                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single">
+                              HeadersVisibility="Column" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F8FAFC"/>

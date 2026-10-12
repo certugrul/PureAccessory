@@ -178,7 +178,12 @@
                         <DataGrid Grid.Row="1" x:Name="DgDebts" AutoGenerateColumns="False" CanUserAddRows="False"
                                   IsReadOnly="True" BorderBrush="#E2E8F0" BorderThickness="1"
                                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  Background="White" RowHeight="42" FontSize="12">
+                                  Background="White" RowHeight="42" FontSize="12"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Başlık / Borç Adı" Binding="{Binding Title}" Width="1.4*" FontWeight="Bold"/>
                                 <DataGridTextColumn Header="Kurum / Alacaklı" Binding="{Binding Creditor}" Width="1.1*"/>
@@ -238,7 +243,12 @@
                         <DataGrid Grid.Row="1" x:Name="DgCardsKmh" AutoGenerateColumns="False" CanUserAddRows="False"
                                   IsReadOnly="True" BorderBrush="#E2E8F0" BorderThickness="1"
                                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  Background="White" RowHeight="42" FontSize="12">
+                                  Background="White" RowHeight="42" FontSize="12"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Hesap / Kart Adı" Binding="{Binding AccountName}" Width="1.5*" FontWeight="Bold"/>
                                 <DataGridTextColumn Header="Banka" Binding="{Binding BankName}" Width="1.1*"/>
@@ -282,7 +292,12 @@
                         <DataGrid Grid.Row="1" x:Name="DgAllTransactions" AutoGenerateColumns="False" CanUserAddRows="False"
                                   IsReadOnly="True" BorderBrush="#E2E8F0" BorderThickness="1"
                                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  Background="White" RowHeight="38" FontSize="12">
+                                  Background="White" RowHeight="38" FontSize="12"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Tarih" Binding="{Binding FormattedDate}" Width="130"/>
                                 <DataGridTextColumn Header="Borç ID" Binding="{Binding DebtId}" Width="65"/>
@@ -314,7 +329,12 @@
                         <DataGrid Grid.Row="1" x:Name="DgAuditLogs" AutoGenerateColumns="False" CanUserAddRows="False"
                                   IsReadOnly="True" BorderBrush="#E2E8F0" BorderThickness="1"
                                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                                  Background="White" RowHeight="36" FontSize="12">
+                                  Background="White" RowHeight="36" FontSize="12"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Tarih" Binding="{Binding FormattedDate}" Width="140"/>
                                 <DataGridTextColumn Header="İşlem Türü" Binding="{Binding ActionType}" Width="100" FontWeight="Bold"/>

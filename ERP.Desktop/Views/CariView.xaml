@@ -121,7 +121,12 @@
                         <!-- Tablo -->
                         <DataGrid x:Name="AccountsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
                                   Background="White" RowHeight="40" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="#F8FAFC"/>
@@ -213,7 +218,12 @@
                         <!-- Hareketler DataGrid -->
                         <DataGrid x:Name="TransactionsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
                                   Background="White" RowHeight="38" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
-                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single">
+                                  BorderThickness="0" HeadersVisibility="Column" SelectionMode="Single"
+                                  EnableRowVirtualization="True"
+                                  EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True">
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="#F8FAFC"/>

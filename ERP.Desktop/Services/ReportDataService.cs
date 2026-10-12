@@ -151,13 +151,9 @@ public class ReportDataService
     public async Task<SalesReportData> GetSalesReportDataAsync(DateTime startDate, DateTime endDate)
     {
         var start = startDate.Date;
-        var end = endDate.Date.AddDays(1).AddTicks(-1);
+        var end = endDate.Date.AddDays(1);
 
-        var allSales = await _salesService.GetAllSalesAsync();
-        var filteredSales = allSales
-            .Where(s => s.SaleDate >= start && s.SaleDate <= end)
-            .OrderByDescending(s => s.SaleDate)
-            .ToList();
+        var filteredSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
 
         var report = new SalesReportData
         {
@@ -181,8 +177,9 @@ public class ReportDataService
 
     public async Task<MonthlySalesReportData> GetMonthlySalesReportDataAsync(int year, int month)
     {
-        var allSales = await _salesService.GetAllSalesAsync();
-        var monthSales = allSales.Where(s => s.SaleDate.Year == year && s.SaleDate.Month == month).ToList();
+        var start = new DateTime(year, month, 1);
+        var end = start.AddMonths(1);
+        var monthSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
 
         int daysInMonth = DateTime.DaysInMonth(year, month);
         var daysList = new List<DailyRevenueRow>();
@@ -226,8 +223,9 @@ public class ReportDataService
 
     public async Task<MonthlyProductReportData> GetMonthlyProductReportDataAsync(int year, int month)
     {
-        var allSales = await _salesService.GetAllSalesAsync();
-        var monthSales = allSales.Where(s => s.SaleDate.Year == year && s.SaleDate.Month == month).ToList();
+        var start = new DateTime(year, month, 1);
+        var end = start.AddMonths(1);
+        var monthSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
 
         var flatItems = monthSales.SelectMany(s => s.Items).ToList();
         var grouped = flatItems.GroupBy(i => new { i.ProductId, i.ProductCode, i.ProductName }).ToList();
@@ -268,10 +266,9 @@ public class ReportDataService
     public async Task<ProfitLossReportData> GetProfitLossReportDataAsync(DateTime startDate, DateTime endDate)
     {
         var start = startDate.Date;
-        var end = endDate.Date.AddDays(1).AddTicks(-1);
+        var end = endDate.Date.AddDays(1);
 
-        var allSales = await _salesService.GetAllSalesAsync();
-        var periodSales = allSales.Where(s => s.SaleDate >= start && s.SaleDate <= end).ToList();
+        var periodSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
 
         decimal grossRevenue = periodSales.Sum(s => s.GrandTotal);
         decimal vatTotal = periodSales.Sum(s => s.VatTotal);
@@ -279,11 +276,11 @@ public class ReportDataService
 
         // Kapanışlardaki giderler veya kasa manuel çıkışları
         var closures = await _closureService.GetClosuresAsync();
-        var periodClosures = closures.Where(c => c.ClosureDate >= start && c.ClosureDate <= end).ToList();
+        var periodClosures = closures.Where(c => c.ClosureDate >= start && c.ClosureDate < end).ToList();
         decimal operatingExpenses = periodClosures.Sum(c => c.TotalExpenses);
 
         var ledger = await _cashService.GetDayLedgerAsync();
-        var cashOuts = ledger.Where(t => t.CreatedAt >= start && t.CreatedAt <= end && (t.Type == "Nakit Çıkış" || t.Type.Contains("Gider"))).Sum(t => t.Amount);
+        var cashOuts = ledger.Where(t => t.CreatedAt >= start && t.CreatedAt < end && (t.Type == "Nakit Çıkış" || t.Type.Contains("Gider"))).Sum(t => t.Amount);
 
         // En azından kasa masrafları hesaba katılsın
         if (cashOuts > operatingExpenses) operatingExpenses = cashOuts;
@@ -306,8 +303,9 @@ public class ReportDataService
 
     public async Task<YearlySalesReportData> GetYearlyRevenueReportDataAsync(int year)
     {
-        var allSales = await _salesService.GetAllSalesAsync();
-        var yearSales = allSales.Where(s => s.SaleDate.Year == year).ToList();
+        var start = new DateTime(year, 1, 1);
+        var end = start.AddYears(1);
+        var yearSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
 
         var monthsList = new List<YearlyMonthRow>();
         decimal runningTotal = 0;

@@ -640,9 +640,83 @@ BEGIN
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
     );
 END
+
+-- ==========================================================
+-- PERFORMANS VE RAM OPTİMİZASYON İNDEKSLERİ
+-- ==========================================================
+-- 1. Ürünler
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Products_Barcode' AND object_id = OBJECT_ID('Products'))
+    CREATE NONCLUSTERED INDEX IX_Products_Barcode ON Products (Barcode) WHERE Barcode IS NOT NULL;
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Products_Code' AND object_id = OBJECT_ID('Products'))
+    CREATE NONCLUSTERED INDEX IX_Products_Code ON Products (Code);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Products_IsActive' AND object_id = OBJECT_ID('Products'))
+    CREATE NONCLUSTERED INDEX IX_Products_IsActive ON Products (IsActive);
+
+-- 2. Satış ve Satış Kalemleri
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Sales_SaleDate' AND object_id = OBJECT_ID('Sales'))
+    CREATE NONCLUSTERED INDEX IX_Sales_SaleDate ON Sales (SaleDate DESC) INCLUDE (SubTotal, VatTotal, GrandTotal, CostTotal, PaymentType, CashAmount, CardAmount);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SaleItems_SaleId' AND object_id = OBJECT_ID('SaleItems'))
+    CREATE NONCLUSTERED INDEX IX_SaleItems_SaleId ON SaleItems (SaleId) INCLUDE (ProductId, Quantity, UnitPrice, VatRate, UnitCost);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_SaleItems_ProductId' AND object_id = OBJECT_ID('SaleItems'))
+    CREATE NONCLUSTERED INDEX IX_SaleItems_ProductId ON SaleItems (ProductId);
+
+-- 3. Kasa Oturumları ve Hareketleri
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CashSessions_SessionDate' AND object_id = OBJECT_ID('CashSessions'))
+    CREATE NONCLUSTERED INDEX IX_CashSessions_SessionDate ON CashSessions (SessionDate DESC, Status);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CashTransactions_SessionId' AND object_id = OBJECT_ID('CashTransactions'))
+    CREATE NONCLUSTERED INDEX IX_CashTransactions_SessionId ON CashTransactions (SessionId);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CashTransactions_CreatedAt' AND object_id = OBJECT_ID('CashTransactions'))
+    CREATE NONCLUSTERED INDEX IX_CashTransactions_CreatedAt ON CashTransactions (CreatedAt DESC);
+
+-- 4. Gün Sonu Kapanışları
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Closures_ClosureDate' AND object_id = OBJECT_ID('Closures'))
+    CREATE NONCLUSTERED INDEX IX_Closures_ClosureDate ON Closures (ClosureDate DESC);
+
+-- 5. Banka ve POS Hareketleri
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BankTransactions_BankAccountId' AND object_id = OBJECT_ID('BankTransactions'))
+    CREATE NONCLUSTERED INDEX IX_BankTransactions_BankAccountId ON BankTransactions (BankAccountId, CreatedAt DESC);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_PosTransactions_Status_ExpectedDate' AND object_id = OBJECT_ID('PosTransactions'))
+    CREATE NONCLUSTERED INDEX IX_PosTransactions_Status_ExpectedDate ON PosTransactions (Status, ExpectedDate);
+
+-- 6. Cari ve Depo Stok Hareketleri
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_CariTransactions_CariAccountId' AND object_id = OBJECT_ID('CariTransactions'))
+    CREATE NONCLUSTERED INDEX IX_CariTransactions_CariAccountId ON CariTransactions (CariAccountId, CreatedAt DESC);
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_StockMovements_ProductId' AND object_id = OBJECT_ID('StockMovements'))
+    CREATE NONCLUSTERED INDEX IX_StockMovements_ProductId ON StockMovements (ProductId, WarehouseId, CreatedAt DESC);
 ";
         await using var cmd = new SqlCommand(ddl, conn);
         await cmd.ExecuteNonQueryAsync();
+
+        // SQL Server RAM tüketim tavanını yapılandır (1024 MB tavanı koyarak tüm PC RAM'ini sömürmesini engelle)
+        await OptimizeSqlServerMemoryAsync(conn);
+    }
+
+    private async Task OptimizeSqlServerMemoryAsync(SqlConnection conn)
+    {
+        try
+        {
+            var memorySql = @"
+BEGIN TRY
+    EXEC sp_configure 'show advanced options', 1;
+    RECONFIGURE WITH OVERRIDE;
+    EXEC sp_configure 'max server memory (MB)', 1024;
+    RECONFIGURE WITH OVERRIDE;
+END TRY
+BEGIN CATCH
+END CATCH";
+            await using var cmd = new SqlCommand(memorySql, conn);
+            await cmd.ExecuteNonQueryAsync();
+            System.Diagnostics.Debug.WriteLine("[DatabaseSyncService] SQL Server Max RAM 1024 MB olarak sınırlandırıldı.");
+        }
+        catch { }
     }
 
     public async Task MigrateAllJsonDataAsync()
