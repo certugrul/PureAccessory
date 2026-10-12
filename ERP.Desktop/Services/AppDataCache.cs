@@ -118,6 +118,29 @@ public static class AppDataCache
         TodayCashSession = session;
     }
 
+    public static void UpdateProducts(List<Product> products)
+    {
+        Products = products;
+    }
+
+    public static void UpdateCariAccounts(List<CariAccount> accounts)
+    {
+        CariAccounts = accounts;
+    }
+
+    public static void UpdateCashState(CashSummary? summary, decimal balance, CashSession? session = null)
+    {
+        if (summary != null) TodayCashSummary = summary;
+        CentralCashBalance = balance;
+        if (session != null) TodayCashSession = session;
+    }
+
+    public static void UpdateBankAccounts(List<BankAccount> accounts, BankSummary? summary = null)
+    {
+        BankAccounts = accounts;
+        if (summary != null) BankSummary = summary;
+    }
+
     /// <summary>
     /// Herhangi bir işlem (Satış, Kasa Girişi, Ürün Ekleme vb.) yapıldığında
     /// önbellekteki veriyi hızlıca tazelemek için kullanılır.

@@ -153,6 +153,7 @@ public class BankService
             }
 
             await SaveAccountsInternalAsync(accounts);
+            AppDataCache.UpdateBankAccounts(accounts);
             return account;
         }
         finally
@@ -178,6 +179,7 @@ public class BankService
                 }
                 target.IsActive = false; // Soft delete
                 await SaveAccountsInternalAsync(accounts);
+                AppDataCache.UpdateBankAccounts(accounts);
                 return true;
             }
             return false;

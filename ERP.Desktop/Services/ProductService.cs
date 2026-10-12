@@ -14,7 +14,7 @@ public class ProductService
 
     private static List<Product>? _cachedProducts;
     private static DateTime _lastCacheTime = DateTime.MinValue;
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(25);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(3);
     private static readonly SemaphoreSlim _productLock = new(1, 1);
 
     public static void InvalidateCache()
@@ -266,31 +266,167 @@ public class ProductService
             {
                 var stocksJson = await File.ReadAllTextAsync(WarehouseStocksFile);
                 var stocks = JsonSerializer.Deserialize<List<WarehouseStock>>(stocksJson) ?? new List<WarehouseStock>();
+                var targetStock = stocks.FirstOrDefault(s => s.ProductId == productId && s.WarehouseId == 1) 
+                               ?? stocks.FirstOrDefault(s => s.ProductId == productId);
+                if (targetStock != null)
+                {
+                    targetStock.Quantity += quantityChange;
+                    if (targetStock.Quantity < 0) targetStock.Quantity = 0;
+                }
                 var totalWhStock = stocks.Where(s => s.ProductId == productId).Sum(s => s.Quantity);
                 if (item != null)
                 {
                     item.Stock = totalWhStock;
                     await SaveAllToLocalJsonAsync(products);
                 }
-                return;
+                var json = JsonSerializer.Serialize(stocks, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(WarehouseStocksFile, json);
             }
             catch { }
         }
-
-        // Depo dosyası yoksa doğrudan ürün stoğunu güncelle
-        if (item != null)
+        else if (item != null)
         {
             item.Stock += quantityChange;
             if (item.Stock < 0) item.Stock = 0;
             await SaveAllToLocalJsonAsync(products);
         }
+
+        // Veritabanında anında WarehouseStocks tablosunu güncelle
+        if (await _dbService.TestConnectionAsync())
+        {
+            try
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+                var updateStockSql = @"
+                    UPDATE WarehouseStocks 
+                    SET Quantity = CASE WHEN Quantity + @Change < 0 THEN 0 ELSE Quantity + @Change END 
+                    WHERE ProductId = @ProductId AND WarehouseId = 1;";
+                await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateStockSql));
+                cmd.AddParam("Change", quantityChange);
+                cmd.AddParam("ProductId", productId);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProductService] DB Stok güncelleme hatası: {ex.Message}");
+            }
+        }
+
         InvalidateCache();
     }
 
     public async Task<Product> SaveOrUpdateProductAsync(Product product)
     {
-        var products = await GetAllProductsAsync();
+        // 1. Veritabanı bağlıysa önce doğrudan DB'ye yaz ve gerçek Id'yi al
+        bool dbConnected = await _dbService.TestConnectionAsync();
+        if (dbConnected)
+        {
+            try
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
 
+                if (product.Id > 0)
+                {
+                    using var checkCmd = conn.CreateCommand(_dbService.NormalizeSql("SELECT COUNT(*) FROM Products WHERE Id = @Id"));
+                    checkCmd.AddParam("Id", product.Id);
+                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+
+                    if (exists)
+                    {
+                        var updateSql = @"
+                            UPDATE Products 
+                            SET Code = @Code, Name = @Name, Barcode = @Barcode, 
+                                PurchasePrice = @PurchasePrice, SalePrice = @SalePrice, 
+                                VatRate = @VatRate, IsActive = 1
+                            WHERE Id = @Id";
+                        await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateSql));
+                        cmd.AddParam("Id", product.Id);
+                        cmd.AddParam("Code", product.Code);
+                        cmd.AddParam("Name", product.Name);
+                        cmd.AddParam("Barcode", product.Barcode);
+                        cmd.AddParam("PurchasePrice", product.PurchasePrice);
+                        cmd.AddParam("SalePrice", product.SalePrice);
+                        cmd.AddParam("VatRate", product.VatRate);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"
+                            INSERT INTO Products (Code, Name, Barcode, PurchasePrice, SalePrice, VatRate, IsActive)
+                            VALUES (@Code, @Name, @Barcode, @PurchasePrice, @SalePrice, @VatRate, 1);
+                            SELECT SCOPE_IDENTITY();";
+                        await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(insertSql));
+                        cmd.AddParam("Code", product.Code);
+                        cmd.AddParam("Name", product.Name);
+                        cmd.AddParam("Barcode", product.Barcode);
+                        cmd.AddParam("PurchasePrice", product.PurchasePrice);
+                        cmd.AddParam("SalePrice", product.SalePrice);
+                        cmd.AddParam("VatRate", product.VatRate);
+                        var scalar = await cmd.ExecuteScalarAsync();
+                        if (scalar != null && scalar != DBNull.Value)
+                        {
+                            product.Id = Convert.ToInt32(scalar);
+                        }
+                    }
+                }
+                else
+                {
+                    var insertSql = @"
+                        INSERT INTO Products (Code, Name, Barcode, PurchasePrice, SalePrice, VatRate, IsActive)
+                        VALUES (@Code, @Name, @Barcode, @PurchasePrice, @SalePrice, @VatRate, 1);
+                        SELECT SCOPE_IDENTITY();";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(insertSql));
+                    cmd.AddParam("Code", product.Code);
+                    cmd.AddParam("Name", product.Name);
+                    cmd.AddParam("Barcode", product.Barcode);
+                    cmd.AddParam("PurchasePrice", product.PurchasePrice);
+                    cmd.AddParam("SalePrice", product.SalePrice);
+                    cmd.AddParam("VatRate", product.VatRate);
+                    var scalar = await cmd.ExecuteScalarAsync();
+                    if (scalar != null && scalar != DBNull.Value)
+                    {
+                        product.Id = Convert.ToInt32(scalar);
+                    }
+                }
+
+                // WarehouseStocks tablosundaki stoğu doğrudan veritabanında da kaydet / güncelle
+                if (product.Id > 0)
+                {
+                    var updStockSql = @"
+                        UPDATE WarehouseStocks 
+                        SET Quantity = @Stock, PurchasePrice = @PurchasePrice, SalePrice = @SalePrice 
+                        WHERE ProductId = @ProductId AND WarehouseId = 1";
+                    await using var stockCmd = conn.CreateCommand(_dbService.NormalizeSql(updStockSql));
+                    stockCmd.AddParam("Stock", product.Stock);
+                    stockCmd.AddParam("PurchasePrice", product.PurchasePrice);
+                    stockCmd.AddParam("SalePrice", product.SalePrice);
+                    stockCmd.AddParam("ProductId", product.Id);
+                    int rowsAffected = await stockCmd.ExecuteNonQueryAsync();
+
+                    if (rowsAffected == 0)
+                    {
+                        var insStockSql = @"
+                            INSERT INTO WarehouseStocks (WarehouseId, ProductId, Quantity, PurchasePrice, SalePrice)
+                            VALUES (1, @ProductId, @Stock, @PurchasePrice, @SalePrice)";
+                        await using var insCmd = conn.CreateCommand(_dbService.NormalizeSql(insStockSql));
+                        insCmd.AddParam("ProductId", product.Id);
+                        insCmd.AddParam("Stock", product.Stock);
+                        insCmd.AddParam("PurchasePrice", product.PurchasePrice);
+                        insCmd.AddParam("SalePrice", product.SalePrice);
+                        await insCmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ProductService] Ürün kaydetme DB hatası: {ex.Message}");
+            }
+        }
+
+        // 2. Yerel JSON dosyasını senkronize et
+        var products = await LoadFromLocalJsonAsync();
         if (product.Id == 0)
         {
             product.Id = products.Count > 0 ? products.Max(p => p.Id) + 1 : 1;
@@ -308,7 +444,6 @@ public class ProductService
                 products.Add(product);
             }
         }
-
         await SaveAllToLocalJsonAsync(products);
 
         // Depo stoklarını da senkronize et
@@ -362,59 +497,8 @@ public class ProductService
         }
         catch { }
 
-        // Veritabanı bağlıysa orada da güncelle/ekle
-        bool dbConnected = await _dbService.TestConnectionAsync();
-        if (dbConnected)
-        {
-            try
-            {
-                await using var conn = _dbService.CreateConnection();
-                await conn.OpenAsync();
-
-                using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Products WHERE Id = @Id");
-                checkCmd.AddParam("Id", product.Id);
-                var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
-
-                if (exists)
-                {
-                    var updateSql = @"
-                        UPDATE Products 
-                        SET Code = @Code, Name = @Name, Barcode = @Barcode, 
-                            PurchasePrice = @PurchasePrice, SalePrice = @SalePrice, 
-                            VatRate = @VatRate, IsActive = 1
-                        WHERE Id = @Id";
-                    await using var cmd = conn.CreateCommand(updateSql);
-                    cmd.AddParam("Id", product.Id);
-                    cmd.AddParam("Code", product.Code);
-                    cmd.AddParam("Name", product.Name);
-                    cmd.AddParam("Barcode", product.Barcode);
-                    cmd.AddParam("PurchasePrice", product.PurchasePrice);
-                    cmd.AddParam("SalePrice", product.SalePrice);
-                    cmd.AddParam("VatRate", product.VatRate);
-                    await cmd.ExecuteNonQueryAsync();
-                }
-                else
-                {
-                    var insertSql = @"
-                        INSERT INTO Products (Code, Name, Barcode, PurchasePrice, SalePrice, VatRate, IsActive)
-                        VALUES (@Code, @Name, @Barcode, @PurchasePrice, @SalePrice, @VatRate, 1)";
-                    await using var cmd = conn.CreateCommand(insertSql);
-                    cmd.AddParam("Code", product.Code);
-                    cmd.AddParam("Name", product.Name);
-                    cmd.AddParam("Barcode", product.Barcode);
-                    cmd.AddParam("PurchasePrice", product.PurchasePrice);
-                    cmd.AddParam("SalePrice", product.SalePrice);
-                    cmd.AddParam("VatRate", product.VatRate);
-                    await cmd.ExecuteNonQueryAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ProductService] Ürün kaydetme DB hatası: {ex.Message}");
-            }
-        }
-
         InvalidateCache();
+        AppDataCache.UpdateProducts(products);
         return product;
     }
 

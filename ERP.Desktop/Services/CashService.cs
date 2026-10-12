@@ -103,33 +103,67 @@ public class CashService
     {
         var sessions = await LoadSessionsAsync();
         var existing = sessions.FirstOrDefault(s => s.SessionDate.Date == DateTime.Today && s.Status == "Açık");
+        CashSession activeSession;
 
         if (existing != null)
         {
             existing.OpeningCash = openingCash;
             existing.Notes = notes;
             await SaveSessionsAsync(sessions);
-            return existing;
+            activeSession = existing;
+        }
+        else
+        {
+            var newSession = new CashSession
+            {
+                Id = sessions.Count > 0 ? sessions.Max(s => s.Id) + 1 : 1,
+                SessionDate = DateTime.Today,
+                OpenedAt = DateTime.Now,
+                OpeningCash = openingCash,
+                Status = "Açık",
+                Notes = notes
+            };
+
+            sessions.Insert(0, newSession);
+            await SaveSessionsAsync(sessions);
+            activeSession = newSession;
         }
 
-        var newSession = new CashSession
+        // 2. Kasa Bakiyesini hedef openingCash değerine anında eşitle
+        try
         {
-            Id = sessions.Count > 0 ? sessions.Max(s => s.Id) + 1 : 1,
-            SessionDate = DateTime.Today,
-            OpenedAt = DateTime.Now,
-            OpeningCash = openingCash,
-            Status = "Açık",
-            Notes = notes
-        };
+            var currentVault = await _coordinator.GetCentralCashBalanceAsync();
+            var diff = openingCash - currentVault;
+            if (diff != 0)
+            {
+                var adjType = diff > 0 ? "Kasa Düzeltme (+)" : "Kasa Düzeltme (-)";
+                var adjAmount = Math.Abs(diff);
+                var adjDesc = $"Kasa Nakit Bakiyesi Ayarlandı (Hedef: ₺{openingCash:N2})";
 
-        sessions.Insert(0, newSession);
-        await SaveSessionsAsync(sessions);
+                await AddTransactionAsync(adjType, adjAmount, adjDesc, activeSession.Id, "ADJUSTMENT", activeSession.Id);
+            }
 
-        // Önbellekteki oturumu anında güncelle
-        AppDataCache.UpdateTodayCashSession(newSession);
+            // Doğrudan CashAccounts (Id = 1) tablosunu da DB'de garanti altına al
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+                var updAccSql = "UPDATE CashAccounts SET Balance = @bal WHERE Id = 1;";
+                await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updAccSql));
+                cmd.AddParam("bal", openingCash);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CashService] Kasa bakiyesi eşitleme hatası: {ex.Message}");
+        }
 
-        // Kasa açılışı sisteme artı para SOKMAZ. Devreden bakiye olarak gün başlangıcı snapshot'ıdır.
-        return newSession;
+        // Önbellekteki oturumu ve bakiyeyi anında güncelle
+        AppDataCache.UpdateTodayCashSession(activeSession);
+        AppDataCache.UpdateCashState(null, openingCash, activeSession);
+
+        return activeSession;
     }
 
     private static readonly SemaphoreSlim _cashLock = new(1, 1);
@@ -163,14 +197,53 @@ public class CashService
                 SourceDocumentId = sourceDocumentId
             };
 
+            // 1. Doğrudan veritabanına tekil sorguyla anında yaz
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var insertSql = @"
+                        INSERT INTO CashTransactions (SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId)
+                        VALUES (@sid, 1, @type, @amt, @desc, @created, @sdt, @sdid);
+                        SELECT SCOPE_IDENTITY();";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(insertSql));
+                    cmd.AddParam("sid", tx.SessionId);
+                    cmd.AddParam("type", tx.Type);
+                    cmd.AddParam("amt", tx.Amount);
+                    cmd.AddParam("desc", tx.Description);
+                    cmd.AddParam("created", tx.CreatedAt);
+                    cmd.AddParam("sdt", tx.SourceDocumentType);
+                    cmd.AddParam("sdid", tx.SourceDocumentId);
+                    var scalar = await cmd.ExecuteScalarAsync();
+                    if (scalar != null && scalar != DBNull.Value)
+                    {
+                        tx.Id = Convert.ToInt64(scalar);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CashService] DB Kasa hareketi ekleme hatası: {ex.Message}");
+                }
+            }
+
+            // 2. Yerel JSON'a ekle
             transactions.Insert(0, tx);
-            await SaveTransactionsAsync(transactions);
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(TransactionsFile, json);
+            }
+            catch { }
 
             _lastCashFingerprint = fp;
             _lastCashTime = DateTime.Now;
 
             // Kasa bakiyesini merkezi olarak güncelle
-            await GetTotalCashBalanceAsync();
+            var newBalance = await GetTotalCashBalanceAsync();
+            AppDataCache.UpdateCashState(null, newBalance);
         }
         finally
         {

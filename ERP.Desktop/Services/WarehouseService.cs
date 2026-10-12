@@ -759,6 +759,7 @@ public class WarehouseService
 
         var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(WarehouseStocksFile, json);
+        ProductService.InvalidateCache();
     }
 
     private static async Task<List<StockMovement>> LoadMovementsInternalAsync()

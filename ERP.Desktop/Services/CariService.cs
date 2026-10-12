@@ -64,6 +64,74 @@ public class CariService
         await _semaphore.WaitAsync();
         try
         {
+            // 1. Veritabanına doğrudan tekil sorguyla yaz
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+
+                    if (account.Id > 0)
+                    {
+                        var updateSql = @"
+                            UPDATE CariAccounts 
+                            SET Code=@code, Name=@name, Type=@type, Phone=@phone, Email=@email, 
+                                Address=@addr, TaxNo=@taxNo, TaxOffice=@taxOff, Balance=@bal, IsActive=@act 
+                            WHERE Id=@id";
+                        await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateSql));
+                        cmd.AddParam("id", account.Id);
+                        cmd.AddParam("code", account.Code);
+                        cmd.AddParam("name", account.Name);
+                        cmd.AddParam("type", account.Type);
+                        cmd.AddParam("phone", account.Phone);
+                        cmd.AddParam("email", account.Email);
+                        cmd.AddParam("addr", account.Address);
+                        cmd.AddParam("taxNo", account.TaxNo);
+                        cmd.AddParam("taxOff", account.TaxOffice);
+                        cmd.AddParam("bal", account.Balance);
+                        cmd.AddParam("act", account.IsActive);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        var insertSql = @"
+                            INSERT INTO CariAccounts (Code, Name, Type, Phone, Email, Address, TaxNo, TaxOffice, Balance, IsActive, CreatedAt)
+                            VALUES (@code, @name, @type, @phone, @email, @addr, @taxNo, @taxOff, @bal, 1, @created);
+                            SELECT SCOPE_IDENTITY();";
+                        await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(insertSql));
+                        cmd.AddParam("code", string.IsNullOrWhiteSpace(account.Code) ? "CAR-TEMP" : account.Code);
+                        cmd.AddParam("name", account.Name);
+                        cmd.AddParam("type", account.Type);
+                        cmd.AddParam("phone", account.Phone);
+                        cmd.AddParam("email", account.Email);
+                        cmd.AddParam("addr", account.Address);
+                        cmd.AddParam("taxNo", account.TaxNo);
+                        cmd.AddParam("taxOff", account.TaxOffice);
+                        cmd.AddParam("bal", account.Balance);
+                        cmd.AddParam("created", DateTime.Now);
+                        var scalar = await cmd.ExecuteScalarAsync();
+                        if (scalar != null && scalar != DBNull.Value)
+                        {
+                            account.Id = Convert.ToInt32(scalar);
+                            if (string.IsNullOrWhiteSpace(account.Code) || account.Code == "CAR-TEMP")
+                            {
+                                account.Code = $"CAR-{account.Id:D4}";
+                                var updCodeCmd = conn.CreateCommand(_dbService.NormalizeSql("UPDATE CariAccounts SET Code = @c WHERE Id = @id"));
+                                updCodeCmd.AddParam("c", account.Code);
+                                updCodeCmd.AddParam("id", account.Id);
+                                await updCodeCmd.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CariService] DB Cari kaydetme hatası: {ex.Message}");
+                }
+            }
+
+            // 2. Yerel JSON'a senkronize et
             var accounts = await LoadAccountsInternalAsync();
             if (account.Id == 0)
             {
@@ -81,7 +149,15 @@ public class CariService
                 else accounts.Add(account);
             }
 
-            await SaveAccountsInternalAsync(accounts);
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(accounts, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(AccountsFile, json);
+            }
+            catch { }
+
+            AppDataCache.UpdateCariAccounts(accounts);
             return account;
         }
         finally
@@ -95,12 +171,33 @@ public class CariService
         await _semaphore.WaitAsync();
         try
         {
+            if (await _dbService.TestConnectionAsync())
+            {
+                try
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var sql = "UPDATE CariAccounts SET IsActive = 0 WHERE Id = @id";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
+                    cmd.AddParam("id", id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                catch { }
+            }
+
             var accounts = await LoadAccountsInternalAsync();
             var target = accounts.FirstOrDefault(a => a.Id == id);
             if (target != null)
             {
                 target.IsActive = false; // Soft delete
-                await SaveAccountsInternalAsync(accounts);
+                try
+                {
+                    EnsureStorageDirectory();
+                    var json = JsonSerializer.Serialize(accounts, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(AccountsFile, json);
+                }
+                catch { }
+                AppDataCache.UpdateCariAccounts(accounts);
                 return true;
             }
             return false;

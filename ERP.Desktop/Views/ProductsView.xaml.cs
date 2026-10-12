@@ -37,9 +37,9 @@ public partial class ProductsView : Page
         await LoadProductsAsync();
     }
 
-    private async Task LoadProductsAsync()
+    private async Task LoadProductsAsync(bool forceRefresh = true)
     {
-        var list = await _productService.GetAllProductsAsync();
+        var list = await _productService.GetAllProductsAsync(forceRefresh: forceRefresh);
         Products.Clear();
         foreach (var p in list)
         {
