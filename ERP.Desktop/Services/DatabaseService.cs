@@ -21,9 +21,9 @@ public enum DatabaseProviderType
 /// </summary>
 public class DatabaseService
 {
-    // Supabase PostgreSQL Canlı Bağlantı Bilgisi (Bulut Veritabanı)
+    // Supabase PostgreSQL Canlı Bağlantı Bilgisi (Bulut Veritabanı) - Sıcak Bağlantı Havuzu Optimizasyonu
     public const string DefaultSupabaseConnectionString =
-        "Host=aws-0-eu-west-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.mcmjhoseokngnryzmszo;Password=certugrulERP;SSL Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=60;";
+        "Host=aws-0-eu-west-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.mcmjhoseokngnryzmszo;Password=certugrulERP;SSL Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=60;Pooling=true;Minimum Pool Size=3;Maximum Pool Size=30;Connection Idle Lifetime=300;KeepAlive=30;";
 
     // Yerel SQL Server Fallback
     public const string DefaultSqlServerConnectionString =
@@ -31,6 +31,20 @@ public class DatabaseService
 
     private readonly string? _forcedConnectionString;
     private static string? _workingConnectionString;
+
+    // Bağlantı doğrulama önbelleği (Gereksiz ping & SSL el sıkışmalarını önler)
+    private static DateTime _lastSuccessfulConnectionTime = DateTime.MinValue;
+    private static readonly TimeSpan ConnectionCacheTtl = TimeSpan.FromSeconds(30);
+
+    public static void InvalidateConnectionCache()
+    {
+        _lastSuccessfulConnectionTime = DateTime.MinValue;
+    }
+
+    public static void MarkConnectionSuccessful()
+    {
+        _lastSuccessfulConnectionTime = DateTime.UtcNow;
+    }
 
     public DatabaseService(string? customConnectionString = null)
     {
@@ -60,6 +74,7 @@ public class DatabaseService
         set
         {
             _workingConnectionString = value;
+            InvalidateConnectionCache();
         }
     }
 
@@ -105,23 +120,32 @@ public class DatabaseService
     {
         var conn = CreateConnection();
         await conn.OpenAsync();
+        MarkConnectionSuccessful();
         return conn;
     }
 
     /// <summary>
     /// Bağlantıyı test eder. Supabase aktifse true döner; değilse yerel SQL Server fallback dener.
+    /// Son 30 saniye içinde başarılı bağlantı kurulmuşsa ağ trafiği yaratmadan doğrudan true döner.
     /// </summary>
-    public async Task<bool> TestConnectionAsync()
+    public async Task<bool> TestConnectionAsync(bool force = false)
     {
+        if (!force && (DateTime.UtcNow - _lastSuccessfulConnectionTime) < ConnectionCacheTtl)
+        {
+            return true;
+        }
+
         // 1. Mevcut bağlantıyı dene
         try
         {
             await using var conn = CreateConnection();
             await conn.OpenAsync();
+            MarkConnectionSuccessful();
             return true;
         }
         catch (Exception ex)
         {
+            InvalidateConnectionCache();
             System.Diagnostics.Debug.WriteLine($"[DatabaseService] TestConnection hatası: {ex.Message}");
         }
 
@@ -133,6 +157,7 @@ public class DatabaseService
                 await using var sqlConn = new SqlConnection(DefaultSqlServerConnectionString);
                 await sqlConn.OpenAsync();
                 _workingConnectionString = DefaultSqlServerConnectionString;
+                MarkConnectionSuccessful();
                 return true;
             }
             catch { }

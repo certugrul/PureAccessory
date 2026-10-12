@@ -64,8 +64,14 @@ public partial class CashView : Page
     {
         try
         {
-            var summary = await _cashService.GetCashSummaryAsync(DateTime.Today);
-            var session = await _cashService.GetTodaySessionAsync() ?? await _cashService.GetActiveSessionAsync();
+            var summaryTask = _cashService.GetCashSummaryAsync(DateTime.Today);
+            var sessionTask = _cashService.GetTodaySessionAsync();
+            var ledgerTask = _cashService.GetDayLedgerAsync(DateTime.Today);
+
+            await Task.WhenAll(summaryTask, sessionTask, ledgerTask);
+
+            var summary = await summaryTask;
+            var session = (await sessionTask) ?? await _cashService.GetActiveSessionAsync();
 
             // Metrik kartlarını doldur
             CardOpeningText.Text = summary.FormattedOpeningCash;
@@ -96,13 +102,13 @@ public partial class CashView : Page
                 BtnOpenRegister.Content = "🌅 Gün Açılışı Yap (Kasayı Aç)";
                 BtnCloseRegister.Visibility = Visibility.Collapsed;
                 
-                // Kasadaki toplam nakiti öner (dinamik)
-                decimal dynamicOpening = await _cashService.GetTotalCashBalanceAsync();
+                // Kasadaki toplam nakiti öner (dinamik - summary zaten hesapladı)
+                decimal dynamicOpening = summary.TotalVaultBalance;
                 TxtOpeningCash.Text = NumberParser.FormatForEditing(dynamicOpening);
             }
 
             // Hareket dökümünü doldur
-            var ledger = await _cashService.GetDayLedgerAsync(DateTime.Today);
+            var ledger = await ledgerTask;
             Transactions.Clear();
             foreach (var item in ledger)
             {

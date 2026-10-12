@@ -68,8 +68,7 @@ public partial class DashboardView : Page
 
     private async void DashboardView_Loaded(object sender, RoutedEventArgs e)
     {
-        await UpdateDashboardCardsAsync();
-        await LoadRemindersAndBuildCalendarAsync();
+        await Task.WhenAll(UpdateDashboardCardsAsync(), LoadRemindersAndBuildCalendarAsync());
     }
 
     private void ClockTimer_Tick(object? sender, EventArgs e)
@@ -446,18 +445,24 @@ public partial class DashboardView : Page
     {
         try
         {
-            var summary = await _closureService.GetActiveDashboardMetricsAsync(DateTime.Today);
+            var summaryTask = _closureService.GetActiveDashboardMetricsAsync(DateTime.Today);
+            var closuresTask = _closureService.GetClosuresAsync();
+            var cashSummaryTask = new CashService().GetCashSummaryAsync(DateTime.Today);
+
+            await Task.WhenAll(summaryTask, closuresTask, cashSummaryTask);
+
+            var summary = await summaryTask;
+            var closures = await closuresTask;
+            var cashSummary = await cashSummaryTask;
+
             CardRevenueText.Text = $"₺{summary.TotalRevenue:N2}";
             CardProfitText.Text = $"₺{summary.TotalProfit:N2}";
 
-            var closures = await _closureService.GetClosuresAsync();
             var lastClosure = closures
                 .Where(c => c.ClosureDate.Date == DateTime.Today)
                 .OrderByDescending(c => c.ClosedAt)
                 .ThenByDescending(c => c.Id)
                 .FirstOrDefault();
-
-            var cashSummary = await new CashService().GetCashSummaryAsync(DateTime.Today);
             if (cashSummary.IsOpen)
             {
                 CardCashText.Text = cashSummary.FormattedCurrentBalance;

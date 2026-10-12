@@ -255,15 +255,119 @@ public class SalesService
 
     public async Task<List<Sale>> GetSalesForDateAsync(DateTime date)
     {
-        var allSales = await GetAllSalesAsync();
-        return allSales.Where(s => s.SaleDate.Date == date.Date).ToList();
+        var start = date.Date;
+        var end = start.AddDays(1);
+
+        try
+        {
+            if (await _dbService.TestConnectionAsync())
+            {
+                var sales = new List<Sale>();
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                var saleSql = @"SELECT Id, WarehouseId, SaleDate, SubTotal, VatTotal, GrandTotal, CostTotal, PaymentType,
+                                       COALESCE(CashAmount, 0), COALESCE(CardAmount, 0)
+                                FROM Sales 
+                                WHERE SaleDate >= @StartDate AND SaleDate < @EndDate
+                                ORDER BY SaleDate DESC, Id DESC";
+
+                await using (var cmd = conn.CreateCommand(saleSql))
+                {
+                    cmd.AddParam("StartDate", start);
+                    cmd.AddParam("EndDate", end);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var grandTotal = reader.GetDecimal(5);
+                        var ptype = reader.GetString(7);
+                        var cAmount = reader.GetDecimal(8);
+                        var cardAmt = reader.GetDecimal(9);
+
+                        if (cAmount == 0 && cardAmt == 0)
+                        {
+                            if (ptype == "Nakit") cAmount = grandTotal;
+                            else if (ptype == "Kredi Kartı" || ptype == "Kart") cardAmt = grandTotal;
+                        }
+
+                        sales.Add(new Sale
+                        {
+                            Id = reader.GetInt64(0),
+                            SaleDate = reader.GetDateTime(2),
+                            SubTotal = reader.GetDecimal(3),
+                            VatTotal = reader.GetDecimal(4),
+                            GrandTotal = grandTotal,
+                            CostTotal = reader.GetDecimal(6),
+                            PaymentType = ptype,
+                            CashAmount = cAmount,
+                            CardAmount = cardAmt,
+                            Items = new List<SaleItem>()
+                        });
+                    }
+                }
+
+                if (sales.Count > 0)
+                {
+                    var saleIds = string.Join(",", sales.Select(s => s.Id));
+                    var itemsSql = $@"SELECT si.Id, si.SaleId, si.ProductId, si.Quantity, si.UnitPrice, si.VatRate, si.UnitCost,
+                                            COALESCE(p.Name, 'Ürün') AS ProductName,
+                                            COALESCE(p.Code, '') AS ProductCode
+                                     FROM SaleItems si
+                                     LEFT JOIN Products p ON si.ProductId = p.Id
+                                     WHERE si.SaleId IN ({saleIds})";
+
+                    await using var itemCmd = conn.CreateCommand(itemsSql);
+                    await using var itemReader = await itemCmd.ExecuteReaderAsync();
+
+                    var itemsBySale = new Dictionary<long, List<SaleItem>>();
+                    while (await itemReader.ReadAsync())
+                    {
+                        long saleId = itemReader.GetInt64(1);
+                        var item = new SaleItem
+                        {
+                            Id = itemReader.GetInt64(0),
+                            SaleId = saleId,
+                            ProductId = itemReader.GetInt32(2),
+                            Quantity = itemReader.GetDecimal(3),
+                            UnitPrice = itemReader.GetDecimal(4),
+                            VatRate = itemReader.GetDecimal(5),
+                            UnitCost = itemReader.GetDecimal(6),
+                            ProductName = itemReader.GetString(7),
+                            ProductCode = itemReader.GetString(8)
+                        };
+
+                        if (!itemsBySale.TryGetValue(saleId, out var itemList))
+                        {
+                            itemList = new List<SaleItem>();
+                            itemsBySale[saleId] = itemList;
+                        }
+                        itemList.Add(item);
+                    }
+
+                    foreach (var s in sales)
+                    {
+                        if (itemsBySale.TryGetValue(s.Id, out var sItems))
+                        {
+                            s.Items = sItems;
+                        }
+                    }
+                }
+
+                return sales;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SalesService] GetSalesForDateAsync hatası: {ex.Message}");
+        }
+
+        var localSales = await LoadSalesFromLocalJsonAsync();
+        return localSales.Where(s => s.SaleDate.Date == date.Date).ToList();
     }
 
     public async Task<DailyReceiptBreakdownData> GetDailyReceiptBreakdownAsync(DateTime date)
     {
-        var allSales = await GetAllSalesAsync();
-        var daySales = allSales
-            .Where(s => s.SaleDate.Date == date.Date)
+        var daySales = (await GetSalesForDateAsync(date))
             .OrderByDescending(s => s.SaleDate)
             .ToList();
 

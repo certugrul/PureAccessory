@@ -50,8 +50,7 @@ public partial class CariView : Page
     {
         try
         {
-            await LoadAccountsAsync();
-            await LoadTransactionsAsync();
+            await Task.WhenAll(LoadAccountsAsync(), LoadTransactionsAsync());
         }
         catch (Exception ex)
         {

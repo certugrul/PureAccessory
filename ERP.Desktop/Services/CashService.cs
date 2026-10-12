@@ -201,9 +201,17 @@ public class CashService
     public async Task<CashSummary> GetCashSummaryAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
-        var session = await GetTodaySessionAsync(date);
+        var nextDate = date.AddDays(1);
 
-        decimal totalVault = await GetTotalCashBalanceAsync();
+        var sessionTask = GetTodaySessionAsync(date);
+        var totalVaultTask = GetTotalCashBalanceAsync();
+        var salesTask = _salesService.GetSalesForDateAsync(date);
+        var transactionsTask = LoadTransactionsAsync(date, nextDate);
+
+        await Task.WhenAll(sessionTask, totalVaultTask, salesTask, transactionsTask);
+
+        var session = await sessionTask;
+        decimal totalVault = await totalVaultTask;
 
         if (session == null || session.Status != "Açık")
         {
@@ -228,13 +236,13 @@ public class CashService
         };
 
         // Oturum açılış saatinden sonraki / bugünün nakit satışları
-        var sales = await _salesService.GetSalesForDateAsync(date);
+        var sales = await salesTask;
         summary.CashSales = sales
             .Where(s => s.SaleDate >= session.OpenedAt)
             .Sum(s => s.GetEffectiveCashAmount());
 
         // Manuel kasa hareketleri (Kasa Açılışı hariç)
-        var transactions = await LoadTransactionsAsync();
+        var transactions = await transactionsTask;
         var sessionTransactions = transactions
             .Where(t => t.CreatedAt.Date == date && t.CreatedAt >= session.OpenedAt && t.Type != "Kasa Açılışı")
             .ToList();
@@ -248,15 +256,22 @@ public class CashService
     public async Task<List<CashTransaction>> GetDayLedgerAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
+        var nextDate = date.AddDays(1);
         var list = new List<CashTransaction>();
 
+        var transactionsTask = LoadTransactionsAsync(date, nextDate);
+        var salesTask = _salesService.GetSalesForDateAsync(date);
+        var sessionTask = GetTodaySessionAsync(date);
+
+        await Task.WhenAll(transactionsTask, salesTask, sessionTask);
+
         // 1. Manuel kasa hareketleri (Açılış hariç - Giriş, Çıkış, Masraf, Transfer)
-        var transactions = await LoadTransactionsAsync();
+        var transactions = await transactionsTask;
         var dayTransactions = transactions.Where(t => t.CreatedAt.Date == date && t.Type != "Kasa Açılışı");
         list.AddRange(dayTransactions);
 
         // 2. Günün nakit veya parçalı satışları (nakit kısmı)
-        var sales = await _salesService.GetSalesForDateAsync(date);
+        var sales = await salesTask;
         foreach (var s in sales.Where(s => s.GetEffectiveCashAmount() > 0))
         {
             list.Add(new CashTransaction
@@ -271,7 +286,7 @@ public class CashService
         }
 
         // 3. Günün açılış oturumu varsa, devir bilgisi olarak ekle
-        var session = await GetTodaySessionAsync(date) ?? await GetLatestSessionAsync(date);
+        var session = (await sessionTask) ?? await GetLatestSessionAsync(date);
         if (session != null && session.OpeningCash > 0)
         {
             list.Add(new CashTransaction
@@ -389,7 +404,7 @@ public class CashService
         catch { }
     }
 
-    private async Task<List<CashTransaction>> LoadTransactionsAsync()
+    private async Task<List<CashTransaction>> LoadTransactionsAsync(DateTime? startDate = null, DateTime? endDate = null, int? limit = null)
     {
         try
         {
@@ -398,8 +413,26 @@ public class CashService
                 var list = new List<CashTransaction>();
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = "SELECT Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions ORDER BY CreatedAt DESC";
-                await using var cmd = conn.CreateCommand(sql);
+
+                string sql;
+                if (startDate.HasValue && endDate.HasValue)
+                {
+                    sql = "SELECT Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions WHERE CreatedAt >= @StartDate AND CreatedAt < @EndDate ORDER BY CreatedAt DESC";
+                }
+                else if (startDate.HasValue)
+                {
+                    sql = "SELECT Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions WHERE CreatedAt >= @StartDate ORDER BY CreatedAt DESC";
+                }
+                else
+                {
+                    var lim = limit ?? 500;
+                    sql = $"SELECT TOP {lim} Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions ORDER BY CreatedAt DESC";
+                }
+
+                await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
+                if (startDate.HasValue) cmd.AddParam("StartDate", startDate.Value);
+                if (endDate.HasValue) cmd.AddParam("EndDate", endDate.Value);
+
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -429,7 +462,14 @@ public class CashService
             {
                 var json = await File.ReadAllTextAsync(TransactionsFile);
                 var list = JsonSerializer.Deserialize<List<CashTransaction>>(json);
-                if (list != null) return list;
+                if (list != null)
+                {
+                    if (startDate.HasValue && endDate.HasValue)
+                        return list.Where(t => t.CreatedAt >= startDate.Value && t.CreatedAt < endDate.Value).ToList();
+                    if (startDate.HasValue)
+                        return list.Where(t => t.CreatedAt >= startDate.Value).ToList();
+                    return list;
+                }
             }
         }
         catch { }

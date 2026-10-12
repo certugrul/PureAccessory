@@ -53,9 +53,11 @@ public partial class BankView : Page
     {
         try
         {
-            await LoadAccountsAsync();
-            await LoadTransactionsAsync();
-            await LoadPosTransactionsAsync();
+            var accountsTask = LoadAccountsAsync();
+            var transactionsTask = LoadTransactionsAsync();
+            var posTask = LoadPosTransactionsAsync();
+
+            await Task.WhenAll(accountsTask, transactionsTask, posTask);
             LoadSummaryCards();
         }
         catch (Exception ex)
@@ -160,7 +162,9 @@ public partial class BankView : Page
         PosGrid.ItemsSource = null;
         PosGrid.ItemsSource = _posTransactions;
 
-        var allPending = await _bankService.GetPosTransactionsAsync(status: "Bekliyor");
+        var allPending = status == "Bekliyor"
+            ? _posTransactions
+            : await _bankService.GetPosTransactionsAsync(status: "Bekliyor");
         var pendingGross = allPending.Sum(p => p.GrossAmount);
         var pendingComm = allPending.Sum(p => p.CommissionAmount);
         var pendingNet = allPending.Sum(p => p.NetAmount);
