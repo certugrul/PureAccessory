@@ -379,5 +379,36 @@ public partial class BankView : Page
         }
     }
 
+    private async void UnsettlePos_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is PosTransaction pos)
+        {
+            var res = MessageBox.Show(
+                $"Bu POS tahsilatını geri almak istediğinize emin misiniz?\n\n" +
+                $"Fiş No: #{pos.SaleId}\n" +
+                $"Tutar: {pos.FormattedGross} (Net: {pos.FormattedNet})\n" +
+                $"Tahsil Edilen Hesap: {pos.BankAccountName}\n" +
+                $"Tahsilat Tarihi: {pos.FormattedActualDate}\n\n" +
+                $"Durum tekrar 'Bekliyor' olarak güncellenecek ve banka hesabından tahsilat tutarı geri düşülecektir.",
+                "Tahsilatı Geri Al",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (res == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await _bankService.UnsettlePosTransactionAsync(pos.Id);
+                    MessageBox.Show("POS tahsilatı başarıyla geri alındı ve 'Bekliyor' durumuna getirildi.", "Bilgi", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await LoadAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Tahsilat geri alınırken hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+
     #endregion
 }

@@ -781,6 +781,111 @@ public class BankService
             paymentDate);
     }
 
+    public async Task UnsettlePosTransactionAsync(long posTransactionId)
+    {
+        await EnsureInitializedAsync();
+
+        await _semaphore.WaitAsync();
+        try
+        {
+            var posList = await LoadPosTransactionsInternalAsync();
+            var posItem = posList.FirstOrDefault(p => p.Id == posTransactionId);
+            if (posItem == null)
+            {
+                throw new InvalidOperationException("POS hareketi bulunamadı.");
+            }
+
+            if (posItem.Status != "Ödendi")
+            {
+                throw new InvalidOperationException("Yalnızca 'Ödendi' durumundaki tahsilatlar geri alınabilir.");
+            }
+
+            decimal paidAmount = posItem.ActualPaidAmount ?? posItem.NetAmount;
+            int? bankAccountId = posItem.BankAccountId;
+
+            posItem.Status = "Bekliyor";
+            posItem.ActualPaymentDate = null;
+            posItem.ActualPaidAmount = null;
+
+            // 1. Veritabanında POS kaydını 'Bekliyor' durumuna geri al
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var updateSql = @"UPDATE PosTransactions 
+                                      SET Status = 'Bekliyor', 
+                                          ActualPaymentDate = NULL, 
+                                          ActualPaidAmount = NULL 
+                                      WHERE Id = @id";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateSql));
+                    cmd.AddParam("id", posItem.Id);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    // 2. Bu tahsilata ait BankTransactions kaydı varsa sil
+                    var delTxSql = @"DELETE FROM BankTransactions 
+                                     WHERE (ReferenceType = 'POS' AND ReferenceId = @refId)";
+                    await using var cmdDel = conn.CreateCommand(_dbService.NormalizeSql(delTxSql));
+                    cmdDel.AddParam("refId", posItem.Id);
+                    await cmdDel.ExecuteNonQueryAsync();
+
+                    // 3. Banka hesabından tahsil edilen tutarı geri düş
+                    if (bankAccountId.HasValue && bankAccountId.Value > 0)
+                    {
+                        var updateAccSql = @"UPDATE BankAccounts 
+                                             SET CurrentBalance = CurrentBalance - @amount, 
+                                                 ActualBalance = ActualBalance - @amount 
+                                             WHERE Id = @accId";
+                        await using var cmdAcc = conn.CreateCommand(_dbService.NormalizeSql(updateAccSql));
+                        cmdAcc.AddParam("amount", paidAmount);
+                        cmdAcc.AddParam("accId", bankAccountId.Value);
+                        await cmdAcc.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BankService] UnsettlePosTransactionAsync SQL hatası: {ex.Message}");
+            }
+
+            // Yerel JSON dosyalarını güncelle
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(PosFile, json);
+
+                if (bankAccountId.HasValue)
+                {
+                    var accounts = await LoadAccountsInternalAsync();
+                    var acc = accounts.FirstOrDefault(a => a.Id == bankAccountId.Value);
+                    if (acc != null)
+                    {
+                        acc.CurrentBalance -= paidAmount;
+                        acc.ActualBalance -= paidAmount;
+                        var jsonAcc = JsonSerializer.Serialize(accounts, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(AccountsFile, jsonAcc);
+                    }
+                }
+
+                var transactions = await LoadTransactionsInternalAsync();
+                var txToRemove = transactions.FirstOrDefault(t => t.ReferenceType == "POS" && t.ReferenceId == posItem.Id);
+                if (txToRemove != null)
+                {
+                    transactions.Remove(txToRemove);
+                    var jsonTx = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(TransactionsFile, jsonTx);
+                }
+            }
+            catch { }
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
     #endregion
 
     #region Cash - Bank Transfer

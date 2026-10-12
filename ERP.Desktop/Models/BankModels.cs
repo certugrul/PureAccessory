@@ -112,7 +112,9 @@ public class PosTransaction
     }
 
     public bool IsPending => Status != "Ödendi";
+    public bool IsSettled => Status == "Ödendi";
     public System.Windows.Visibility SettleButtonVisibility => IsPending ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public System.Windows.Visibility UnsettleButtonVisibility => IsSettled ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 }
 
 public class BankSummary

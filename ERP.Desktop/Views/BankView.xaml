@@ -398,14 +398,21 @@
                                 <DataGridTextColumn Header="Durum" Binding="{Binding StatusBadge}" FontWeight="SemiBold" Width="110"/>
 
                                 <!-- Tahsilat Aksiyonu -->
-                                <DataGridTemplateColumn Header="İşlem" Width="*">
+                                <DataGridTemplateColumn Header="İşlem" Width="160">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Button Content="💳 Ödeme Geldi" Click="SettlePos_Click"
-                                                    Visibility="{Binding SettleButtonVisibility}"
-                                                    Padding="10,4" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
-                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
-                                            </Button>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="💳 Ödeme Geldi" Click="SettlePos_Click"
+                                                        Visibility="{Binding SettleButtonVisibility}"
+                                                        Padding="10,4" Background="#059669" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Margin="0,0,6,0">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="↩️ Geri Al" Click="UnsettlePos_Click"
+                                                        Visibility="{Binding UnsettleButtonVisibility}"
+                                                        Padding="10,4" Background="#EA580C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
