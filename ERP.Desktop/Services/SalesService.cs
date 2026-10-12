@@ -159,8 +159,9 @@ public class SalesService
         // 1. Yerel JSON'a kalıcı olarak ekle
         await SaveSaleToLocalJsonAsync(sale);
 
-        // Kredi kartı veya parçalı satış ise kart tutarı kadar Banka / POS bekleyen alacak kaydı oluştur
-        if (sale.CardAmount > 0)
+        // 2. SQL Server bağlıysa veritabanına ekle (Çevrimiçi modda coordinator gerçek SaleId ile oluşturur)
+        bool dbConnected = await _dbService.TestConnectionAsync();
+        if (!dbConnected && sale.CardAmount > 0)
         {
             try
             {
@@ -170,8 +171,6 @@ public class SalesService
             catch { }
         }
 
-        // 2. SQL Server bağlıysa veritabanına ekle
-        bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
             try

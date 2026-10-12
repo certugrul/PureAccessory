@@ -317,8 +317,56 @@ public class BankService
 
             transactions.Insert(0, tx);
 
-            await SaveAccountsInternalAsync(accounts);
-            await SaveTransactionsInternalAsync(transactions);
+            // Veritabanına doğrudan tekil ekleme ve bakiye güncelleme (500+ kaydı tek tek turlamak yerine tekil ekler)
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+
+                    var insertSql = @"
+                        INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
+                        VALUES (@id, @created, @baid, @baname, @type, @dir, @inflow, @outflow, @bal, @desc, @pm, @refId, @refType, @user);";
+                    await using var cmd = conn.CreateCommand(insertSql);
+                    cmd.AddParam("id", tx.Id);
+                    cmd.AddParam("created", tx.CreatedAt);
+                    cmd.AddParam("baid", tx.BankAccountId);
+                    cmd.AddParam("baname", tx.BankAccountName);
+                    cmd.AddParam("type", tx.TransactionType);
+                    cmd.AddParam("dir", tx.Direction);
+                    cmd.AddParam("inflow", tx.Inflow);
+                    cmd.AddParam("outflow", tx.Outflow);
+                    cmd.AddParam("bal", tx.BalanceAfter);
+                    cmd.AddParam("desc", tx.Description);
+                    cmd.AddParam("pm", tx.PaymentMethod);
+                    cmd.AddParam("refId", tx.ReferenceId);
+                    cmd.AddParam("refType", tx.ReferenceType);
+                    cmd.AddParam("user", tx.User);
+                    await cmd.ExecuteNonQueryAsync();
+
+                    var updateAccSql = "UPDATE BankAccounts SET CurrentBalance=@curBal, ActualBalance=@curBal WHERE Id=@id";
+                    await using var cmdAcc = conn.CreateCommand(updateAccSql);
+                    cmdAcc.AddParam("curBal", account.CurrentBalance);
+                    cmdAcc.AddParam("id", account.Id);
+                    await cmdAcc.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BankService] AddTransactionAsync SQL hatası: {ex.Message}");
+            }
+
+            try
+            {
+                EnsureStorageDirectory();
+                var jsonAcc = JsonSerializer.Serialize(accounts, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(AccountsFile, jsonAcc);
+
+                var jsonTx = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(TransactionsFile, jsonTx);
+            }
+            catch { }
 
             return tx;
         }
@@ -356,7 +404,28 @@ public class BankService
             }
 
             transactions.Remove(tx);
-            await SaveTransactionsInternalAsync(transactions);
+
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var delSql = "DELETE FROM BankTransactions WHERE Id = @id";
+                    await using var cmd = conn.CreateCommand(delSql);
+                    cmd.AddParam("id", transactionId);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch { }
+
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(TransactionsFile, json);
+            }
+            catch { }
             return true;
         }
         finally
@@ -447,6 +516,17 @@ public class BankService
             DateTime expectedDate = saleDate.AddDays(valourDays);
 
             var posList = await LoadPosTransactionsInternalAsync();
+
+            // Mükerrer POS kaydı engeli
+            var existing = posList.FirstOrDefault(p =>
+                (p.SaleId.HasValue && p.SaleId.Value == saleId) ||
+                (p.GrossAmount == grossAmount && Math.Abs((p.SaleDate - saleDate).TotalSeconds) < 5 && p.Status == "Bekliyor"));
+
+            if (existing != null)
+            {
+                return existing;
+            }
+
             var posItem = new PosTransaction
             {
                 Id = posList.Count > 0 ? posList.Max(p => p.Id) + 1 : 1,
@@ -547,7 +627,42 @@ public class BankService
             posItem.BankAccountId = targetAccountId;
             posItem.BankAccountName = accName;
 
-            await SavePosTransactionsInternalAsync(posList);
+            // Veritabanında doğrudan tekil anlık güncelleme (1500+ sorgu yerine 1 tekil sorgu)
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var updateSql = @"UPDATE PosTransactions 
+                                      SET Status = @stat, 
+                                          ActualPaymentDate = @actDate, 
+                                          ActualPaidAmount = @actPaid, 
+                                          BankAccountId = @baid, 
+                                          BankAccountName = @baname 
+                                      WHERE Id = @id";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateSql));
+                    cmd.AddParam("id", posItem.Id);
+                    cmd.AddParam("stat", "Ödendi");
+                    cmd.AddParam("actDate", paymentDate);
+                    cmd.AddParam("actPaid", actualPaidAmount);
+                    cmd.AddParam("baid", targetAccountId);
+                    cmd.AddParam("baname", accName);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BankService] SettlePosTransactionAsync SQL hatası: {ex.Message}");
+            }
+
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(PosFile, json);
+            }
+            catch { }
         }
         finally
         {
@@ -609,9 +724,41 @@ public class BankService
                 settledItems.Add(pos);
             }
 
-            if (settledItems.Count == 0) return;
+            // Veritabanında tek seferde toplu güncelleme (1500+ sorgu yerine 1 tekil toplu sorgu)
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var idsCsv = string.Join(",", settledItems.Select(p => p.Id));
+                    var updateSql = $@"UPDATE PosTransactions 
+                                      SET Status = @stat, 
+                                          ActualPaymentDate = @actDate, 
+                                          ActualPaidAmount = NetAmount, 
+                                          BankAccountId = @baid, 
+                                          BankAccountName = @baname 
+                                      WHERE Id IN ({idsCsv})";
+                    await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(updateSql));
+                    cmd.AddParam("stat", "Ödendi");
+                    cmd.AddParam("actDate", paymentDate);
+                    cmd.AddParam("baid", targetAccountId);
+                    cmd.AddParam("baname", accName);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BankService] SettleBatchPosTransactionsAsync SQL hatası: {ex.Message}");
+            }
 
-            await SavePosTransactionsInternalAsync(posList);
+            try
+            {
+                EnsureStorageDirectory();
+                var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(PosFile, json);
+            }
+            catch { }
         }
         finally
         {
