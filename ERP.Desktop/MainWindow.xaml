@@ -1,4 +1,4 @@
-<Window x:Class="ERP.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pure Accessory Otomasyon" Width="1280" Height="800" WindowStartupLocation="CenterScreen" Background="{DynamicResource PageBrush}">
+<Window x:Class="ERP.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pure Accessory Otomasyon" Icon="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" Width="1280" Height="800" WindowStartupLocation="CenterScreen" Background="{DynamicResource PageBrush}">
   <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="230"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}">
@@ -15,7 +15,7 @@
               <Grid Width="96" Height="96">
                 <Ellipse Fill="White" Stroke="#3B82F6" StrokeThickness="2.5"/>
                 <Image x:Name="ImgLogo" 
-                       Source="pack://application:,,,/ERP.Desktop;component/Assets/logo.png" 
+                       Source="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" 
                        Width="76" Height="76" 
                        Stretch="Uniform" 
                        HorizontalAlignment="Center" 

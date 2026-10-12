@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Updater</AssemblyName>
     <RootNamespace>ERP.Updater</RootNamespace>
-    <ApplicationIcon>..\ERP.Desktop\Assets\logo.ico</ApplicationIcon>
-    <Version>1.0.35</Version>
-    <AssemblyVersion>1.0.35.0</AssemblyVersion>
-    <FileVersion>1.0.35.0</FileVersion>
+    <ApplicationIcon>..\ERP.Desktop\Assets\AppLogo.ico</ApplicationIcon>
+    <Version>1.0.36</Version>
+    <AssemblyVersion>1.0.36.0</AssemblyVersion>
+    <FileVersion>1.0.36.0</FileVersion>
   </PropertyGroup>
 </Project>

@@ -65,7 +65,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "logo.png");
+            var localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppLogo.png");
             if (File.Exists(localPath))
             {
                 var bmp = new BitmapImage();
@@ -82,7 +82,7 @@ public partial class MainWindow : Window
 
         try
         {
-            var uri = new Uri("pack://application:,,,/ERP.Desktop;component/Assets/logo.png", UriKind.Absolute);
+            var uri = new Uri("pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png", UriKind.Absolute);
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;

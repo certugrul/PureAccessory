@@ -5,6 +5,10 @@
     <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#1F2937"/><Setter Property="Foreground" Value="White"/></Trigger></Style.Triggers>
   </Style>
 
+  <Style TargetType="Window">
+    <Setter Property="Icon" Value="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.ico"/>
+  </Style>
+
   <Style TargetType="Control">
     <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
   </Style>

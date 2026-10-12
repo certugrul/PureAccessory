@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ERP.Desktop</RootNamespace>
-    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
-    <Version>1.0.35</Version>
-    <AssemblyVersion>1.0.35.0</AssemblyVersion>
-    <FileVersion>1.0.35.0</FileVersion>
+    <ApplicationIcon>Assets\AppLogo.ico</ApplicationIcon>
+    <Version>1.0.36</Version>
+    <AssemblyVersion>1.0.36.0</AssemblyVersion>
+    <FileVersion>1.0.36.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
