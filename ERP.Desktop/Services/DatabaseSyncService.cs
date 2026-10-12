@@ -1064,13 +1064,6 @@ END
             }
         }
 
-        try
-        {
-            var updateZiraatCmd = new SqlCommand("UPDATE BankAccounts SET OpeningBalance = 7894.13, CurrentBalance = 7894.13, ActualBalance = 7894.13 WHERE BankName LIKE '%Ziraat%'", conn);
-            await updateZiraatCmd.ExecuteNonQueryAsync();
-        }
-        catch { }
-
         var tFile = Path.Combine(StorageDirectory, "bank_transactions.json");
         if (File.Exists(tFile))
         {

@@ -1170,21 +1170,6 @@ public class BankService
 
         // 3. POS hareketleri dosyası yoksa veya geçmiş satışlar varsa senkronize et
         await SyncHistoricalCreditCardSalesAsync();
-
-        // 4. Ziraat Bankası bakiyesini her zaman 7894.13 ₺ olarak güvenceye al
-        try
-        {
-            var accounts = await LoadAccountsInternalAsync();
-            var ziraat = accounts.FirstOrDefault(a => a.BankName.Contains("Ziraat", StringComparison.OrdinalIgnoreCase));
-            if (ziraat != null && (ziraat.CurrentBalance != 7894.13m || ziraat.OpeningBalance != 7894.13m))
-            {
-                ziraat.OpeningBalance = 7894.13m;
-                ziraat.CurrentBalance = 7894.13m;
-                ziraat.ActualBalance = 7894.13m;
-                await SaveAccountsInternalAsync(accounts);
-            }
-        }
-        catch { }
     }
 
     private async Task SyncHistoricalCreditCardSalesAsync()
