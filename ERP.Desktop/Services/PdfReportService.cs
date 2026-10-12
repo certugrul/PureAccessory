@@ -48,105 +48,239 @@ public class PdfReportService
         catch { }
     }
 
-    // 1. Z RAPORU (GÜN SONU MALİ KAPANIŞ RAPORU)
+    // 1. Z RAPORU (GÜN SONU MALİ VE KASA KAPANIŞ RAPORU)
     public string GenerateZReportPdf(ZReportData data, string? customPath = null)
     {
-        var outputPath = customPath ?? GetDefaultOutputPath("Z_Raporu");
+        var outputPath = customPath ?? GetDefaultOutputPath($"Z_Raporu_{data.ClosureDate:yyyy-MM-dd}");
 
         Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(35);
-                page.DefaultTextStyle(x => x.FontSize(10).FontColor(Colors.Grey.Darken3));
+                page.Margin(30);
+                page.DefaultTextStyle(x => x.FontSize(9).FontColor(Colors.Grey.Darken3));
 
-                page.Header().Element(c => ComposeHeader(c, "Z RAPORU (GÜN SONU MALİ KAPANIŞ)", $"Rapor No: Z-{data.ClosureId:D6} | Tarih: {data.ClosureDate:dd.MM.yyyy}"));
-
-                page.Content().PaddingVertical(15).Column(col =>
+                // Üst Başlık
+                page.Header().Element(c =>
                 {
-                    col.Spacing(12);
+                    c.BorderBottom(1.5f).BorderColor(Colors.Blue.Medium).PaddingBottom(8).Row(row =>
+                    {
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Text(data.StoreName).Bold().FontSize(16).FontColor(Colors.Blue.Darken3);
+                            col.Item().Text(data.StoreSubtitle).FontSize(9).FontColor(Colors.Grey.Medium);
+                            col.Item().Text("GÜN SONU Z RAPORU & FİNANSAL KAPANIŞ").Bold().FontSize(11).FontColor(Colors.Grey.Darken3);
+                        });
 
-                    // Bilgi Kartları
+                        row.ConstantItem(170).AlignRight().Column(col =>
+                        {
+                            col.Item().Text(data.ReportNumber).Bold().FontSize(10).FontColor(Colors.Blue.Medium);
+                            col.Item().Text($"Rapor Tarihi: {data.ClosureDate:dd.MM.yyyy}").FontSize(8.5f).FontColor(Colors.Grey.Darken2);
+                            col.Item().Text($"Kapanış Saati: {data.ClosedAt:HH:mm:ss}").FontSize(8.5f).FontColor(Colors.Grey.Darken2);
+                            col.Item().Text($"Oluşturulma: {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(8).FontColor(Colors.Grey.Medium);
+                        });
+                    });
+                });
+
+                page.Content().PaddingVertical(10).Column(col =>
+                {
+                    col.Spacing(10);
+
+                    // 1. Özet Metrik Kartları
                     col.Item().Row(row =>
                     {
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(c =>
+                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(8).Column(c =>
                         {
-                            c.Item().Text("Kapanış Saati").FontSize(9).FontColor(Colors.Grey.Medium);
-                            c.Item().Text($"{data.ClosedAt:HH:mm:ss}").FontSize(14).Bold().FontColor(Colors.Blue.Medium);
+                            c.Item().Text("Toplam Fiş / Satış").FontSize(8).FontColor(Colors.Grey.Medium);
+                            c.Item().Text($"{data.SalesCount} Adet").FontSize(13).Bold().FontColor(Colors.Grey.Darken4);
                         });
-                        row.ConstantItem(10);
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(c =>
+                        row.ConstantItem(8);
+                        row.RelativeItem().Border(1).BorderColor(Colors.Green.Lighten2).Background(Colors.Green.Lighten5).Padding(8).Column(c =>
                         {
-                            c.Item().Text("Toplam Fiş / Satış").FontSize(9).FontColor(Colors.Grey.Medium);
-                            c.Item().Text($"{data.SalesCount} Adet").FontSize(14).Bold().FontColor(Colors.Grey.Darken4);
+                            c.Item().Text("Günlük Toplam Ciro").FontSize(8).FontColor(Colors.Green.Darken2);
+                            c.Item().Text($"₺{data.TotalRevenue:N2}").FontSize(13).Bold().FontColor(Colors.Green.Darken3);
                         });
-                        row.ConstantItem(10);
-                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(c =>
+                        row.ConstantItem(8);
+                        row.RelativeItem().Border(1).BorderColor(Colors.Blue.Lighten2).Background(Colors.Blue.Lighten5).Padding(8).Column(c =>
                         {
-                            c.Item().Text("Toplam Günlük Ciro").FontSize(9).FontColor(Colors.Grey.Medium);
-                            c.Item().Text($"₺{data.TotalRevenue:N2}").FontSize(15).Bold().FontColor(Colors.Green.Darken2);
+                            c.Item().Text("Kapanış Kasa Nakiti").FontSize(8).FontColor(Colors.Blue.Darken2);
+                            c.Item().Text($"₺{data.ClosingCashBalance:N2}").FontSize(13).Bold().FontColor(Colors.Blue.Darken3);
+                        });
+                        row.ConstantItem(8);
+                        row.RelativeItem().Border(1).BorderColor(Colors.Orange.Lighten2).Background(Colors.Orange.Lighten5).Padding(8).Column(c =>
+                        {
+                            c.Item().Text("Net Günlük Kâr").FontSize(8).FontColor(Colors.Orange.Darken2);
+                            c.Item().Text($"₺{data.TotalProfit:N2}").FontSize(13).Bold().FontColor(Colors.Orange.Darken3);
                         });
                     });
 
-                    // Tahsilat Dağılımı Tablosu
-                    col.Item().Text("TAHSİLAT VE GELİR DAĞILIMI").Bold().FontSize(12).FontColor(Colors.Blue.Darken2);
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(columns =>
-                        {
-                            columns.RelativeColumn(3);
-                            columns.RelativeColumn(2);
-                            columns.RelativeColumn(2);
-                        });
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).Text("Ödeme Türü").Bold();
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).AlignRight().Text("Tutar (₺)").Bold();
-                            header.Cell().Background(Colors.Grey.Lighten3).Padding(6).AlignRight().Text("Ciro Payı").Bold();
-                        });
-
-                        decimal rev = data.TotalRevenue > 0 ? data.TotalRevenue : 1;
-
-                        AddTableRow(table, "Nakit Tahsilat", $"₺{data.TotalCash:N2}", $"%{(data.TotalCash / rev * 100):N1}");
-                        AddTableRow(table, "Kredi Kartı / Banka Kartı", $"₺{data.TotalCreditCard:N2}", $"%{(data.TotalCreditCard / rev * 100):N1}");
-                        AddTableRow(table, "Veresiye / Açık Hesap", $"₺{data.TotalOnAccount:N2}", $"%{(data.TotalOnAccount / rev * 100):N1}");
-
-                        table.Cell().ColumnSpan(3).BorderTop(1).BorderColor(Colors.Grey.Medium);
-                        table.Cell().Background(Colors.Grey.Lighten4).Padding(6).Text("TOPLAM CİRO").Bold();
-                        table.Cell().Background(Colors.Grey.Lighten4).Padding(6).AlignRight().Text($"₺{data.TotalRevenue:N2}").Bold().FontColor(Colors.Green.Darken2);
-                        table.Cell().Background(Colors.Grey.Lighten4).Padding(6).AlignRight().Text("%100,0").Bold();
-                    });
-
-                    // Maliyet ve Kârlılık Özeti
-                    col.Item().PaddingTop(10).Text("MALİYET, GİDER VE KÂRLILIK DÖKÜMÜ").Bold().FontSize(12).FontColor(Colors.Blue.Darken2);
+                    // 2. Tahsilat & Ödeme Türü Dağılımı
+                    col.Item().Text("1. TAHSİLAT VE SATIŞ GELİRLERİ DAĞILIMI").Bold().FontSize(10.5f).FontColor(Colors.Blue.Darken2);
                     col.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
                             columns.RelativeColumn(4);
                             columns.RelativeColumn(3);
+                            columns.RelativeColumn(2);
                         });
 
-                        AddTableRow(table, "Satılan Malların Toplam Maliyeti", $"₺{data.TotalCost:N2}");
-                        AddTableRow(table, "Kaydedilen İşletme Giderleri", $"₺{data.TotalExpenses:N2}");
-                        AddTableRow(table, "Kasa Devir / Başlangıç Nakiti", $"₺{data.OpeningCash:N2}");
+                        table.Header(header =>
+                        {
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Ödeme / Tahsilat Yöntemi").Bold().FontSize(8.5f);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Tutar (₺)").Bold().FontSize(8.5f);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Ciro Payı").Bold().FontSize(8.5f);
+                        });
 
-                        table.Cell().ColumnSpan(2).BorderTop(1.5f).BorderColor(Colors.Blue.Medium);
-                        table.Cell().Background(Colors.Blue.Lighten5).Padding(8).Text("NET GÜNLÜK KÂR").Bold().FontSize(12).FontColor(Colors.Blue.Darken3);
-                        table.Cell().Background(Colors.Blue.Lighten5).Padding(8).AlignRight().Text($"₺{data.TotalProfit:N2}").Bold().FontSize(13).FontColor(Colors.Blue.Darken3);
+                        decimal rev = data.TotalRevenue > 0 ? data.TotalRevenue : 1;
+
+                        AddTableRow(table, "Nakit Satışlar & Tahsilatlar", $"₺{data.TotalCash:N2}", $"%{(data.TotalCash / rev * 100):N1}");
+                        AddTableRow(table, "Kredi Kartı / POS Satışları", $"₺{data.TotalCreditCard:N2}", $"%{(data.TotalCreditCard / rev * 100):N1}");
+                        AddTableRow(table, "Veresiye / Açık Hesap Satışlar", $"₺{data.TotalOnAccount:N2}", $"%{(data.TotalOnAccount / rev * 100):N1}");
+
+                        table.Cell().ColumnSpan(3).BorderTop(1).BorderColor(Colors.Grey.Medium);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).Text("TOPLAM CİRO").Bold().FontSize(9);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight().Text($"₺{data.TotalRevenue:N2}").Bold().FontSize(9.5f).FontColor(Colors.Green.Darken2);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight().Text("%100,0").Bold().FontSize(9);
+                    });
+
+                    // 3. KDV Oranlarına Göre Satış ve KDV Toplamları
+                    col.Item().Text("2. KDV ORANLARINA GÖRE SATIŞ VE KDV DAĞILIMI").Bold().FontSize(10.5f).FontColor(Colors.Blue.Darken2);
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn(3);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("KDV Oranı").Bold().FontSize(8.5f);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("KDV Matrahı (₺)").Bold().FontSize(8.5f);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Hesaplanan KDV (₺)").Bold().FontSize(8.5f);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Toplam Tutar (₺)").Bold().FontSize(8.5f);
+                        });
+
+                        if (data.VatBreakdown.Count > 0)
+                        {
+                            foreach (var vat in data.VatBreakdown)
+                            {
+                                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).Text($"%{vat.Rate:0}");
+                                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text($"₺{vat.TaxableAmount:N2}");
+                                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text($"₺{vat.VatAmount:N2}");
+                                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text($"₺{vat.TotalWithVat:N2}").Bold();
+                            }
+                        }
+                        else
+                        {
+                            table.Cell().ColumnSpan(4).Padding(5).AlignCenter().Text("KDV detayı bulunamadı veya tüm satışlar %20 standart orandadır.").FontSize(8).Italic();
+                        }
+
+                        table.Cell().ColumnSpan(4).BorderTop(1).BorderColor(Colors.Grey.Medium);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).Text("TOPLAM KDV").Bold().FontSize(8.5f);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight().Text($"₺{data.VatBreakdown.Sum(v => v.TaxableAmount):N2}").Bold().FontSize(8.5f);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight().Text($"₺{data.TotalVatAmount:N2}").Bold().FontSize(8.5f).FontColor(Colors.Blue.Darken2);
+                        table.Cell().Background(Colors.Grey.Lighten4).Padding(5).AlignRight().Text($"₺{data.TotalRevenue:N2}").Bold().FontSize(8.5f);
+                    });
+
+                    // 4. İki Sütunlu Bölüm: Kasa Hareketleri & Banka/POS Durumu
+                    col.Item().Row(r =>
+                    {
+                        // Sol Kolon: Kasa & Nakit Akışı
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("3. KASA & NAKİT HAREKETLERİ").Bold().FontSize(10.5f).FontColor(Colors.Blue.Darken2);
+                            c.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(cols =>
+                                {
+                                    cols.RelativeColumn(3);
+                                    cols.RelativeColumn(2);
+                                });
+
+                                AddTableRow(table, "Kasa Devir / Başlangıç Nakiti", $"₺{data.OpeningCash:N2}");
+                                AddTableRow(table, "Günlük Nakit Satışlar (+)", $"₺{data.TotalCash:N2}");
+                                AddTableRow(table, "Kasaya Manuel Giriş (+)", $"₺{data.CashInflows:N2}");
+                                AddTableRow(table, "Kasadan Manuel Çıkış / Masraf (-)", $"₺{data.CashOutflows:N2}");
+                                AddTableRow(table, "İşletme Giderleri Toplamı (-)", $"₺{data.TotalExpenses:N2}");
+
+                                table.Cell().ColumnSpan(2).BorderTop(1).BorderColor(Colors.Grey.Medium);
+                                table.Cell().Background(Colors.Blue.Lighten5).Padding(5).Text("KAPANIŞ KASA BAKİYESİ").Bold().FontSize(9);
+                                table.Cell().Background(Colors.Blue.Lighten5).Padding(5).AlignRight().Text($"₺{data.ClosingCashBalance:N2}").Bold().FontSize(9.5f).FontColor(Colors.Blue.Darken3);
+                            });
+                        });
+
+                        r.ConstantItem(12);
+
+                        // Sağ Kolon: Banka & POS Durumu
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("4. POS & BANKA DURUMU").Bold().FontSize(10.5f).FontColor(Colors.Blue.Darken2);
+                            c.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(cols =>
+                                {
+                                    cols.RelativeColumn(3);
+                                    cols.RelativeColumn(2);
+                                });
+
+                                AddTableRow(table, "Günün Kredi Kartı/POS Satışı", $"₺{data.TotalCreditCard:N2}");
+                                AddTableRow(table, "Bekleyen POS Alacakları (Vadesi Gelmemiş)", $"₺{data.PendingPosAmount:N2}");
+                                AddTableRow(table, "Bankaya Aktarılmış Net POS Tahsilatı", $"₺{data.SettledPosAmount:N2}");
+
+                                if (data.BankAccounts.Count > 0)
+                                {
+                                    foreach (var acc in data.BankAccounts)
+                                    {
+                                        AddTableRow(table, $"{acc.BankName} ({acc.AccountName})", $"₺{acc.Balance:N2}");
+                                    }
+                                }
+                            });
+                        });
+                    });
+
+                    // 5. Gün Sonu Finansal Mutabakat Özeti
+                    col.Item().Text("5. GÜN SONU FİNANSAL MUTABAKAT ÖZETİ").Bold().FontSize(10.5f).FontColor(Colors.Blue.Darken2);
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn(3);
+                            columns.RelativeColumn(2);
+                        });
+
+                        AddTableRow(table, "Z Raporu Nakit Beyanı", $"₺{data.ZReportCash:N2}");
+                        AddTableRow(table, "Nakit Mutabakat Farkı", $"₺{data.CashDiff:N2}");
+                        AddTableRow(table, "Z Raporu Kredi Beyanı", $"₺{data.ZReportCredit:N2}");
+                        AddTableRow(table, "Kredi Mutabakat Farkı", $"₺{data.CreditDiff:N2}");
+
+                        AddTableRow(table, "IBAN ile Kapanış Tutarı", $"₺{data.IbanAmount:N2}");
+                        AddTableRow(table, "Beklenen Banka Ödemesi", $"₺{data.ExpectedBankPayment:N2}");
+                        AddTableRow(table, "Cebe Alınan Nakit", $"₺{data.PocketCash:N2}");
+                        AddTableRow(table, "Cebe Alınan Kredi/Kart", $"₺{data.PocketCredit:N2}");
                     });
 
                     // Not Alanı
                     if (!string.IsNullOrWhiteSpace(data.Notes))
                     {
-                        col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(10).Column(c =>
+                        col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(c =>
                         {
-                            c.Item().Text("Kapanış Notları:").Bold().FontSize(10);
-                            c.Item().Text(data.Notes).FontSize(9);
+                            c.Item().Text("Kapanış Notları & Açıklama:").Bold().FontSize(9);
+                            c.Item().Text(data.Notes).FontSize(8.5f);
                         });
                     }
+
+                    // Yasal / İç Kontrol Uyarısı
+                    col.Item().Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(6).Row(r =>
+                    {
+                        r.RelativeItem().Text("ℹ️ BİLGİLENDİRME: Bu rapor işletme içi mali yönetim, kasa denetimi ve mutabakat amacıyla elektronik ortamda üretilmiştir. Maliye onaylı ÖKC / Yazar Kasa cihazlarından alınan resmî mali Z Raporu yerine geçmez.").FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                    });
                 });
 
                 page.Footer().Element(ComposeFooter);

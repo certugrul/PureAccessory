@@ -46,6 +46,23 @@ public partial class SettingsWindow : Window
         ChkAutoSyncOnClosure.IsChecked = settings.AutoSyncOnClosure;
         TxtAutoSyncTargetDir.Text = settings.AutoSyncTargetDirectory ?? "";
 
+        // E-Posta Yapılandırması
+        ChkAutoEmailZReport.IsChecked = settings.AutoEmailZReportOnClosure;
+        TxtEmailRecipient.Text = settings.EmailRecipient ?? "";
+        TxtEmailSenderName.Text = string.IsNullOrWhiteSpace(settings.EmailSenderName) ? "Pure Accessory ERP" : settings.EmailSenderName;
+        TxtEmailSmtpHost.Text = settings.EmailSmtpHost ?? "";
+        TxtEmailSmtpPort.Text = settings.EmailSmtpPort > 0 ? settings.EmailSmtpPort.ToString() : "587";
+        ChkEmailEnableSsl.IsChecked = settings.EmailEnableSsl;
+        TxtEmailSmtpUser.Text = settings.EmailSmtpUser ?? "";
+        if (!string.IsNullOrWhiteSpace(settings.EmailSmtpPasswordEncrypted))
+        {
+            try
+            {
+                TxtEmailSmtpPassword.Password = SecurityHelper.DecryptString(settings.EmailSmtpPasswordEncrypted);
+            }
+            catch { }
+        }
+
         HighlightSelectedColor(_selectedPrimaryColor);
 
         // Sidebar tonunu seç
@@ -311,13 +328,68 @@ public partial class SettingsWindow : Window
             AutoCheckUpdates = ChkAutoUpdate.IsChecked ?? true,
             CustomDbConnectionString = current?.CustomDbConnectionString,
             AutoSyncOnClosure = ChkAutoSyncOnClosure.IsChecked ?? true,
-            AutoSyncTargetDirectory = string.IsNullOrWhiteSpace(TxtAutoSyncTargetDir.Text) ? null : TxtAutoSyncTargetDir.Text.Trim()
+            AutoSyncTargetDirectory = string.IsNullOrWhiteSpace(TxtAutoSyncTargetDir.Text) ? null : TxtAutoSyncTargetDir.Text.Trim(),
+
+            // E-Posta Ayarları
+            AutoEmailZReportOnClosure = ChkAutoEmailZReport.IsChecked ?? false,
+            EmailRecipient = TxtEmailRecipient.Text.Trim(),
+            EmailSender = TxtEmailRecipient.Text.Trim(),
+            EmailSenderName = string.IsNullOrWhiteSpace(TxtEmailSenderName.Text) ? "Pure Accessory ERP" : TxtEmailSenderName.Text.Trim(),
+            EmailSmtpHost = TxtEmailSmtpHost.Text.Trim(),
+            EmailSmtpPort = int.TryParse(TxtEmailSmtpPort.Text.Trim(), out var p) ? p : 587,
+            EmailEnableSsl = ChkEmailEnableSsl.IsChecked ?? true,
+            EmailSmtpUser = TxtEmailSmtpUser.Text.Trim(),
+            EmailSmtpPasswordEncrypted = SecurityHelper.EncryptString(TxtEmailSmtpPassword.Password)
         };
 
         ThemeService.Save(settings);
         MessageBox.Show("Ayarlar ve tema tercihleri başarıyla kaydedildi.", "Ayarlar Kaydedildi", MessageBoxButton.OK, MessageBoxImage.Information);
         DialogResult = true;
         Close();
+    }
+
+    private async void TestEmail_Click(object sender, RoutedEventArgs e)
+    {
+        string recipient = TxtEmailRecipient.Text.Trim();
+        string senderName = TxtEmailSenderName.Text.Trim();
+        string host = TxtEmailSmtpHost.Text.Trim();
+        int port = int.TryParse(TxtEmailSmtpPort.Text.Trim(), out var p) ? p : 587;
+        bool ssl = ChkEmailEnableSsl.IsChecked ?? true;
+        string user = TxtEmailSmtpUser.Text.Trim();
+        string pass = TxtEmailSmtpPassword.Password;
+
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            MessageBox.Show("Lütfen geçerli bir alıcı e-posta adresi yazın.", "Eksik Bilgi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            MessageBox.Show("Lütfen SMTP sunucu adresini (Örn: smtp.gmail.com) yazın.", "Eksik Bilgi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            Mouse.OverrideCursor = Cursors.Wait;
+            var (success, message) = await ZReportEmailService.SendTestEmailAsync(recipient, recipient, senderName, host, port, ssl, user, pass);
+            Mouse.OverrideCursor = null;
+
+            if (success)
+            {
+                MessageBox.Show(message, "Test Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(message, "Test Başarısız", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Mouse.OverrideCursor = null;
+            MessageBox.Show($"Test hatası: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void SelectAutoSyncDir_Click(object sender, RoutedEventArgs e)

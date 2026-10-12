@@ -136,6 +136,17 @@ public partial class App : Application
                 MainWindow = mainWin;
                 ShutdownMode = ShutdownMode.OnMainWindowClose;
                 mainWin.Show();
+
+                // Bekleyen veya gönderilememiş Z Raporu e-postalarını arka planda yeniden dene
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var emailService = new Services.ZReportEmailService();
+                        await emailService.ProcessPendingQueueAsync();
+                    }
+                    catch { }
+                });
             }
             else
             {

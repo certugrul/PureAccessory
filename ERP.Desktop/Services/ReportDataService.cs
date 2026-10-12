@@ -8,13 +8,15 @@ public class ReportDataService
     private readonly SalesService _salesService;
     private readonly ClosureService _closureService;
     private readonly CashService _cashService;
+    private readonly BankService _bankService;
     private readonly CultureInfo _turkishCulture = new("tr-TR");
 
-    public ReportDataService(SalesService? salesService = null, ClosureService? closureService = null, CashService? cashService = null)
+    public ReportDataService(SalesService? salesService = null, ClosureService? closureService = null, CashService? cashService = null, BankService? bankService = null)
     {
         _salesService = salesService ?? new SalesService();
         _closureService = closureService ?? new ClosureService();
         _cashService = cashService ?? new CashService();
+        _bankService = bankService ?? new BankService();
     }
 
     public async Task<ZReportData?> GetZReportDataAsync(DateTime? targetDate = null)
@@ -35,10 +37,77 @@ public class ReportDataService
         if (closure == null) return null;
 
         var cashSession = await _cashService.GetLatestSessionAsync(closure.ClosureDate);
+        var cashSummary = await _cashService.GetCashSummaryAsync(closure.ClosureDate);
+        var sales = await _salesService.GetSalesForDateAsync(closure.ClosureDate);
+
+        var settings = ThemeService.Current;
+        var storeName = settings?.StoreName ?? "Pure Accessory";
+        var storeSubtitle = settings?.StoreSubtitle ?? "Satış & Finans Yönetim Sistemi";
+
+        // KDV Dağılımı ve İndirimler
+        var vatMap = new Dictionary<decimal, (decimal taxable, decimal vat)>();
+        decimal totalDiscount = 0;
+
+        foreach (var sale in sales)
+        {
+            if (sale.Items != null)
+            {
+                foreach (var item in sale.Items)
+                {
+                    decimal rate = item.VatRate;
+                    decimal lineGross = item.Quantity * item.UnitPrice;
+                    decimal lineTaxable = lineGross / (1 + (rate / 100m));
+                    decimal lineVat = lineGross - lineTaxable;
+
+                    if (!vatMap.ContainsKey(rate))
+                        vatMap[rate] = (0, 0);
+
+                    var current = vatMap[rate];
+                    vatMap[rate] = (current.taxable + lineTaxable, current.vat + lineVat);
+                }
+            }
+        }
+
+        var vatBreakdown = vatMap.Select(kv => new VatRateSummary
+        {
+            Rate = kv.Key,
+            TaxableAmount = Math.Round(kv.Value.taxable, 2),
+            VatAmount = Math.Round(kv.Value.vat, 2)
+        }).OrderBy(x => x.Rate).ToList();
+
+        // Banka hesapları ve POS alacakları
+        var bankAccounts = new List<BankAccountBalanceSummary>();
+        decimal pendingPos = 0;
+        decimal settledPos = 0;
+
+        try
+        {
+            var accounts = await _bankService.GetAllAccountsAsync();
+            foreach (var acc in accounts)
+            {
+                bankAccounts.Add(new BankAccountBalanceSummary
+                {
+                    BankName = acc.BankName,
+                    AccountName = acc.AccountName,
+                    Balance = acc.CurrentBalance
+                });
+            }
+
+            var bankSummary = await _bankService.GetBankSummaryAsync();
+            pendingPos = bankSummary.PendingGrossPos;
+            settledPos = bankSummary.TodayPosInflow;
+        }
+        catch { }
+
+        decimal openingCash = cashSession?.OpeningCash ?? cashSummary.OpeningCash;
+        decimal closingCash = cashSummary.CurrentBalance;
 
         return new ZReportData
         {
             ClosureId = closure.Id,
+            ReportNumber = $"Z-{closure.ClosureDate:yyyyMMdd}-{closure.Id:D4}",
+            StoreName = storeName,
+            StoreSubtitle = storeSubtitle,
             ClosureDate = closure.ClosureDate,
             ClosedAt = closure.ClosedAt,
             SalesCount = closure.SalesCount,
@@ -46,11 +115,27 @@ public class ReportDataService
             TotalCash = closure.TotalCash,
             TotalCreditCard = closure.TotalCreditCard,
             TotalOnAccount = closure.TotalOnAccount,
+            TotalDiscount = totalDiscount,
             TotalCost = closure.TotalCost,
             TotalExpenses = closure.TotalExpenses,
             TotalProfit = closure.TotalProfit,
-            OpeningCash = cashSession?.OpeningCash ?? 0m,
-            ClosingCashBalance = cashSession?.OpeningCash ?? 0m,
+            PendingPosAmount = pendingPos,
+            SettledPosAmount = settledPos,
+            BankAccounts = bankAccounts,
+            VatBreakdown = vatBreakdown,
+            TotalVatAmount = vatBreakdown.Sum(v => v.VatAmount),
+            OpeningCash = openingCash,
+            CashInflows = cashSummary.CashIn,
+            CashOutflows = cashSummary.CashOut,
+            ClosingCashBalance = closingCash,
+            ZReportCash = closure.ZReportCash,
+            ZReportCredit = closure.ZReportCredit,
+            CashDiff = closure.CashDiff,
+            CreditDiff = closure.CreditDiff,
+            IbanAmount = closure.IbanAmount,
+            ExpectedBankPayment = closure.ExpectedBankPayment,
+            PocketCash = closure.PocketCash,
+            PocketCredit = closure.PocketCredit,
             Notes = closure.Notes
         };
     }

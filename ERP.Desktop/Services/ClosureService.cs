@@ -273,6 +273,28 @@ public class ClosureService
         // 5. Ekranları gün sonu hakkında haberdar et
         FinancialSyncBus.Notify(FinancialChangeType.DayClosure, closure);
 
+        // 6. Otomatik Gün Sonu Z Raporu PDF ve E-Posta Gönderimi
+        try
+        {
+            var settings = ThemeService.Current;
+            if (settings != null && settings.AutoEmailZReportOnClosure)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var emailService = new ZReportEmailService(_dbService);
+                        await emailService.SendZReportEmailAsync(closure.Id, closure.ClosureDate);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ClosureService] Z Raporu e-posta gönderim hatası: {ex.Message}");
+                    }
+                });
+            }
+        }
+        catch { }
+
         return true;
     }
 

@@ -892,6 +892,65 @@ public partial class ReportsView : Page
         }
     }
 
+    private async void SendZReportEmail_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var date = SingleDatePicker.SelectedDate ?? DateTime.Today;
+            Mouse.OverrideCursor = Cursors.Wait;
+
+            var emailService = new ZReportEmailService();
+            bool success = await emailService.SendZReportEmailAsync(null, date, isRetry: true);
+            Mouse.OverrideCursor = null;
+
+            if (success)
+            {
+                var settings = ThemeService.Current;
+                string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "belirtilen adrese";
+                MessageBox.Show($"{date:dd.MM.yyyy} tarihli Z Raporu başarıyla {to} e-posta adresine gönderildi.", "E-Posta Gönderildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"{date:dd.MM.yyyy} tarihli Z Raporu gönderilemedi.\nLütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.", "Gönderim Başarısız", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Mouse.OverrideCursor = null;
+            MessageBox.Show($"E-posta gönderim işlemi sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void RowSendEmail_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is DailyClosure closure)
+        {
+            try
+            {
+                Mouse.OverrideCursor = Cursors.Wait;
+                var emailService = new ZReportEmailService();
+                bool success = await emailService.SendZReportEmailAsync(closure.Id, closure.ClosureDate, isRetry: true);
+                Mouse.OverrideCursor = null;
+
+                if (success)
+                {
+                    var settings = ThemeService.Current;
+                    string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "belirtilen adrese";
+                    MessageBox.Show($"{closure.ClosureDate:dd.MM.yyyy} tarihli Z Raporu başarıyla {to} e-posta adresine iletildi.", "E-Posta Gönderildi", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"{closure.ClosureDate:dd.MM.yyyy} tarihli Z Raporu gönderilemedi.\nLütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.", "Gönderim Başarısız", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                Mouse.OverrideCursor = null;
+                MessageBox.Show($"E-posta gönderim hatası: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
     private async void TakeClosureFromReports_Click(object sender, RoutedEventArgs e)
     {
         try

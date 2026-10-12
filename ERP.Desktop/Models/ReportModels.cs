@@ -1,20 +1,65 @@
 namespace ERP.Desktop.Models;
 
+public class VatRateSummary
+{
+    public decimal Rate { get; set; }
+    public decimal TaxableAmount { get; set; }
+    public decimal VatAmount { get; set; }
+    public decimal TotalWithVat => TaxableAmount + VatAmount;
+}
+
+public class BankAccountBalanceSummary
+{
+    public string BankName { get; set; } = "";
+    public string AccountName { get; set; } = "";
+    public decimal Balance { get; set; }
+}
+
 public class ZReportData
 {
     public long ClosureId { get; set; }
+    public string ReportNumber { get; set; } = "";
+    public string StoreName { get; set; } = "Pure Accessory";
+    public string StoreSubtitle { get; set; } = "Satış & Finans Yönetim Sistemi";
     public DateTime ClosureDate { get; set; }
     public DateTime ClosedAt { get; set; }
+
+    // Satış ve Ciro Toplamları
     public int SalesCount { get; set; }
     public decimal TotalRevenue { get; set; }
     public decimal TotalCash { get; set; }
     public decimal TotalCreditCard { get; set; }
     public decimal TotalOnAccount { get; set; }
+    public decimal TotalDiscount { get; set; }
     public decimal TotalCost { get; set; }
     public decimal TotalExpenses { get; set; }
     public decimal TotalProfit { get; set; }
+
+    // POS & Banka Durumu
+    public decimal PendingPosAmount { get; set; }
+    public decimal SettledPosAmount { get; set; }
+    public List<BankAccountBalanceSummary> BankAccounts { get; set; } = new();
+
+    // KDV Dağılımı
+    public List<VatRateSummary> VatBreakdown { get; set; } = new();
+    public decimal TotalVatAmount { get; set; }
+
+    // Kasa Hareketleri
     public decimal OpeningCash { get; set; }
+    public decimal CashInflows { get; set; }
+    public decimal CashOutflows { get; set; }
     public decimal ClosingCashBalance { get; set; }
+
+    // Gün Sonu Finansal Mutabakat Bilgileri
+    public decimal ZReportCash { get; set; }
+    public decimal ZReportCredit { get; set; }
+    public decimal CashDiff { get; set; }
+    public decimal CreditDiff { get; set; }
+    public decimal IbanAmount { get; set; }
+    public decimal ExpectedBankPayment { get; set; }
+    public decimal PocketCash { get; set; }
+    public decimal PocketCredit { get; set; }
+
     public string? Notes { get; set; }
 }
 
@@ -190,5 +235,20 @@ public class ReportChartData
     public string ExtraLabel { get; set; } = "En Yüksek";
     public string ExtraText { get; set; } = "-";
     public List<ReportChartItem> Items { get; set; } = new();
+}
+
+public class ZReportEmailRecord
+{
+    public long Id { get; set; }
+    public long? ClosureId { get; set; }
+    public DateTime ReportDate { get; set; }
+    public string RecipientEmail { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string? PdfFilePath { get; set; }
+    public string Status { get; set; } = "Bekliyor"; // Bekliyor, Gönderiliyor, Gönderildi, Başarısız
+    public string? ErrorMessage { get; set; }
+    public int RetryCount { get; set; }
+    public DateTime? SentAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
 

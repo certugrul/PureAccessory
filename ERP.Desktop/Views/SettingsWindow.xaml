@@ -228,6 +228,89 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Bölüm 8: 📧 Otomatik Gün Sonu Z Raporu E-Posta Ayarları -->
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="📧 Gün Sonu Z Raporu Otomatik E-Posta Gönderimi" FontSize="13" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                            <TextBlock Text="Gün sonu tamamlandığında Z Raporunu PDF eki ve detaylı özetle belirlenen e-posta adresine otomatik gönderir." FontSize="11" Foreground="#64748B" Margin="0,0,0,12"/>
+
+                            <CheckBox x:Name="ChkAutoEmailZReport" Content="⚡ Gün sonu tamamlandığında Z Raporu PDF'ini otomatik e-posta gönder" 
+                                      IsChecked="False" Margin="0,0,0,12" FontSize="12" FontWeight="Bold" Foreground="#1E293B"/>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Alıcı E-Posta -->
+                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                    <TextBlock Text="Alıcı E-Posta Adresi (Raporu Alacak Kişi):" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="TxtEmailRecipient" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+
+                                <!-- Gönderen E-Posta Adı -->
+                                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                    <TextBlock Text="Gönderen Başlığı / Adı:" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="TxtEmailSenderName" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- SMTP Sunucu -->
+                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                    <TextBlock Text="SMTP Sunucu Adresi (Örn: smtp.gmail.com):" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="TxtEmailSmtpHost" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+
+                                <!-- SMTP Port -->
+                                <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                                    <TextBlock Text="Port (587 / 465):" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="TxtEmailSmtpPort" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+
+                                <!-- SSL -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="6,0,0,4">
+                                    <CheckBox x:Name="ChkEmailEnableSsl" Content="SSL / TLS" IsChecked="True" FontSize="11.5" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- SMTP Kullanıcı Adı -->
+                                <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                    <TextBlock Text="SMTP Kullanıcı Adı / E-Posta:" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="TxtEmailSmtpUser" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+
+                                <!-- SMTP Şifre -->
+                                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                    <TextBlock Text="SMTP Parolası (Uygulama Şifresi):" FontSize="11" Foreground="#475569" Margin="0,0,0,3"/>
+                                    <PasswordBox x:Name="TxtEmailSmtpPassword" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="#CBD5E1"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Test Butonu ve Bilgi Notu -->
+                            <Grid>
+                                <TextBlock Text="🔒 Parolanız Windows DPAPI ile şifrelenerek güvenle saklanır, düz metin yazılmaz." FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                                <Button Content="✉️ Test E-Postası Gönder" Click="TestEmail_Click" HorizontalAlignment="Right" Padding="14,6"
+                                        Background="#EFF6FF" Foreground="#2563EB" BorderBrush="#BFDBFE" BorderThickness="1"
+                                        FontWeight="Bold" FontSize="11.5" Cursor="Hand">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Bölüm 9: Uzaktan Güncelleme & Sürüm -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,14">

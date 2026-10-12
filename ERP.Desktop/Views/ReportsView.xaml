@@ -303,6 +303,11 @@
                                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
                                     </Button>
 
+                                    <Button x:Name="BtnSendZReportEmail" Content="📧 E-Posta Gönder" Click="SendZReportEmail_Click" Margin="0,0,10,0"
+                                            Background="#F0FDF4" Foreground="#15803D" FontWeight="Bold" Padding="14,9" BorderBrush="#BBF7D0" BorderThickness="1.5" Cursor="Hand" ToolTip="Seçili tarihin Z Raporunu yapılandırılan e-posta adresine gönder">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                                    </Button>
+
                                     <Button Content="📄 PDF Oluştur &amp; Aç" Click="OpenPdf_Click"
                                             Background="#2563EB" Foreground="White" FontWeight="Bold" FontSize="14" Padding="20,9" BorderThickness="0" Cursor="Hand">
                                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
@@ -537,7 +542,7 @@
                                 <DataGridTextColumn Header="Net Kâr" Binding="{Binding FormattedProfit}" FontWeight="Bold" Width="100"/>
                                 <DataGridTextColumn Header="Kaynak &amp; Not" Binding="{Binding Notes}" Width="*"/>
                                 
-                                <DataGridTemplateColumn Header="İşlemler" Width="260">
+                                 <DataGridTemplateColumn Header="İşlemler" Width="315">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -549,6 +554,11 @@
                                                 <Button Content="🧾 Fişler" Click="OpenRowReceiptBreakdown_Click"
                                                         Padding="6,3" Background="#F0FDF4" Foreground="#16A34A" FontWeight="SemiBold"
                                                         BorderThickness="0" Cursor="Hand" Margin="0,0,4,0">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                                <Button Content="📧 E-Posta" Click="RowSendEmail_Click"
+                                                        Padding="6,3" Background="#F0FDF4" Foreground="#15803D" FontWeight="SemiBold"
+                                                        BorderThickness="0" Cursor="Hand" Margin="0,0,4,0" ToolTip="Bu gün sonunun Z Raporunu e-posta ile gönder">
                                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
                                                 </Button>
                                                 <Button Content="✏️ Not" Click="EditClosureNotes_Click"

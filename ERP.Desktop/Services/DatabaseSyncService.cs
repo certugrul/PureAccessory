@@ -31,7 +31,7 @@ public class DatabaseSyncService
         {
             if (_initialized) return;
 
-            var service = new DatabaseSyncService();
+            var service = new DatabaseSyncService(new DatabaseService(DatabaseService.DefaultSqlServerConnectionString));
             bool connected = await service._dbService.TestConnectionAsync();
             if (!connected)
             {
@@ -56,7 +56,10 @@ public class DatabaseSyncService
 
     public async Task EnsureTablesCreatedAsync()
     {
-        await using var conn = new SqlConnection(_dbService.ConnectionString);
+        string connStr = _dbService.ProviderType == DatabaseProviderType.SqlServer 
+            ? _dbService.ConnectionString 
+            : DatabaseService.DefaultSqlServerConnectionString;
+        await using var conn = new SqlConnection(connStr);
         await conn.OpenAsync();
 
         var ddl = @"
@@ -639,6 +642,27 @@ BEGIN
         UserName NVARCHAR(100) NOT NULL DEFAULT 'Sistem',
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
     );
+END
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ZReportEmails')
+BEGIN
+    CREATE TABLE ZReportEmails (
+        Id BIGINT PRIMARY KEY IDENTITY(1,1),
+        ClosureId BIGINT NULL,
+        ReportDate DATE NOT NULL,
+        RecipientEmail NVARCHAR(255) NOT NULL,
+        Subject NVARCHAR(255) NOT NULL,
+        PdfFilePath NVARCHAR(500) NULL,
+        Status NVARCHAR(50) NOT NULL DEFAULT 'Bekliyor',
+        ErrorMessage NVARCHAR(MAX) NULL,
+        RetryCount INT NOT NULL DEFAULT 0,
+        SentAt DATETIME2 NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
+    );
+
+    CREATE NONCLUSTERED INDEX IX_ZReportEmails_ClosureId ON ZReportEmails (ClosureId);
+    CREATE NONCLUSTERED INDEX IX_ZReportEmails_ReportDate ON ZReportEmails (ReportDate);
+    CREATE NONCLUSTERED INDEX IX_ZReportEmails_Status ON ZReportEmails (Status);
 END
 
 -- ==========================================================
