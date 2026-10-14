@@ -9,7 +9,9 @@ public class BankService
 {
     private readonly DatabaseService _dbService;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
+    private static readonly SemaphoreSlim _initLock = new(1, 1);
     private static bool _isInitialized = false;
+    private static bool _historicalSyncDone = false;
     private static readonly string StorageDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
     private static readonly string AccountsFile = Path.Combine(StorageDirectory, "bank_accounts.json");
     private static readonly string TransactionsFile = Path.Combine(StorageDirectory, "bank_transactions.json");
@@ -1144,88 +1146,60 @@ public class BankService
     private async Task EnsureInitializedAsync()
     {
         if (_isInitialized) return;
-        _isInitialized = true;
-
-        EnsureStorageDirectory();
-
-        // 1. Hesapları öncelikle doğrudan veritabanından çek
-        if (await _dbService.TestConnectionAsync())
+        await _initLock.WaitAsync();
+        try
         {
-            await LoadAccountsInternalAsync();
-        }
-        else if (!File.Exists(AccountsFile))
-        {
-            var initialAccounts = new List<BankAccount>
+            if (_isInitialized) return;
+
+            EnsureStorageDirectory();
+
+            // 1. Hesapları öncelikle doğrudan veritabanından çek veya temel dosya hazırla
+            if (await _dbService.TestConnectionAsync())
             {
-                new BankAccount
-                {
-                    Id = 1,
-                    BankName = "Ana Ticari Banka",
-                    AccountName = "Vadesiz Ticari Hesap",
-                    Iban = "",
-                    AccountNumber = "",
-                    Branch = "Merkez",
-                    Currency = "TRY",
-                    OpeningBalance = 0m,
-                    CurrentBalance = 0m,
-                    ActualBalance = 0m,
-                    PosCommissionRate = 0m,
-                    PosValourDays = 1,
-                    IsDefault = true,
-                    IsActive = true
-                }
-            };
-
-            var json = JsonSerializer.Serialize(initialAccounts, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(AccountsFile, json);
-        }
-
-        // 2. Hareketler dosyası yoksa boş liste oluştur
-        if (!File.Exists(TransactionsFile))
-        {
-            var initialTxs = new List<BankTransaction>
+                await LoadAccountsInternalAsync();
+            }
+            else if (!File.Exists(AccountsFile))
             {
-                new BankTransaction
+                var initialAccounts = new List<BankAccount>
                 {
-                    Id = 1,
-                    CreatedAt = DateTime.Today.AddDays(-5),
-                    BankAccountId = 1,
-                    BankAccountName = "Ziraat Bankası - Ana Ticari Hesap",
-                    TransactionType = "Açılış Bakiyesi",
-                    Direction = "Giriş",
-                    Inflow = 7894.13m,
-                    Outflow = 0,
-                    BalanceAfter = 7894.13m,
-                    Description = "Sistem Başlangıç Açılış Bakiyesi",
-                    PaymentMethod = "Diğer",
-                    ReferenceType = "MANUEL"
-                },
-                new BankTransaction
-                {
-                    Id = 2,
-                    CreatedAt = DateTime.Today.AddDays(-5),
-                    BankAccountId = 2,
-                    BankAccountName = "İş Bankası - POS Tahsilat Hesabı",
-                    TransactionType = "Açılış Bakiyesi",
-                    Direction = "Giriş",
-                    Inflow = 50450.00m,
-                    Outflow = 0,
-                    BalanceAfter = 50450.00m,
-                    Description = "Sistem Başlangıç Açılış Bakiyesi",
-                    PaymentMethod = "Diğer",
-                    ReferenceType = "MANUEL"
-                }
-            };
-            var json = JsonSerializer.Serialize(initialTxs, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(TransactionsFile, json);
-        }
+                    new BankAccount
+                    {
+                        Id = 1,
+                        BankName = "Ana Ticari Banka",
+                        AccountName = "Vadesiz Ticari Hesap",
+                        Currency = "TRY",
+                        IsDefault = true,
+                        IsActive = true
+                    }
+                };
+                var json = JsonSerializer.Serialize(initialAccounts, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(AccountsFile, json);
+            }
 
-        // 3. POS hareketleri dosyası yoksa veya geçmiş satışlar varsa senkronize et
-        await SyncHistoricalCreditCardSalesAsync();
+            if (!File.Exists(TransactionsFile))
+            {
+                await File.WriteAllTextAsync(TransactionsFile, "[]");
+            }
+
+            // 2. Eksik kredi kartı satışlarını arka planda asenkron senkronize et (Açılış/giriş işlemlerini asla geciktirmez)
+            _ = Task.Run(async () =>
+            {
+                try { await SyncHistoricalCreditCardSalesAsync(); } catch { }
+            });
+
+            _isInitialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
-    private async Task SyncHistoricalCreditCardSalesAsync()
+    public async Task SyncHistoricalCreditCardSalesAsync()
     {
+        if (_historicalSyncDone) return;
+        _historicalSyncDone = true;
+
         try
         {
             if (await _dbService.TestConnectionAsync())
@@ -1233,14 +1207,18 @@ public class BankService
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
+                // Sadece son 7 günün kredi kartı satışlarını kontrol et (Geçmiş yılların kapanmış kayıtlarını tarama!)
+                var minDate = DateTime.Today.AddDays(-7);
                 var sql = @"
                     SELECT s.Id, s.SaleDate, s.PaymentType, s.GrandTotal, s.CardAmount 
                     FROM Sales s
                     LEFT JOIN PosTransactions p ON s.Id = p.SaleId
                     WHERE (s.PaymentType = 'Kredi Kartı' OR s.CardAmount > 0)
+                      AND s.SaleDate >= @minDate
                       AND p.Id IS NULL
                     ORDER BY s.Id ASC;";
-                await using var cmd = conn.CreateCommand(sql);
+                await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
+                cmd.AddParam("minDate", minDate);
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 var missingFromDb = new List<(long Id, DateTime Date, decimal Gross)>();
@@ -1249,7 +1227,7 @@ public class BankService
                     long saleId = Convert.ToInt64(reader[0]);
                     DateTime saleDate = Convert.ToDateTime(reader[1]);
                     decimal grandTotal = Convert.ToDecimal(reader[3]);
-                    decimal cardAmt = Convert.ToDecimal(reader[4]);
+                    decimal cardAmt = reader.IsDBNull(4) ? 0m : Convert.ToDecimal(reader[4]);
                     decimal gross = cardAmt > 0 ? cardAmt : grandTotal;
                     if (gross > 0)
                     {
@@ -1274,7 +1252,10 @@ public class BankService
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BankService] SyncHistoricalCreditCardSalesAsync ERROR: {ex.Message}");
+        }
 
         try
         {
@@ -1285,7 +1266,7 @@ public class BankService
                 posList = JsonSerializer.Deserialize<List<PosTransaction>>(existingJson) ?? new List<PosTransaction>();
             }
 
-            // Sales.json'dan kredi kartı satışlarını tara
+            // Sales.json'dan sadece son 7 günün kredi kartı satışlarını tara
             var salesFile = Path.Combine(StorageDirectory, "sales.json");
             if (File.Exists(salesFile))
             {
@@ -1293,7 +1274,8 @@ public class BankService
                 var sales = JsonSerializer.Deserialize<List<Sale>>(salesJson) ?? new List<Sale>();
 
                 bool modified = false;
-                foreach (var s in sales.Where(x => x.PaymentType == "Kredi Kartı" || x.CardAmount > 0))
+                var minDate = DateTime.Today.AddDays(-7);
+                foreach (var s in sales.Where(x => (x.PaymentType == "Kredi Kartı" || x.CardAmount > 0) && x.SaleDate >= minDate))
                 {
                     if (!posList.Any(p => p.SaleId == s.Id))
                     {

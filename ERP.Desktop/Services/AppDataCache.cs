@@ -64,8 +64,8 @@ public static class AppDataCache
             var cashSummaryTask = cashService.GetCashSummaryAsync(DateTime.Today);
             var cashBalanceTask = coordinator.GetCentralCashBalanceAsync();
 
-            // Tüm sorguları paralel ve güvenli şekilde tamamla
-            await Task.WhenAll(
+            // Tüm sorguları paralel ve güvenli şekilde tamamla (zaman aşımı korumalı)
+            var allTasks = Task.WhenAll(
                 productsTask,
                 warehousesTask,
                 cariTask,
@@ -76,14 +76,17 @@ public static class AppDataCache
                 cashBalanceTask
             );
 
-            Products = await productsTask;
-            Warehouses = await warehousesTask;
-            CariAccounts = await cariTask;
-            BankAccounts = await bankTask;
-            BankSummary = await bankSummaryTask;
-            TodayCashSession = await cashSessionTask;
-            TodayCashSummary = await cashSummaryTask;
-            CentralCashBalance = await cashBalanceTask;
+            if (await Task.WhenAny(allTasks, Task.Delay(4000)) == allTasks)
+            {
+                Products = await productsTask;
+                Warehouses = await warehousesTask;
+                CariAccounts = await cariTask;
+                BankAccounts = await bankTask;
+                BankSummary = await bankSummaryTask;
+                TodayCashSession = await cashSessionTask;
+                TodayCashSummary = await cashSummaryTask;
+                CentralCashBalance = await cashBalanceTask;
+            }
 
             progress?.Report("6/6: Depo ürün dağılımları senkronize ediliyor...");
             try

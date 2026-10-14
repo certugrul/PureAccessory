@@ -209,7 +209,8 @@ public partial class LoginWindow : Window
 
             try
             {
-                await AppDataCache.PreloadAllAsync(progress);
+                var preloadTask = AppDataCache.PreloadAllAsync(progress);
+                await Task.WhenAny(preloadTask, Task.Delay(3500));
             }
             catch { }
 
