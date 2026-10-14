@@ -319,65 +319,108 @@
                         </Grid.RowDefinitions>
 
                         <!-- 1. Toplu Tahsilat Bilgi ve Hızlı İşlem Şeridi -->
-                        <Border Grid.Row="0" Background="#EFF6FF" CornerRadius="10" Padding="16,12" Margin="0,0,0,12" BorderBrush="#BFDBFE" BorderThickness="1">
+                        <Border Grid.Row="0" Background="#EFF6FF" CornerRadius="10" Padding="14,10" Margin="0,0,0,12" BorderBrush="#BFDBFE" BorderThickness="1">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/> <!-- Durum Filtresi -->
-                                    <ColumnDefinition Width="*"/>    <!-- Toplu Tutar Bilgileri -->
-                                    <ColumnDefinition Width="Auto"/> <!-- Toplu Kabul Et Butonu -->
-                                    <ColumnDefinition Width="Auto"/> <!-- Yenile Butonu -->
-                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- Üst Satır: Filtreler ve Hızlı Seçim Butonları -->
+                                <Grid Grid.Row="0" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/> <!-- Durum Filtresi -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Tarih Filtresi -->
+                                        <ColumnDefinition Width="*"/>    <!-- Hızlı Filtre Butonları -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Toplu Kabul Et Butonu -->
+                                        <ColumnDefinition Width="Auto"/> <!-- Yenile Butonu -->
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Durum Filtresi -->
-                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <TextBlock Text="Durum:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E40AF" Margin="0,0,8,0"/>
-                                    <ComboBox x:Name="CmbPosStatus" Width="120" Height="34" SelectionChanged="PosStatus_SelectionChanged">
-                                        <ComboBoxItem Content="Tümü"/>
-                                        <ComboBoxItem Content="Bekliyor"/>
-                                        <ComboBoxItem Content="Ödendi"/>
-                                        <ComboBoxItem Content="Gecikti"/>
-                                    </ComboBox>
-                                </StackPanel>
+                                    <!-- Durum Filtresi -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                                        <TextBlock Text="Durum:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E40AF" Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="CmbPosStatus" Width="110" Height="32" SelectionChanged="PosStatus_SelectionChanged">
+                                            <ComboBoxItem Content="Tümü"/>
+                                            <ComboBoxItem Content="Bekliyor" IsSelected="True"/>
+                                            <ComboBoxItem Content="Ödendi"/>
+                                            <ComboBoxItem Content="Gecikti"/>
+                                        </ComboBox>
+                                    </StackPanel>
 
-                                <!-- Toplu Tutar Göstergesi -->
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                    <!-- Tarih / Dönem Filtresi -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                                        <TextBlock Text="Dönem:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E40AF" Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="CmbPosDateFilter" Width="170" Height="32" SelectionChanged="PosDateFilter_SelectionChanged">
+                                            <ComboBoxItem Content="Tüm Tarihler" IsSelected="True"/>
+                                            <ComboBoxItem Content="🛒 Bugün Yapılan Satışlar"/>
+                                            <ComboBoxItem Content="⚡ Bugün Vadesi Gelenler"/>
+                                            <ComboBoxItem Content="📅 Bu Hafta"/>
+                                            <ComboBoxItem Content="📅 Bu Ay"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- Hızlı Butonlar -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="🛒 Bugünün Satışları" Click="FilterTodaySales_Click" Margin="0,0,6,0"
+                                                Background="#EEF2FF" Foreground="#4F46E5" FontWeight="SemiBold" Padding="10,5" BorderBrush="#C7D2FE" BorderThickness="1" Cursor="Hand">
+                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                        </Button>
+                                        <Button Content="⚡ Bugün Vadesi Dolanlar" Click="FilterTodayDue_Click" Margin="0,0,6,0"
+                                                Background="#FEF3C7" Foreground="#B45309" FontWeight="SemiBold" Padding="10,5" BorderBrush="#FDE68A" BorderThickness="1" Cursor="Hand">
+                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                        </Button>
+                                        <Button Content="📋 Tüm Bekleyenler" Click="FilterAllPending_Click" Margin="0,0,6,0"
+                                                Background="White" Foreground="#475569" FontWeight="SemiBold" Padding="10,5" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <!-- Toplu Kabul Et Butonu -->
+                                    <Button Grid.Column="3" x:Name="BtnBatchSettle" Content="⚡ Toplu Kabul Et" Click="BatchSettlePos_Click" Margin="0,0,8,0"
+                                            Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13" Padding="14,6" BorderThickness="0" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+
+                                    <!-- Yenile Butonu -->
+                                    <Button Grid.Column="4" Content="🔄 Yenile" Click="RefreshPos_Click"
+                                            Background="White" Foreground="#475569" FontWeight="SemiBold" Padding="12,6" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Alt Satır: Toplu Tutar Bilgi Göstergeleri -->
+                                <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="White" CornerRadius="6" Padding="10,5" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Bekleyen: " FontSize="12" Foreground="#64748B"/>
                                             <TextBlock x:Name="TxtBatchCountLabel" Text="0 Fiş" FontSize="12" FontWeight="Bold" Foreground="#1E293B"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                    <Border Background="White" CornerRadius="6" Padding="10,5" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Toplam Brüt: " FontSize="12" Foreground="#64748B"/>
                                             <TextBlock x:Name="TxtBatchGrossLabel" Text="₺0,00" FontSize="12" FontWeight="Bold" Foreground="#0F172A"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="White" CornerRadius="6" Padding="10,6" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
+                                    <Border Background="White" CornerRadius="6" Padding="10,5" Margin="0,0,8,0" BorderBrush="#DBEAFE" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Komisyon: " FontSize="12" Foreground="#64748B"/>
                                             <TextBlock x:Name="TxtBatchCommissionLabel" Text="-₺0,00" FontSize="12" FontWeight="SemiBold" Foreground="#DC2626"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Background="#ECFDF5" CornerRadius="6" Padding="12,6" BorderBrush="#A7F3D0" BorderThickness="1">
+                                    <Border Background="#ECFDF5" CornerRadius="6" Padding="12,5" Margin="0,0,8,0" BorderBrush="#A7F3D0" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Toplu Net: " FontSize="12" FontWeight="SemiBold" Foreground="#065F46"/>
                                             <TextBlock x:Name="TxtBatchNetLabel" Text="₺0,00" FontSize="13" FontWeight="Bold" Foreground="#059669"/>
                                         </StackPanel>
                                     </Border>
+                                    <Border Background="#FEF3C7" CornerRadius="6" Padding="10,5" BorderBrush="#FDE68A" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="⚡ Vadesi Bugün Net: " FontSize="12" FontWeight="SemiBold" Foreground="#92400E"/>
+                                            <TextBlock x:Name="TxtTodayDuePosLabel" Text="₺0,00" FontSize="12" FontWeight="Bold" Foreground="#B45309"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
-
-                                <!-- Toplu Kabul Et Butonu -->
-                                <Button Grid.Column="2" x:Name="BtnBatchSettle" Content="⚡ Toplu Kabul Et" Click="BatchSettlePos_Click" Margin="0,0,8,0"
-                                        Background="#059669" Foreground="White" FontWeight="Bold" FontSize="13" Padding="16,8" BorderThickness="0" Cursor="Hand">
-                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                                </Button>
-
-                                <!-- Yenile Butonu -->
-                                <Button Grid.Column="3" Content="🔄 Yenile" Click="RefreshPos_Click"
-                                        Background="White" Foreground="#475569" FontWeight="SemiBold" Padding="12,8" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand">
-                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                                </Button>
                             </Grid>
                         </Border>
 
@@ -517,8 +560,12 @@
                                         </Grid>
                                         <Separator Background="#F1F5F9" Margin="0,6"/>
                                         <Grid Margin="0,4,0,6">
-                                            <TextBlock Text="Bankaya Geçecek Net POS:" FontSize="12" FontWeight="SemiBold" Foreground="#1E40AF"/>
+                                            <TextBlock Text="Bugünkü Satışların Neti:" FontSize="12" FontWeight="SemiBold" Foreground="#1E40AF"/>
                                             <TextBlock x:Name="TxtSummaryPosNet" Text="₺0,00" FontSize="14" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,6">
+                                            <TextBlock Text="⚡ Bugün Vadesi Dolan Net:" FontSize="12" FontWeight="SemiBold" Foreground="#B45309"/>
+                                            <TextBlock x:Name="TxtSummaryDueTodayPos" Text="₺0,00" FontSize="13" FontWeight="Bold" Foreground="#D97706" HorizontalAlignment="Right"/>
                                         </Grid>
                                         <Border Background="#FEFCE8" CornerRadius="6" Padding="8" Margin="0,10,0,0">
                                             <TextBlock Text="Satışlar anında POS alacağına geçer, 'Ödeme Geldi' veya 'Toplu Kabul Et' ile bankaya aktarılır." FontSize="11" Foreground="#A16207" TextWrapping="Wrap"/>

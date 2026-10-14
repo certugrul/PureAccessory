@@ -12,6 +12,7 @@ public partial class BankView : Page
     private List<BankAccount> _accounts = new();
     private List<BankTransaction> _transactions = new();
     private List<PosTransaction> _posTransactions = new();
+    private List<PosTransaction> _allPosTransactions = new();
     private static readonly CultureInfo TurkishCulture = new("tr-TR");
     private bool _isLoaded = false;
 
@@ -69,7 +70,8 @@ public partial class BankView : Page
 
     private void LoadSummaryCards()
     {
-        var summary = _bankService.CalculateSummary(_accounts, _transactions, _posTransactions);
+        var posSource = _allPosTransactions.Count > 0 ? _allPosTransactions : _posTransactions;
+        var summary = _bankService.CalculateSummary(_accounts, _transactions, posSource);
 
         TxtTotalBalance.Text = summary.FormattedTotalBankBalance;
         TxtTodayInflow.Text = summary.FormattedTodayInflow;
@@ -86,14 +88,18 @@ public partial class BankView : Page
             : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38));
         TxtSummaryClosing.Text = summary.FormattedTotalBankBalance;
 
-        TxtSummaryPosGross.Text = summary.FormattedPendingGrossPos;
-        TxtSummaryPosCommission.Text = $"-{summary.FormattedPendingPosCommission}";
-        TxtSummaryPosNet.Text = summary.FormattedPendingNetPos;
+        // Kart 1: POS ve Kredi Kartı Alacakları
+        TxtSummaryPosGross.Text = summary.FormattedTodayPosSalesGross;
+        TxtSummaryPosCommission.Text = $"-{summary.FormattedTodayPosSalesCommission}";
+        TxtSummaryPosNet.Text = summary.FormattedTodayPosSalesNet;
+        TxtSummaryDueTodayPos.Text = summary.FormattedTodayDuePosNet;
 
+        // Kart 2: Bankaya Para Girişleri
         TxtSummaryPosInflow.Text = summary.FormattedTodayPosInflow;
         TxtSummaryExtInflow.Text = summary.FormattedTodayExternalInflow;
         TxtSummaryTotalInflow.Text = summary.FormattedTodayInflow;
 
+        // Kart 3: Bankadan Para Çıkışları
         TxtSummaryOutflow.Text = summary.FormattedTodayOutflow;
         TxtSummaryTransferOut.Text = "₺0,00";
         TxtSummaryTotalOutflow.Text = summary.FormattedTodayOutflow;
@@ -158,27 +164,40 @@ public partial class BankView : Page
     private async Task LoadPosTransactionsAsync()
     {
         string? status = (CmbPosStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
-        _posTransactions = await _bankService.GetPosTransactionsAsync(status: status);
+        string? dateFilterText = (CmbPosDateFilter.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        string? dateMode = dateFilterText switch
+        {
+            var s when s != null && s.Contains("Satışlar") => "SoldToday",
+            var s when s != null && s.Contains("Vadesi") => "DueToday",
+            var s when s != null && s.Contains("Hafta") => "ThisWeek",
+            var s when s != null && s.Contains("Ay") => "ThisMonth",
+            _ => null
+        };
+
+        _allPosTransactions = await _bankService.GetPosTransactionsAsync();
+        _posTransactions = await _bankService.GetPosTransactionsAsync(status: status, dateFilterMode: dateMode);
 
         PosGrid.ItemsSource = null;
         PosGrid.ItemsSource = _posTransactions;
 
-        var allPending = status == "Bekliyor"
-            ? _posTransactions
-            : await _bankService.GetPosTransactionsAsync(status: "Bekliyor");
+        var allPending = _allPosTransactions.Where(p => p.Status == "Bekliyor").ToList();
         var pendingGross = allPending.Sum(p => p.GrossAmount);
         var pendingComm = allPending.Sum(p => p.CommissionAmount);
         var pendingNet = allPending.Sum(p => p.NetAmount);
+        var todayDueNet = allPending.Where(p => p.IsDueToday).Sum(p => p.NetAmount);
 
         TxtPendingGrossSub.Text = $"{allPending.Count} fiş bekliyor";
         TxtPendingNetSub.Text = $"Net: ₺{pendingNet:N2}";
 
-        // Tab 3: Toplu Tutar Bilgi Göstergeleri
-        TxtBatchCountLabel.Text = $"{allPending.Count} Fiş";
-        TxtBatchGrossLabel.Text = $"₺{pendingGross:N2}";
-        TxtBatchCommissionLabel.Text = $"-₺{pendingComm:N2}";
-        TxtBatchNetLabel.Text = $"₺{pendingNet:N2}";
-        BtnBatchSettle.IsEnabled = allPending.Count > 0;
+        // Tab 3: Toplu Tutar Bilgi Göstergeleri (Tabloda o an gösterilen filtreye göre)
+        var displayList = _posTransactions;
+        TxtBatchCountLabel.Text = $"{displayList.Count} Fiş";
+        TxtBatchGrossLabel.Text = $"₺{displayList.Sum(p => p.GrossAmount):N2}";
+        TxtBatchCommissionLabel.Text = $"-₺{displayList.Sum(p => p.CommissionAmount):N2}";
+        TxtBatchNetLabel.Text = $"₺{displayList.Sum(p => p.NetAmount):N2}";
+        TxtTodayDuePosLabel.Text = $"₺{todayDueNet:N2}";
+
+        BtnBatchSettle.IsEnabled = displayList.Any(p => p.Status == "Bekliyor");
     }
 
     #region Action Buttons
@@ -344,6 +363,59 @@ public partial class BankView : Page
     private async void PosStatus_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_isLoaded) return;
+        await LoadPosTransactionsAsync();
+    }
+
+    private async void PosDateFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isLoaded) return;
+        await LoadPosTransactionsAsync();
+    }
+
+    private async void FilterTodaySales_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (ComboBoxItem item in CmbPosDateFilter.Items)
+        {
+            if (item.Content?.ToString()?.Contains("Satışlar") == true)
+            {
+                CmbPosDateFilter.SelectedItem = item;
+                break;
+            }
+        }
+        await LoadPosTransactionsAsync();
+    }
+
+    private async void FilterTodayDue_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (ComboBoxItem item in CmbPosDateFilter.Items)
+        {
+            if (item.Content?.ToString()?.Contains("Vadesi") == true)
+            {
+                CmbPosDateFilter.SelectedItem = item;
+                break;
+            }
+        }
+        await LoadPosTransactionsAsync();
+    }
+
+    private async void FilterAllPending_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (ComboBoxItem item in CmbPosStatus.Items)
+        {
+            if (item.Content?.ToString() == "Bekliyor")
+            {
+                CmbPosStatus.SelectedItem = item;
+                break;
+            }
+        }
+        foreach (ComboBoxItem item in CmbPosDateFilter.Items)
+        {
+            if (item.Content?.ToString()?.Contains("Tüm Tarihler") == true)
+            {
+                CmbPosDateFilter.SelectedItem = item;
+                break;
+            }
+        }
         await LoadPosTransactionsAsync();
     }
 

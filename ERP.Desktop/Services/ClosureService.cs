@@ -57,8 +57,8 @@ public class ClosureService
                     ClosureDate = targetDate.Date,
                     SalesCount = pendingSales.Count,
                     TotalRevenue = pendingSales.Sum(s => s.GrandTotal),
-                    TotalCash = pendingSales.Where(s => s.PaymentType == "Nakit").Sum(s => s.GrandTotal),
-                    TotalCreditCard = pendingSales.Where(s => s.PaymentType == "Kredi Kartı" || s.PaymentType == "Kart").Sum(s => s.GrandTotal),
+                    TotalCash = pendingSales.Sum(s => s.CashAmount > 0 ? s.CashAmount : (s.PaymentType == "Nakit" ? s.GrandTotal : 0m)),
+                    TotalCreditCard = pendingSales.Sum(s => s.CardAmount > 0 ? s.CardAmount : (s.PaymentType == "Kredi Kartı" || s.PaymentType == "Kart" ? s.GrandTotal : 0m)),
                     TotalOnAccount = pendingSales.Where(s => s.PaymentType == "Veresiye").Sum(s => s.GrandTotal),
                     TotalCost = pendingSales.Sum(s => s.CostTotal),
                     TotalProfit = pendingSales.Sum(s => s.GrandTotal) - pendingSales.Sum(s => s.CostTotal),
@@ -114,8 +114,8 @@ public class ClosureService
                     SELECT 
                         COUNT(*) AS SalesCount,
                         COALESCE(SUM(GrandTotal), 0) AS TotalRevenue,
-                        COALESCE(SUM(CASE WHEN PaymentType = 'Nakit' THEN GrandTotal ELSE 0 END), 0) AS TotalCash,
-                        COALESCE(SUM(CASE WHEN PaymentType = 'Kredi Kartı' OR PaymentType = 'Kart' THEN GrandTotal ELSE 0 END), 0) AS TotalCreditCard,
+                        COALESCE(SUM(CASE WHEN CashAmount > 0 THEN CashAmount WHEN PaymentType = 'Nakit' THEN GrandTotal ELSE 0 END), 0) AS TotalCash,
+                        COALESCE(SUM(CASE WHEN CardAmount > 0 THEN CardAmount WHEN PaymentType = 'Kredi Kartı' OR PaymentType = 'Kart' THEN GrandTotal ELSE 0 END), 0) AS TotalCreditCard,
                         COALESCE(SUM(CASE WHEN PaymentType = 'Veresiye' THEN GrandTotal ELSE 0 END), 0) AS TotalOnAccount,
                         COALESCE(SUM(CostTotal), 0) AS TotalCost
                     FROM Sales 
@@ -176,8 +176,8 @@ public class ClosureService
         {
             summary.SalesCount = localSales.Count;
             summary.TotalRevenue = localSales.Sum(s => s.GrandTotal);
-            summary.TotalCash = localSales.Where(s => s.PaymentType == "Nakit").Sum(s => s.GrandTotal);
-            summary.TotalCreditCard = localSales.Where(s => s.PaymentType == "Kredi Kartı" || s.PaymentType == "Kart").Sum(s => s.GrandTotal);
+            summary.TotalCash = localSales.Sum(s => s.CashAmount > 0 ? s.CashAmount : (s.PaymentType == "Nakit" ? s.GrandTotal : 0m));
+            summary.TotalCreditCard = localSales.Sum(s => s.CardAmount > 0 ? s.CardAmount : (s.PaymentType == "Kredi Kartı" || s.PaymentType == "Kart" ? s.GrandTotal : 0m));
             summary.TotalOnAccount = localSales.Where(s => s.PaymentType == "Veresiye").Sum(s => s.GrandTotal);
             summary.TotalCost = localSales.Sum(s => s.CostTotal);
             summary.TotalProfit = summary.TotalRevenue - summary.TotalCost;

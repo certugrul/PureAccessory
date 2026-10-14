@@ -443,7 +443,8 @@ public class BankService
     public async Task<List<PosTransaction>> GetPosTransactionsAsync(
         string? status = null,
         DateTime? startDate = null,
-        DateTime? endDate = null)
+        DateTime? endDate = null,
+        string? dateFilterMode = null)
     {
         await EnsureInitializedAsync();
 
@@ -459,9 +460,37 @@ public class BankService
                 {
                     query = query.Where(p => p.Status != "Ödendi" && p.ExpectedDate.Date < DateTime.Today);
                 }
+                else if (status == "Vadesi Bugün")
+                {
+                    query = query.Where(p => p.Status != "Ödendi" && p.ExpectedDate.Date == DateTime.Today);
+                }
                 else
                 {
                     query = query.Where(p => p.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateFilterMode))
+            {
+                if (dateFilterMode == "DueToday")
+                {
+                    query = query.Where(p => p.ExpectedDate.Date == DateTime.Today);
+                }
+                else if (dateFilterMode == "SoldToday")
+                {
+                    query = query.Where(p => p.SaleDate.Date == DateTime.Today);
+                }
+                else if (dateFilterMode == "ThisWeek")
+                {
+                    var today = DateTime.Today;
+                    var startOfWeek = today.AddDays(-((int)today.DayOfWeek == 0 ? 6 : (int)today.DayOfWeek - 1));
+                    var endOfWeek = startOfWeek.AddDays(6);
+                    query = query.Where(p => p.SaleDate.Date >= startOfWeek && p.SaleDate.Date <= endOfWeek);
+                }
+                else if (dateFilterMode == "ThisMonth")
+                {
+                    var today = DateTime.Today;
+                    query = query.Where(p => p.SaleDate.Year == today.Year && p.SaleDate.Month == today.Month);
                 }
             }
 
@@ -1058,6 +1087,18 @@ public class BankService
         decimal pendingNetPos = pendingPos.Sum(p => p.NetAmount);
         decimal pendingCommission = pendingPos.Sum(p => p.CommissionAmount);
 
+        // Bugün yapılan POS Satışları
+        var todaySoldPos = posList.Where(p => p.SaleDate.Date == date).ToList();
+        decimal todayPosSalesGross = todaySoldPos.Sum(p => p.GrossAmount);
+        decimal todayPosSalesCommission = todaySoldPos.Sum(p => p.CommissionAmount);
+        decimal todayPosSalesNet = todaySoldPos.Sum(p => p.NetAmount);
+
+        // Bugün vadesi dolan (tahsil edilmesi beklenen) POS alacakları
+        var todayDuePos = pendingPos.Where(p => p.ExpectedDate.Date == date).ToList();
+        decimal todayDueGross = todayDuePos.Sum(p => p.GrossAmount);
+        decimal todayDueNet = todayDuePos.Sum(p => p.NetAmount);
+        decimal todayDueComm = todayDuePos.Sum(p => p.CommissionAmount);
+
         decimal todayPosInflow = todayTxs.Where(t => t.TransactionType == "POS Tahsilatı").Sum(t => t.Inflow);
         decimal todayExtInflow = todayTxs.Where(t => t.TransactionType.Contains("Dışarıdan") || t.TransactionType.Contains("Sermaye") || t.TransactionType == "Para Girişi").Sum(t => t.Inflow);
 
@@ -1071,6 +1112,14 @@ public class BankService
             PendingGrossPos = pendingGrossPos,
             PendingNetPos = pendingNetPos,
             PendingPosCommission = pendingCommission,
+            TodayPosSalesGross = todayPosSalesGross,
+            TodayPosSalesNet = todayPosSalesNet,
+            TodayPosSalesCommission = todayPosSalesCommission,
+            TodayPosSalesCount = todaySoldPos.Count,
+            TodayDuePosGross = todayDueGross,
+            TodayDuePosNet = todayDueNet,
+            TodayDuePosCommission = todayDueComm,
+            TodayDuePosCount = todayDuePos.Count,
             TodayPosInflow = todayPosInflow,
             TodayExternalInflow = todayExtInflow,
             OpeningTotalBalance = openingBalance
@@ -1179,6 +1228,56 @@ public class BankService
     {
         try
         {
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                var sql = @"
+                    SELECT s.Id, s.SaleDate, s.PaymentType, s.GrandTotal, s.CardAmount 
+                    FROM Sales s
+                    LEFT JOIN PosTransactions p ON s.Id = p.SaleId
+                    WHERE (s.PaymentType = 'Kredi Kartı' OR s.CardAmount > 0)
+                      AND p.Id IS NULL
+                    ORDER BY s.Id ASC;";
+                await using var cmd = conn.CreateCommand(sql);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                var missingFromDb = new List<(long Id, DateTime Date, decimal Gross)>();
+                while (await reader.ReadAsync())
+                {
+                    long saleId = Convert.ToInt64(reader[0]);
+                    DateTime saleDate = Convert.ToDateTime(reader[1]);
+                    decimal grandTotal = Convert.ToDecimal(reader[3]);
+                    decimal cardAmt = Convert.ToDecimal(reader[4]);
+                    decimal gross = cardAmt > 0 ? cardAmt : grandTotal;
+                    if (gross > 0)
+                    {
+                        missingFromDb.Add((saleId, saleDate, gross));
+                    }
+                }
+                await reader.CloseAsync();
+
+                if (missingFromDb.Count > 0)
+                {
+                    var accounts = await LoadAccountsInternalAsync();
+                    var targetAccount = accounts.FirstOrDefault(a => a.BankName.Contains("Ziraat", StringComparison.OrdinalIgnoreCase))
+                                      ?? accounts.FirstOrDefault(a => a.IsDefault)
+                                      ?? accounts.FirstOrDefault(a => a.AccountName.Contains("POS", StringComparison.OrdinalIgnoreCase))
+                                      ?? accounts.FirstOrDefault();
+                    int targetAccountId = targetAccount?.Id ?? 1;
+
+                    foreach (var item in missingFromDb)
+                    {
+                        await RecordPosSaleAsync(item.Id, item.Date, item.Gross, targetAccountId);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
             var posList = new List<PosTransaction>();
             if (File.Exists(PosFile))
             {
@@ -1194,20 +1293,21 @@ public class BankService
                 var sales = JsonSerializer.Deserialize<List<Sale>>(salesJson) ?? new List<Sale>();
 
                 bool modified = false;
-                foreach (var s in sales.Where(x => x.PaymentType == "Kredi Kartı"))
+                foreach (var s in sales.Where(x => x.PaymentType == "Kredi Kartı" || x.CardAmount > 0))
                 {
                     if (!posList.Any(p => p.SaleId == s.Id))
                     {
+                        decimal gross = s.CardAmount > 0 ? s.CardAmount : s.GrandTotal;
                         decimal rate = 3.99m;
-                        decimal comm = Math.Round(s.GrandTotal * rate / 100m, 2);
-                        decimal net = s.GrandTotal - comm;
+                        decimal comm = Math.Round(gross * rate / 100m, 2);
+                        decimal net = gross - comm;
 
                         posList.Add(new PosTransaction
                         {
                             Id = posList.Count > 0 ? posList.Max(p => p.Id) + 1 : 1,
                             SaleId = s.Id,
                             SaleDate = s.SaleDate,
-                            GrossAmount = s.GrandTotal,
+                            GrossAmount = gross,
                             CommissionRate = rate,
                             CommissionAmount = comm,
                             NetAmount = net,
@@ -1525,6 +1625,16 @@ public class BankService
                 }
                 if (list.Count > 0)
                 {
+                    try
+                    {
+                        EnsureStorageDirectory();
+                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
+                        _ = Task.Run(async () =>
+                        {
+                            try { await File.WriteAllTextAsync(PosFile, json); } catch { }
+                        });
+                    }
+                    catch { }
                     return list;
                 }
             }

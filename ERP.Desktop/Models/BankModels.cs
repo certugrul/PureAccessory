@@ -101,11 +101,15 @@ public class PosTransaction
     public string FormattedExpectedDate => ExpectedDate.ToString("dd.MM.yyyy");
     public string FormattedActualDate => ActualPaymentDate.HasValue ? ActualPaymentDate.Value.ToString("dd.MM.yyyy HH:mm") : "-";
 
+    public bool IsDueToday => ExpectedDate.Date == DateTime.Today && Status != "Ödendi";
+    public bool IsSoldToday => SaleDate.Date == DateTime.Today;
+
     public string StatusBadge
     {
         get
         {
             if (Status == "Ödendi") return "🟢 Ödendi";
+            if (ExpectedDate.Date == DateTime.Today) return "⚡ Vadesi Bugün";
             if (ExpectedDate.Date < DateTime.Today) return "🔴 Gecikti";
             return "🟡 Bekliyor";
         }
@@ -129,6 +133,17 @@ public class BankSummary
     public decimal TodayExternalInflow { get; set; }
     public decimal OpeningTotalBalance { get; set; }
 
+    // Günlük POS Satış & Vade Takip Metrikleri
+    public decimal TodayPosSalesGross { get; set; }
+    public decimal TodayPosSalesNet { get; set; }
+    public decimal TodayPosSalesCommission { get; set; }
+    public int TodayPosSalesCount { get; set; }
+
+    public decimal TodayDuePosGross { get; set; }
+    public decimal TodayDuePosNet { get; set; }
+    public decimal TodayDuePosCommission { get; set; }
+    public int TodayDuePosCount { get; set; }
+
     public string FormattedTotalBankBalance => $"₺{TotalBankBalance:N2}";
     public string FormattedTodayInflow => $"₺{TodayInflow:N2}";
     public string FormattedTodayOutflow => $"₺{TodayOutflow:N2}";
@@ -138,4 +153,11 @@ public class BankSummary
     public string FormattedTodayPosInflow => $"₺{TodayPosInflow:N2}";
     public string FormattedTodayExternalInflow => $"₺{TodayExternalInflow:N2}";
     public string FormattedOpeningTotalBalance => $"₺{OpeningTotalBalance:N2}";
+
+    public string FormattedTodayPosSalesGross => $"₺{TodayPosSalesGross:N2}";
+    public string FormattedTodayPosSalesNet => $"₺{TodayPosSalesNet:N2}";
+    public string FormattedTodayPosSalesCommission => $"₺{TodayPosSalesCommission:N2}";
+    public string FormattedTodayDuePosGross => $"₺{TodayDuePosGross:N2}";
+    public string FormattedTodayDuePosNet => $"₺{TodayDuePosNet:N2}";
 }
+

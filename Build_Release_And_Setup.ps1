@@ -18,9 +18,16 @@ Write-Host "==========================================================" -Foregro
 Write-Host ""
 
 # 1. Klasörleri hazırla
+Get-Process | Where-Object { 
+    try { $_.Path -and $_.Path.StartsWith($publishDir, [System.StringComparison]::OrdinalIgnoreCase) } 
+    catch { $false } 
+} | Stop-Process -Force -ErrorAction SilentlyContinue
+
 if (Test-Path $publishDir) {
     Write-Host "Eski publish klasörü temizleniyor..." -ForegroundColor Gray
-    Remove-Item -Recurse -Force $publishDir
+    try {
+        Remove-Item -Recurse -Force $publishDir -ErrorAction SilentlyContinue
+    } catch {}
 }
 if (-not (Test-Path $releasesDir)) {
     New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null

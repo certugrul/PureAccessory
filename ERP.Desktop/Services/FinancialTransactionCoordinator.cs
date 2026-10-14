@@ -1043,7 +1043,8 @@ public class FinancialTransactionCoordinator
         }
 
         // 2. Kredi Kartı Tutarı -> PosTransactions
-        if (sale.CardAmount > 0)
+        decimal cardAmt = sale.CardAmount > 0 ? sale.CardAmount : (sale.PaymentType == "Kredi Kartı" || sale.PaymentType == "Kart" ? sale.GrandTotal : 0m);
+        if (cardAmt > 0)
         {
             var checkPosSql = "SELECT COUNT(*) FROM PosTransactions WHERE SaleId = @saleId";
             using var checkPosCmd = conn.CreateCommand(checkPosSql);
@@ -1053,7 +1054,7 @@ public class FinancialTransactionCoordinator
             if (posExists == 0)
             {
                 var bankService = new BankService(_dbService);
-                await bankService.RecordPosSaleAsync(sale.Id, sale.SaleDate, sale.CardAmount);
+                await bankService.RecordPosSaleAsync(sale.Id, sale.SaleDate, cardAmt);
             }
         }
 
@@ -1063,9 +1064,9 @@ public class FinancialTransactionCoordinator
         {
             FinancialSyncBus.Notify(FinancialChangeType.CashSales, newCash);
         }
-        if (sale.CardAmount > 0)
+        if (cardAmt > 0)
         {
-            FinancialSyncBus.Notify(FinancialChangeType.PosSales, sale.CardAmount);
+            FinancialSyncBus.Notify(FinancialChangeType.PosSales, cardAmt);
         }
     }
 
