@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ERP.Desktop</RootNamespace>
     <ApplicationIcon>Assets\AppLogo.ico</ApplicationIcon>
-    <Version>1.0.39</Version>
-    <AssemblyVersion>1.0.39.0</AssemblyVersion>
-    <FileVersion>1.0.39.0</FileVersion>
+    <Version>1.0.40</Version>
+    <AssemblyVersion>1.0.40.0</AssemblyVersion>
+    <FileVersion>1.0.40.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
@@ -22,7 +22,7 @@
   <ItemGroup>
     <Resource Include="Assets\**\*" />
     <Content Include="Assets\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="Tools\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

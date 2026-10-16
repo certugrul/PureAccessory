@@ -36,6 +36,19 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        EventManager.RegisterClassHandler(typeof(Window), Window.LoadedEvent, new RoutedEventHandler((sender, _) =>
+        {
+            if (sender is Window w && w.Icon == null)
+            {
+                try
+                {
+                    w.Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
+                        new Uri("pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.ico", UriKind.Absolute));
+                }
+                catch { }
+            }
+        }));
+
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         if (e.Args.Contains("--import-historical"))

@@ -65,6 +65,20 @@ public partial class MainWindow : Window
     {
         try
         {
+            var uri = new Uri("pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png", UriKind.Absolute);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            bmp.UriSource = uri;
+            bmp.EndInit();
+            ImgLogo.Source = bmp;
+            return;
+        }
+        catch { }
+
+        try
+        {
             var localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppLogo.png");
             if (File.Exists(localPath))
             {
@@ -75,21 +89,7 @@ public partial class MainWindow : Window
                 bmp.UriSource = new Uri(localPath, UriKind.Absolute);
                 bmp.EndInit();
                 ImgLogo.Source = bmp;
-                return;
             }
-        }
-        catch { }
-
-        try
-        {
-            var uri = new Uri("pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png", UriKind.Absolute);
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            bmp.UriSource = uri;
-            bmp.EndInit();
-            ImgLogo.Source = bmp;
         }
         catch { }
     }

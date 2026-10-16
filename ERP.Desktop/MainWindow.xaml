@@ -1,4 +1,4 @@
-<Window x:Class="ERP.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pure Accessory Otomasyon" Icon="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" Width="1280" Height="800" WindowStartupLocation="CenterScreen" Background="{DynamicResource PageBrush}">
+<Window x:Class="ERP.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pure Accessory Otomasyon" Icon="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.ico" Width="1280" Height="800" WindowStartupLocation="CenterScreen" Background="{DynamicResource PageBrush}">
   <Grid>
     <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="230"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}">
@@ -13,13 +13,23 @@
             <!-- Yuvarlak Avatar Logo (Genişletilmiş Çember) -->
             <Border Margin="0,18,0,8" HorizontalAlignment="Center">
               <Grid Width="96" Height="96">
-                <Ellipse Fill="#948428" Stroke="#EAB308" StrokeThickness="2.5"/>
+                <Ellipse Fill="#948428">
+                  <Ellipse.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="1" Opacity="0.4" Color="#EAB308"/>
+                  </Ellipse.Effect>
+                </Ellipse>
                 <Image x:Name="ImgLogo" 
                        Source="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" 
-                       Width="76" Height="76" 
-                       Stretch="Uniform" 
+                       Width="92" Height="92" 
+                       Stretch="UniformToFill" 
                        HorizontalAlignment="Center" 
-                       VerticalAlignment="Center"/>
+                       VerticalAlignment="Center"
+                       RenderOptions.BitmapScalingMode="HighQuality">
+                  <Image.Clip>
+                    <EllipseGeometry Center="46,46" RadiusX="46" RadiusY="46"/>
+                  </Image.Clip>
+                </Image>
+                <Ellipse Stroke="#EAB308" StrokeThickness="2.5" Fill="Transparent" IsHitTestVisible="False"/>
               </Grid>
             </Border>
 
