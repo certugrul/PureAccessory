@@ -13,7 +13,7 @@
             <!-- Yuvarlak Avatar Logo (Genişletilmiş Çember) -->
             <Border Margin="0,18,0,8" HorizontalAlignment="Center">
               <Grid Width="96" Height="96">
-                <Ellipse Fill="White" Stroke="#3B82F6" StrokeThickness="2.5"/>
+                <Ellipse Fill="#948428" Stroke="#EAB308" StrokeThickness="2.5"/>
                 <Image x:Name="ImgLogo" 
                        Source="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" 
                        Width="76" Height="76" 

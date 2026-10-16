@@ -41,9 +41,15 @@
 
             <!-- Logo & Başlık -->
             <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,14">
-                <Border Width="80" Height="80" CornerRadius="40" Background="White" BorderBrush="#3B82F6" BorderThickness="2.5" Margin="0,0,0,10" HorizontalAlignment="Center">
+                <Border Width="84" Height="84" CornerRadius="42" Background="#948428" BorderBrush="#EAB308" BorderThickness="2.5" Margin="0,0,0,10" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="18" ShadowDepth="1" Opacity="0.45" Color="#EAB308"/>
+                    </Border.Effect>
+                    <Border.Clip>
+                        <EllipseGeometry Center="42,42" RadiusX="39.5" RadiusY="39.5"/>
+                    </Border.Clip>
                     <Image Source="pack://application:,,,/ERP.Desktop;component/Assets/AppLogo.png" 
-                           Width="68" Height="68" 
+                           Width="72" Height="72" 
                            Stretch="Uniform" 
                            HorizontalAlignment="Center" 
                            VerticalAlignment="Center"
