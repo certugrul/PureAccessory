@@ -42,13 +42,13 @@ public class AppSettings
     public string? AutoSyncWebhookUrl { get; set; }
 
     // Gün Sonu Z Raporu Otomatik E-Posta Ayarları
-    public bool AutoEmailZReportOnClosure { get; set; } = false;
-    public string? EmailRecipient { get; set; }
-    public string? EmailSender { get; set; }
+    public bool AutoEmailZReportOnClosure { get; set; } = true;
+    public string? EmailRecipient { get; set; } = "certugrulx@gmail.com";
+    public string? EmailSender { get; set; } = "certugrulx@gmail.com";
     public string? EmailSenderName { get; set; } = "Pure Accessory ERP";
     public string? EmailSmtpHost { get; set; } = "smtp.gmail.com";
     public int EmailSmtpPort { get; set; } = 587;
     public bool EmailEnableSsl { get; set; } = true;
-    public string? EmailSmtpUser { get; set; }
+    public string? EmailSmtpUser { get; set; } = "certugrulx@gmail.com";
     public string? EmailSmtpPasswordEncrypted { get; set; }
 }

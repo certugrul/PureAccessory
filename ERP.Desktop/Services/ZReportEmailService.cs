@@ -49,13 +49,13 @@ public class ZReportEmailService
                 return true;
             }
 
-            string recipient = settings.EmailRecipient?.Trim() ?? "";
+            string recipient = string.IsNullOrWhiteSpace(settings.EmailRecipient) ? "certugrulx@gmail.com" : settings.EmailRecipient.Trim();
             string sender = string.IsNullOrWhiteSpace(settings.EmailSender) ? recipient : settings.EmailSender.Trim();
-            string senderName = string.IsNullOrWhiteSpace(settings.EmailSenderName) ? "ERP Gün Sonu Sistemi" : settings.EmailSenderName.Trim();
-            string host = settings.EmailSmtpHost?.Trim() ?? "";
+            string senderName = string.IsNullOrWhiteSpace(settings.EmailSenderName) ? "Pure Accessory ERP" : settings.EmailSenderName.Trim();
+            string host = string.IsNullOrWhiteSpace(settings.EmailSmtpHost) ? "smtp.gmail.com" : settings.EmailSmtpHost.Trim();
             int port = settings.EmailSmtpPort > 0 ? settings.EmailSmtpPort : 587;
             bool enableSsl = settings.EmailEnableSsl;
-            string username = settings.EmailSmtpUser?.Trim() ?? "";
+            string username = string.IsNullOrWhiteSpace(settings.EmailSmtpUser) ? "certugrulx@gmail.com" : settings.EmailSmtpUser.Trim();
             string password = SecurityHelper.DecryptString(settings.EmailSmtpPasswordEncrypted ?? "");
 
             string subject = $"Gün Sonu Z Raporu - Pure Accessory - {reportDate:dd.MM.yyyy}";

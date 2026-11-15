@@ -39,6 +39,16 @@ public static class ThemeService
         catch { }
 
         _currentSettings ??= new AppSettings();
+        if (string.IsNullOrWhiteSpace(_currentSettings.EmailRecipient))
+        {
+            _currentSettings.EmailRecipient = "certugrulx@gmail.com";
+            _currentSettings.EmailSender = "certugrulx@gmail.com";
+            _currentSettings.EmailSmtpUser = "certugrulx@gmail.com";
+            _currentSettings.EmailSmtpHost = "smtp.gmail.com";
+            _currentSettings.EmailSmtpPort = 587;
+            _currentSettings.EmailEnableSsl = true;
+            _currentSettings.AutoEmailZReportOnClosure = true;
+        }
         ApplyTheme(_currentSettings);
     }
 

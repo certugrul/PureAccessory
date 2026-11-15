@@ -48,12 +48,12 @@ public partial class SettingsWindow : Window
 
         // E-Posta Yapılandırması
         ChkAutoEmailZReport.IsChecked = settings.AutoEmailZReportOnClosure;
-        TxtEmailRecipient.Text = settings.EmailRecipient ?? "";
+        TxtEmailRecipient.Text = string.IsNullOrWhiteSpace(settings.EmailRecipient) ? "certugrulx@gmail.com" : settings.EmailRecipient;
         TxtEmailSenderName.Text = string.IsNullOrWhiteSpace(settings.EmailSenderName) ? "Pure Accessory ERP" : settings.EmailSenderName;
-        TxtEmailSmtpHost.Text = settings.EmailSmtpHost ?? "";
+        TxtEmailSmtpHost.Text = string.IsNullOrWhiteSpace(settings.EmailSmtpHost) ? "smtp.gmail.com" : settings.EmailSmtpHost;
         TxtEmailSmtpPort.Text = settings.EmailSmtpPort > 0 ? settings.EmailSmtpPort.ToString() : "587";
         ChkEmailEnableSsl.IsChecked = settings.EmailEnableSsl;
-        TxtEmailSmtpUser.Text = settings.EmailSmtpUser ?? "";
+        TxtEmailSmtpUser.Text = string.IsNullOrWhiteSpace(settings.EmailSmtpUser) ? "certugrulx@gmail.com" : settings.EmailSmtpUser;
         if (!string.IsNullOrWhiteSpace(settings.EmailSmtpPasswordEncrypted))
         {
             try
