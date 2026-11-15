@@ -543,9 +543,33 @@ public class SalesService
     {
         try
         {
-            var allSales = await GetAllSalesAsync();
-            var targetSale = allSales.FirstOrDefault(s => s.Id == saleId);
-            if (targetSale == null)
+            var itemsToRefund = new List<(int ProductId, decimal Quantity)>();
+            bool saleFound = false;
+
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                await using (var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM Sales WHERE Id = @SaleId"))
+                {
+                    checkCmd.AddParam("SaleId", saleId);
+                    saleFound = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+                }
+
+                if (saleFound)
+                {
+                    await using var itemCmd = conn.CreateCommand("SELECT ProductId, Quantity FROM SaleItems WHERE SaleId = @SaleId");
+                    itemCmd.AddParam("SaleId", saleId);
+                    await using var reader = await itemCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        itemsToRefund.Add((reader.GetInt32(0), reader.GetDecimal(1)));
+                    }
+                }
+            }
+
+            if (!saleFound)
             {
                 throw new InvalidOperationException($"#{saleId} numaralı satış/fiş kaydı bulunamadı.");
             }
@@ -553,7 +577,7 @@ public class SalesService
             var defaultWh = await _warehouseService.GetDefaultWarehouseAsync();
 
             // 1. Stokları depoya geri iade et
-            foreach (var item in targetSale.Items)
+            foreach (var item in itemsToRefund)
             {
                 try
                 {

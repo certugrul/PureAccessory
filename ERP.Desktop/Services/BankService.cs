@@ -118,24 +118,38 @@ public class BankService
                 // Açılış bakiyesi hareketi oluştur
                 if (account.OpeningBalance > 0)
                 {
-                    var transactions = await LoadTransactionsInternalAsync();
-                    transactions.Insert(0, new BankTransaction
+                    try
                     {
-                        Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
-                        CreatedAt = DateTime.Now,
-                        BankAccountId = account.Id,
-                        BankAccountName = $"{account.BankName} - {account.AccountName}",
-                        TransactionType = "Açılış Bakiyesi",
-                        Direction = "Giriş",
-                        Inflow = account.OpeningBalance,
-                        Outflow = 0,
-                        BalanceAfter = account.OpeningBalance,
-                        Description = "Hesap Açılış Bakiyesi",
-                        PaymentMethod = "Diğer",
-                        ReferenceType = "MANUEL",
-                        User = "Yönetici"
-                    });
-                    await SaveTransactionsInternalAsync(transactions);
+                        if (await _dbService.TestConnectionAsync())
+                        {
+                            await using var conn = _dbService.CreateConnection();
+                            await conn.OpenAsync();
+                            long nextTxId = 1;
+                            await using (var maxCmd = conn.CreateCommand("SELECT COALESCE(MAX(Id), 0) + 1 FROM BankTransactions"))
+                            {
+                                var nextObj = await maxCmd.ExecuteScalarAsync();
+                                if (nextObj != null && nextObj != DBNull.Value)
+                                    nextTxId = Convert.ToInt64(nextObj);
+                            }
+
+                            var insertSql = @"
+                                INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
+                                VALUES (@id, @created, @baid, @baname, @type, @dir, @inflow, 0, @bal, @desc, @pm, NULL, 'MANUEL', 'Yönetici');";
+                            await using var cmd = conn.CreateCommand(insertSql);
+                            cmd.AddParam("id", nextTxId);
+                            cmd.AddParam("created", DateTime.Now);
+                            cmd.AddParam("baid", account.Id);
+                            cmd.AddParam("baname", $"{account.BankName} - {account.AccountName}");
+                            cmd.AddParam("type", "Açılış Bakiyesi");
+                            cmd.AddParam("dir", "Giriş");
+                            cmd.AddParam("inflow", account.OpeningBalance);
+                            cmd.AddParam("bal", account.OpeningBalance);
+                            cmd.AddParam("desc", "Hesap Açılış Bakiyesi");
+                            cmd.AddParam("pm", "Diğer");
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+                    }
+                    catch { }
                 }
             }
             else
@@ -208,7 +222,7 @@ public class BankService
         await _semaphore.WaitAsync();
         try
         {
-            var list = await LoadTransactionsInternalAsync();
+            var list = await LoadTransactionsInternalAsync(startDate, endDate, accountId);
             var query = list.AsQueryable();
 
             if (accountId.HasValue && accountId.Value > 0)
@@ -299,10 +313,9 @@ public class BankService
                 account.CurrentBalance -= amount;
             }
 
-            var transactions = await LoadTransactionsInternalAsync();
             var tx = new BankTransaction
             {
-                Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
+                Id = 1,
                 CreatedAt = customDate ?? DateTime.Now,
                 BankAccountId = account.Id,
                 BankAccountName = $"{account.BankName} - {account.AccountName}",
@@ -318,15 +331,20 @@ public class BankService
                 User = user
             };
 
-            transactions.Insert(0, tx);
-
-            // Veritabanına doğrudan tekil ekleme ve bakiye güncelleme (500+ kaydı tek tek turlamak yerine tekil ekler)
+            // Veritabanına doğrudan tekil ekleme ve bakiye güncelleme
             try
             {
                 if (await _dbService.TestConnectionAsync())
                 {
                     await using var conn = _dbService.CreateConnection();
                     await conn.OpenAsync();
+
+                    await using (var maxCmd = conn.CreateCommand("SELECT COALESCE(MAX(Id), 0) + 1 FROM BankTransactions"))
+                    {
+                        var nextId = await maxCmd.ExecuteScalarAsync();
+                        if (nextId != null && nextId != DBNull.Value)
+                            tx.Id = Convert.ToInt64(nextId);
+                    }
 
                     var insertSql = @"
                         INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
@@ -359,17 +377,6 @@ public class BankService
             {
                 System.Diagnostics.Debug.WriteLine($"[BankService] AddTransactionAsync SQL hatası: {ex.Message}");
             }
-
-            try
-            {
-                EnsureStorageDirectory();
-                var jsonAcc = JsonSerializer.Serialize(accounts, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(AccountsFile, jsonAcc);
-
-                var jsonTx = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(TransactionsFile, jsonTx);
-            }
-            catch { }
 
             return tx;
         }
@@ -452,7 +459,7 @@ public class BankService
         await _semaphore.WaitAsync();
         try
         {
-            var list = await LoadPosTransactionsInternalAsync();
+            var list = await LoadPosTransactionsInternalAsync(startDate, endDate);
             var query = list.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(status) && status != "Tümü")
@@ -547,21 +554,9 @@ public class BankService
             decimal netAmount = grossAmount - commissionAmount;
             DateTime expectedDate = saleDate.AddDays(valourDays);
 
-            var posList = await LoadPosTransactionsInternalAsync();
-
-            // Mükerrer POS kaydı engeli
-            var existing = posList.FirstOrDefault(p =>
-                (p.SaleId.HasValue && p.SaleId.Value == saleId) ||
-                (p.GrossAmount == grossAmount && Math.Abs((p.SaleDate - saleDate).TotalSeconds) < 5 && p.Status == "Bekliyor"));
-
-            if (existing != null)
-            {
-                return existing;
-            }
-
             var posItem = new PosTransaction
             {
-                Id = posList.Count > 0 ? posList.Max(p => p.Id) + 1 : 1,
+                Id = 1,
                 SaleId = saleId,
                 SaleDate = saleDate,
                 GrossAmount = grossAmount,
@@ -574,8 +569,6 @@ public class BankService
                 Status = "Bekliyor",
                 Description = $"Satış/Fiş #{saleId} Kredi Kartı POS Tahsilatı"
             };
-
-            posList.Insert(0, posItem);
 
             // Veritabanına doğrudan tekil atomik ekleme (SQL düzeyinde çift kayıt engelli)
             try
@@ -627,14 +620,6 @@ public class BankService
                         posItem.Id = Convert.ToInt64(scalar);
                     }
                 }
-            }
-            catch { }
-
-            try
-            {
-                EnsureStorageDirectory();
-                var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(PosFile, json);
             }
             catch { }
 
@@ -1131,11 +1116,14 @@ public class BankService
     {
         await EnsureInitializedAsync();
 
-        var accounts = await GetAllAccountsAsync();
-        var transactions = await GetTransactionsAsync();
-        var posList = await GetPosTransactionsAsync();
+        var date = (targetDate ?? DateTime.Today).Date;
+        var accountsTask = GetAllAccountsAsync();
+        var transactionsTask = GetTransactionsAsync(startDate: date, endDate: date);
+        var posListTask = GetPosTransactionsAsync(startDate: date, endDate: date);
 
-        return CalculateSummary(accounts, transactions, posList, targetDate);
+        await Task.WhenAll(accountsTask, transactionsTask, posListTask);
+
+        return CalculateSummary(await accountsTask, await transactionsTask, await posListTask, date);
     }
 
     #endregion
@@ -1403,7 +1391,10 @@ public class BankService
         await File.WriteAllTextAsync(AccountsFile, json);
     }
 
-    private async Task<List<BankTransaction>> LoadTransactionsInternalAsync()
+    private async Task<List<BankTransaction>> LoadTransactionsInternalAsync(
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        int? accountId = null)
     {
         try
         {
@@ -1412,8 +1403,22 @@ public class BankService
                 var list = new List<BankTransaction>();
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = "SELECT Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, \"User\" FROM BankTransactions ORDER BY CreatedAt DESC";
+
+                var minDate = startDate?.Date ?? new DateTime(DateTime.Today.Year, 1, 1);
+                var maxDate = endDate?.Date.AddDays(1);
+
+                var conditions = new List<string> { "CreatedAt >= @minDate" };
+                if (maxDate.HasValue) conditions.Add("CreatedAt < @maxDate");
+                if (accountId.HasValue && accountId.Value > 0) conditions.Add("BankAccountId = @accId");
+
+                var whereSql = "WHERE " + string.Join(" AND ", conditions);
+                var sql = $"SELECT Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, \"User\" FROM BankTransactions {whereSql} ORDER BY CreatedAt DESC";
+
                 await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("minDate", minDate);
+                if (maxDate.HasValue) cmd.AddParam("maxDate", maxDate.Value);
+                if (accountId.HasValue && accountId.Value > 0) cmd.AddParam("accId", accountId.Value);
+
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1435,74 +1440,17 @@ public class BankService
                         User = reader.GetString(13)
                     });
                 }
-                if (list.Count > 0)
-                {
-                    return list;
-                }
+                return list;
             }
         }
         catch { }
 
-        try
-        {
-            if (File.Exists(TransactionsFile))
-            {
-                var json = await File.ReadAllTextAsync(TransactionsFile);
-                return JsonSerializer.Deserialize<List<BankTransaction>>(json) ?? new List<BankTransaction>();
-            }
-        }
-        catch { }
         return new List<BankTransaction>();
     }
 
-    private async Task SaveTransactionsInternalAsync(List<BankTransaction> transactions)
-    {
-        try
-        {
-            if (await _dbService.TestConnectionAsync())
-            {
-                await using var conn = _dbService.CreateConnection();
-                await conn.OpenAsync();
-                foreach (var t in transactions)
-                {
-                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM BankTransactions WHERE Id = @id");
-                    checkCmd.AddParam("id", t.Id);
-                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
-
-                    if (!exists)
-                    {
-                        var insertSql = @"
-                            INSERT INTO BankTransactions (Id, CreatedAt, BankAccountId, BankAccountName, TransactionType, Direction, Inflow, Outflow, BalanceAfter, Description, PaymentMethod, ReferenceId, ReferenceType, ""User"")
-                            VALUES (@id, @created, @baid, @baname, @type, @dir, @inflow, @outflow, @bal, @desc, @pm, @refId, @refType, @user);";
-                        await using var cmd = conn.CreateCommand(insertSql);
-                        cmd.AddParam("id", t.Id);
-                        cmd.AddParam("created", t.CreatedAt);
-                        cmd.AddParam("baid", t.BankAccountId);
-                        cmd.AddParam("baname", t.BankAccountName);
-                        cmd.AddParam("type", t.TransactionType);
-                        cmd.AddParam("dir", t.Direction);
-                        cmd.AddParam("inflow", t.Inflow);
-                        cmd.AddParam("outflow", t.Outflow);
-                        cmd.AddParam("bal", t.BalanceAfter);
-                        cmd.AddParam("desc", t.Description);
-                        cmd.AddParam("pm", t.PaymentMethod);
-                        cmd.AddParam("refId", t.ReferenceId);
-                        cmd.AddParam("refType", t.ReferenceType);
-                        cmd.AddParam("user", t.User);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            }
-        }
-        catch { }
-
-        EnsureStorageDirectory();
-        var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(TransactionsFile, json);
-    }
-
-
-    private async Task<List<PosTransaction>> LoadPosTransactionsInternalAsync()
+    private async Task<List<PosTransaction>> LoadPosTransactionsInternalAsync(
+        DateTime? startDate = null,
+        DateTime? endDate = null)
     {
         try
         {
@@ -1511,8 +1459,25 @@ public class BankService
                 var list = new List<PosTransaction>();
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = "SELECT Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description FROM PosTransactions ORDER BY SaleDate DESC";
+
+                var minDate = startDate?.Date ?? new DateTime(DateTime.Today.Year, 1, 1);
+                var maxDate = endDate?.Date.AddDays(1);
+
+                string whereSql;
+                if (startDate.HasValue && maxDate.HasValue)
+                {
+                    whereSql = "WHERE (Status != 'Ödendi' OR (SaleDate >= @minDate AND SaleDate < @maxDate))";
+                }
+                else
+                {
+                    whereSql = "WHERE (Status != 'Ödendi' OR SaleDate >= @minDate)";
+                }
+
+                var sql = $"SELECT Id, SaleId, SaleDate, GrossAmount, CommissionRate, CommissionAmount, NetAmount, ExpectedDate, ActualPaymentDate, ActualPaidAmount, BankAccountId, BankAccountName, Status, Description FROM PosTransactions {whereSql} ORDER BY SaleDate DESC";
                 await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("minDate", minDate);
+                if (startDate.HasValue && maxDate.HasValue) cmd.AddParam("maxDate", maxDate.Value);
+
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -1533,10 +1498,6 @@ public class BankService
                         Status = reader.GetString(12),
                         Description = reader.IsDBNull(13) ? "" : reader.GetString(13)
                     });
-                }
-                if (list.Count > 0)
-                {
-                    return list;
                 }
                 return list;
             }

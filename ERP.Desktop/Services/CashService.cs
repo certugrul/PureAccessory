@@ -1,6 +1,4 @@
-﻿using System.IO;
-using System.Text.Json;
-using ERP.Desktop.Models;
+﻿using ERP.Desktop.Models;
 
 namespace ERP.Desktop.Services;
 
@@ -8,10 +6,6 @@ public class CashService
 {
     private readonly DatabaseService _dbService;
     private readonly SalesService _salesService;
-    private static readonly string StorageDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-    private static readonly string SessionsFile = Path.Combine(StorageDirectory, "cash_sessions.json");
-    private static readonly string TransactionsFile = Path.Combine(StorageDirectory, "cash_transactions.json");
-
     private readonly FinancialTransactionCoordinator _coordinator;
 
     public CashService(DatabaseService? dbService = null, SalesService? salesService = null, FinancialTransactionCoordinator? coordinator = null)
@@ -19,35 +13,57 @@ public class CashService
         _dbService = dbService ?? new DatabaseService();
         _salesService = salesService ?? new SalesService(_dbService);
         _coordinator = coordinator ?? new FinancialTransactionCoordinator(_dbService);
-        EnsureStorageDirectory();
-    }
-
-    private static void EnsureStorageDirectory()
-    {
-        try
-        {
-            if (!Directory.Exists(StorageDirectory))
-            {
-                Directory.CreateDirectory(StorageDirectory);
-            }
-        }
-        catch { }
     }
 
     public async Task<CashSession?> GetTodaySessionAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
-        var sessions = await LoadSessionsAsync();
-        
-        // 1. Önce tam tarih eşleşmesi olan açık oturumu ara
-        var session = sessions.FirstOrDefault(s => s.SessionDate.Date == date && s.Status == "Açık");
-        if (session != null) return session;
-
-        // 2. Eğer targetDate belirtilmemişse (yani günün aktif kasası soruluyorsa) ve kapatılmamış açık oturum varsa onu dön
-        if (targetDate == null)
+        try
         {
-            var active = sessions.FirstOrDefault(s => s.Status == "Açık");
-            if (active != null) return active;
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                string sql;
+                if (targetDate == null)
+                {
+                    sql = @"SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes
+                            FROM CashSessions
+                            WHERE Status = 'Açık'
+                            ORDER BY CASE WHEN CAST(SessionDate AS DATE) = @date THEN 0 ELSE 1 END, SessionDate DESC, Id DESC
+                            LIMIT 1";
+                }
+                else
+                {
+                    sql = @"SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes
+                            FROM CashSessions
+                            WHERE CAST(SessionDate AS DATE) = @date AND Status = 'Açık'
+                            ORDER BY Id DESC
+                            LIMIT 1";
+                }
+
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("date", date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new CashSession
+                    {
+                        Id = reader.GetInt64(0),
+                        SessionDate = reader.GetDateTime(1),
+                        OpenedAt = reader.GetDateTime(2),
+                        OpeningCash = reader.GetDecimal(3),
+                        ClosedAt = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                        Status = reader.GetString(5),
+                        Notes = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CashService] GetTodaySessionAsync hatası: {ex.Message}");
         }
 
         return null;
@@ -55,17 +71,86 @@ public class CashService
 
     public async Task<CashSession?> GetActiveSessionAsync()
     {
-        var sessions = await LoadSessionsAsync();
-        return sessions.FirstOrDefault(s => s.Status == "Açık");
+        try
+        {
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                var sql = @"SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes
+                            FROM CashSessions
+                            WHERE Status = 'Açık'
+                            ORDER BY SessionDate DESC, Id DESC
+                            LIMIT 1";
+                await using var cmd = conn.CreateCommand(sql);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new CashSession
+                    {
+                        Id = reader.GetInt64(0),
+                        SessionDate = reader.GetDateTime(1),
+                        OpenedAt = reader.GetDateTime(2),
+                        OpeningCash = reader.GetDecimal(3),
+                        ClosedAt = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                        Status = reader.GetString(5),
+                        Notes = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CashService] GetActiveSessionAsync hatası: {ex.Message}");
+        }
+
+        return null;
     }
 
     public async Task<CashSession?> GetLatestSessionAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
-        var sessions = await LoadSessionsAsync();
-        return sessions.FirstOrDefault(s => s.SessionDate.Date == date && s.Status == "Açık") 
-               ?? sessions.FirstOrDefault(s => s.Status == "Açık")
-               ?? sessions.FirstOrDefault(s => s.SessionDate.Date == date);
+        try
+        {
+            if (await _dbService.TestConnectionAsync())
+            {
+                await using var conn = _dbService.CreateConnection();
+                await conn.OpenAsync();
+
+                var sql = @"SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes
+                            FROM CashSessions
+                            WHERE CAST(SessionDate AS DATE) = @date OR Status = 'Açık'
+                            ORDER BY CASE 
+                                WHEN CAST(SessionDate AS DATE) = @date AND Status = 'Açık' THEN 0
+                                WHEN Status = 'Açık' THEN 1
+                                ELSE 2
+                            END, SessionDate DESC, Id DESC
+                            LIMIT 1";
+                await using var cmd = conn.CreateCommand(sql);
+                cmd.AddParam("date", date);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    return new CashSession
+                    {
+                        Id = reader.GetInt64(0),
+                        SessionDate = reader.GetDateTime(1),
+                        OpenedAt = reader.GetDateTime(2),
+                        OpeningCash = reader.GetDecimal(3),
+                        ClosedAt = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                        Status = reader.GetString(5),
+                        Notes = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[CashService] GetLatestSessionAsync hatası: {ex.Message}");
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -81,7 +166,7 @@ public class CashService
         try
         {
             var startDate = ThemeService.Current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8);
-            var transactions = await LoadTransactionsAsync();
+            var transactions = await LoadTransactionsAsync(startDate);
             decimal balance = 0;
             foreach (var t in transactions.Where(x => x.CreatedAt.Date >= startDate.Date))
             {
@@ -100,22 +185,39 @@ public class CashService
 
     public async Task<CashSession> OpenCashRegisterAsync(decimal openingCash, string? notes = null)
     {
-        var sessions = await LoadSessionsAsync();
-        var existing = sessions.FirstOrDefault(s => s.SessionDate.Date == DateTime.Today && s.Status == "Açık");
+        var existing = await GetTodaySessionAsync(DateTime.Today);
         CashSession activeSession;
 
         if (existing != null)
         {
             existing.OpeningCash = openingCash;
             existing.Notes = notes;
-            await SaveSessionsAsync(sessions);
             activeSession = existing;
+
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+                    var updateSql = "UPDATE CashSessions SET OpeningCash = @cash, Notes = @notes WHERE Id = @id";
+                    await using var cmd = conn.CreateCommand(updateSql);
+                    cmd.AddParam("cash", openingCash);
+                    cmd.AddParam("notes", notes);
+                    cmd.AddParam("id", existing.Id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CashService] OpenCashRegisterAsync update hatası: {ex.Message}");
+            }
         }
         else
         {
             var newSession = new CashSession
             {
-                Id = sessions.Count > 0 ? sessions.Max(s => s.Id) + 1 : 1,
+                Id = 1,
                 SessionDate = DateTime.Today,
                 OpenedAt = DateTime.Now,
                 OpeningCash = openingCash,
@@ -123,8 +225,37 @@ public class CashService
                 Notes = notes
             };
 
-            sessions.Insert(0, newSession);
-            await SaveSessionsAsync(sessions);
+            try
+            {
+                if (await _dbService.TestConnectionAsync())
+                {
+                    await using var conn = _dbService.CreateConnection();
+                    await conn.OpenAsync();
+
+                    await using (var maxCmd = conn.CreateCommand("SELECT COALESCE(MAX(Id), 0) + 1 FROM CashSessions"))
+                    {
+                        var nextId = await maxCmd.ExecuteScalarAsync();
+                        if (nextId != null && nextId != DBNull.Value)
+                            newSession.Id = Convert.ToInt64(nextId);
+                    }
+
+                    var insertSql = @"INSERT INTO CashSessions (Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes)
+                                      VALUES (@id, @date, @opened, @cash, NULL, @stat, @notes);";
+                    await using var cmd = conn.CreateCommand(insertSql);
+                    cmd.AddParam("id", newSession.Id);
+                    cmd.AddParam("date", newSession.SessionDate.Date);
+                    cmd.AddParam("opened", newSession.OpenedAt);
+                    cmd.AddParam("cash", newSession.OpeningCash);
+                    cmd.AddParam("stat", newSession.Status);
+                    cmd.AddParam("notes", newSession.Notes);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CashService] OpenCashRegisterAsync insert hatası: {ex.Message}");
+            }
+
             activeSession = newSession;
         }
 
@@ -181,12 +312,11 @@ public class CashService
                 return;
             }
 
-            var transactions = await LoadTransactionsAsync();
-            long sid = sessionId ?? (await GetTodaySessionAsync())?.Id ?? 1;
+            long sid = sessionId ?? AppDataCache.TodayCashSession?.Id ?? (await GetTodaySessionAsync())?.Id ?? 1;
 
             var tx = new CashTransaction
             {
-                Id = transactions.Count > 0 ? transactions.Max(t => t.Id) + 1 : 1,
+                Id = 1,
                 SessionId = sid,
                 CreatedAt = DateTime.Now,
                 Type = type,
@@ -196,7 +326,7 @@ public class CashService
                 SourceDocumentId = sourceDocumentId
             };
 
-            // 1. Doğrudan veritabanına tekil sorguyla anında yaz
+            // Doğrudan veritabanına tekil sorguyla anında yaz
             if (await _dbService.TestConnectionAsync())
             {
                 try
@@ -236,16 +366,6 @@ public class CashService
                     System.Diagnostics.Debug.WriteLine($"[CashService] DB Kasa hareketi ekleme hatası: {ex.Message}");
                 }
             }
-
-            // 2. Yerel JSON'a ekle
-            transactions.Insert(0, tx);
-            try
-            {
-                EnsureStorageDirectory();
-                var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(TransactionsFile, json);
-            }
-            catch { }
 
             _lastCashFingerprint = fp;
             _lastCashTime = DateTime.Now;
@@ -384,108 +504,6 @@ public class CashService
         return list.OrderByDescending(t => t.CreatedAt).ToList();
     }
 
-    private async Task<List<CashSession>> LoadSessionsAsync()
-    {
-        try
-        {
-            if (await _dbService.TestConnectionAsync())
-            {
-                var list = new List<CashSession>();
-                await using var conn = _dbService.CreateConnection();
-                await conn.OpenAsync();
-                var sql = "SELECT Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes FROM CashSessions ORDER BY SessionDate DESC, Id DESC";
-                await using var cmd = conn.CreateCommand(sql);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    list.Add(new CashSession
-                    {
-                        Id = reader.GetInt64(0),
-                        SessionDate = reader.GetDateTime(1),
-                        OpenedAt = reader.GetDateTime(2),
-                        OpeningCash = reader.GetDecimal(3),
-                        ClosedAt = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
-                        Status = reader.GetString(5),
-                        Notes = reader.IsDBNull(6) ? null : reader.GetString(6)
-                    });
-                }
-                if (list.Count > 0)
-                {
-                    return list;
-                }
-            }
-        }
-        catch { }
-
-        try
-        {
-            if (File.Exists(SessionsFile))
-            {
-                var json = await File.ReadAllTextAsync(SessionsFile);
-                var list = JsonSerializer.Deserialize<List<CashSession>>(json);
-                if (list != null) return list;
-            }
-        }
-        catch { }
-
-        return new List<CashSession>();
-    }
-
-    private async Task SaveSessionsAsync(List<CashSession> sessions)
-    {
-        try
-        {
-            if (await _dbService.TestConnectionAsync())
-            {
-                await using var conn = _dbService.CreateConnection();
-                await conn.OpenAsync();
-                foreach (var s in sessions)
-                {
-                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CashSessions WHERE Id = @id");
-                    checkCmd.AddParam("id", s.Id);
-                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
-
-                    if (exists)
-                    {
-                        var updateSql = @"UPDATE CashSessions SET SessionDate=@date, OpenedAt=@opened, OpeningCash=@cash, ClosedAt=@closed, Status=@stat, Notes=@notes WHERE Id=@id";
-                        await using var cmd = conn.CreateCommand(updateSql);
-                        cmd.AddParam("id", s.Id);
-                        cmd.AddParam("date", s.SessionDate.Date);
-                        cmd.AddParam("opened", s.OpenedAt);
-                        cmd.AddParam("cash", s.OpeningCash);
-                        cmd.AddParam("closed", s.ClosedAt);
-                        cmd.AddParam("stat", s.Status);
-                        cmd.AddParam("notes", s.Notes);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                    else
-                    {
-                        var insertSql = @"INSERT INTO CashSessions (Id, SessionDate, OpenedAt, OpeningCash, ClosedAt, Status, Notes)
-                                          VALUES (@id, @date, @opened, @cash, @closed, @stat, @notes);";
-                        await using var cmd = conn.CreateCommand(insertSql);
-                        cmd.AddParam("id", s.Id);
-                        cmd.AddParam("date", s.SessionDate.Date);
-                        cmd.AddParam("opened", s.OpenedAt);
-                        cmd.AddParam("cash", s.OpeningCash);
-                        cmd.AddParam("closed", s.ClosedAt);
-                        cmd.AddParam("stat", s.Status);
-                        cmd.AddParam("notes", s.Notes);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            }
-        }
-        catch { }
-
-        try
-        {
-            EnsureStorageDirectory();
-            var json = JsonSerializer.Serialize(sessions, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(SessionsFile, json);
-        }
-        catch { }
-    }
-
     private async Task<List<CashTransaction>> LoadTransactionsAsync(DateTime? startDate = null, DateTime? endDate = null, int? limit = null)
     {
         try
@@ -507,13 +525,14 @@ public class CashService
                 }
                 else
                 {
-                    var lim = limit ?? 500;
-                    sql = $"SELECT TOP {lim} Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions ORDER BY CreatedAt DESC";
+                    var lim = limit ?? 200;
+                    sql = $"SELECT Id, SessionId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId FROM CashTransactions WHERE CreatedAt >= @DefaultStart ORDER BY CreatedAt DESC LIMIT {lim}";
                 }
 
                 await using var cmd = conn.CreateCommand(_dbService.NormalizeSql(sql));
                 if (startDate.HasValue) cmd.AddParam("StartDate", startDate.Value);
                 if (endDate.HasValue) cmd.AddParam("EndDate", endDate.Value);
+                if (!startDate.HasValue) cmd.AddParam("DefaultStart", new DateTime(DateTime.Today.Year, 1, 1));
 
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -530,28 +549,7 @@ public class CashService
                         SourceDocumentId = reader.IsDBNull(7) ? null : reader.GetInt64(7)
                     });
                 }
-                if (list.Count > 0)
-                {
-                    return list;
-                }
-            }
-        }
-        catch { }
-
-        try
-        {
-            if (File.Exists(TransactionsFile))
-            {
-                var json = await File.ReadAllTextAsync(TransactionsFile);
-                var list = JsonSerializer.Deserialize<List<CashTransaction>>(json);
-                if (list != null)
-                {
-                    if (startDate.HasValue && endDate.HasValue)
-                        return list.Where(t => t.CreatedAt >= startDate.Value && t.CreatedAt < endDate.Value).ToList();
-                    if (startDate.HasValue)
-                        return list.Where(t => t.CreatedAt >= startDate.Value).ToList();
-                    return list;
-                }
+                return list;
             }
         }
         catch { }
@@ -559,78 +557,32 @@ public class CashService
         return new List<CashTransaction>();
     }
 
-    private async Task SaveTransactionsAsync(List<CashTransaction> transactions)
+    public async Task CloseTodaySessionAsync(DateTime? date = null, DateTime? closedAt = null)
     {
+        var targetDate = (date ?? DateTime.Today).Date;
+        var closeTime = closedAt ?? DateTime.Now;
+
         try
         {
             if (await _dbService.TestConnectionAsync())
             {
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                foreach (var t in transactions)
-                {
-                    using var checkCmd = conn.CreateCommand("SELECT COUNT(*) FROM CashTransactions WHERE Id = @id");
-                    checkCmd.AddParam("id", t.Id);
-                    var exists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
 
-                    if (!exists)
-                    {
-                        var insertSql = @"INSERT INTO CashTransactions (Id, SessionId, CashAccountId, Type, Amount, Description, CreatedAt, SourceDocumentType, SourceDocumentId)
-                                          VALUES (@id, @sid, 1, @type, @amt, @desc, @created, @sdt, @sdid);";
-                        await using var cmd = conn.CreateCommand(insertSql);
-                        cmd.AddParam("id", t.Id);
-                        cmd.AddParam("sid", t.SessionId);
-                        cmd.AddParam("type", t.Type);
-                        cmd.AddParam("amt", t.Amount);
-                        cmd.AddParam("desc", t.Description);
-                        cmd.AddParam("created", t.CreatedAt);
-                        cmd.AddParam("sdt", t.SourceDocumentType);
-                        cmd.AddParam("sdid", t.SourceDocumentId);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
+                var updateSql = @"UPDATE CashSessions
+                                  SET Status = 'Kapalı', ClosedAt = @closed
+                                  WHERE CAST(SessionDate AS DATE) <= @date AND Status != 'Kapalı'";
+                await using var cmd = conn.CreateCommand(updateSql);
+                cmd.AddParam("closed", closeTime);
+                cmd.AddParam("date", targetDate);
+                await cmd.ExecuteNonQueryAsync();
             }
         }
-        catch { }
-
-        try
+        catch (Exception ex)
         {
-            EnsureStorageDirectory();
-            var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(TransactionsFile, json);
+            System.Diagnostics.Debug.WriteLine($"[CashService] CloseTodaySessionAsync hatası: {ex.Message}");
         }
-        catch { }
+
+        AppDataCache.UpdateTodayCashSession(null);
     }
-
-    public async Task CloseTodaySessionAsync(DateTime? date = null, DateTime? closedAt = null)
-    {
-        var targetDate = (date ?? DateTime.Today).Date;
-        var closeTime = closedAt ?? DateTime.Now;
-        var sessions = await LoadSessionsAsync();
-        
-        var openSessions = sessions.Where(s => s.SessionDate.Date <= targetDate && s.Status == "Açık").ToList();
-        foreach (var s in openSessions)
-        {
-            s.Status = "Kapalı";
-            s.ClosedAt = closeTime;
-        }
-
-        if (openSessions.Count > 0)
-        {
-            await SaveSessionsAsync(sessions);
-            AppDataCache.UpdateTodayCashSession(null);
-        }
-        else
-        {
-            var latest = sessions.FirstOrDefault(s => s.SessionDate.Date == targetDate);
-            if (latest != null && latest.Status != "Kapalı")
-            {
-                latest.Status = "Kapalı";
-                latest.ClosedAt = closeTime;
-                await SaveSessionsAsync(sessions);
-                AppDataCache.UpdateTodayCashSession(null);
-            }
-        }
-    }
-
 }

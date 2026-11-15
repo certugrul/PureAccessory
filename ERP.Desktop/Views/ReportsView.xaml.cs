@@ -59,11 +59,13 @@ public partial class ReportsView : Page
         CmbYearOnly.SelectedIndex = 2; // currentYear
     }
 
+    private bool _isLoaded = false;
+
     private async void ReportsView_Loaded(object sender, RoutedEventArgs e)
     {
         UpdateCategoryAndCardsUI();
-        await RefreshPreviewDataAsync();
-        await LoadClosuresAsync();
+        await Task.WhenAll(RefreshPreviewDataAsync(), LoadClosuresAsync());
+        _isLoaded = true;
     }
 
     #region Category Selection (Günlük vs Genel)
@@ -792,11 +794,43 @@ public partial class ReportsView : Page
 
     private List<DailyClosure> _allClosures = new();
 
+    private string GetSelectedClosureYearTag()
+    {
+        if (CmbClosureYear?.SelectedItem is ComboBoxItem item && item.Tag != null)
+        {
+            return item.Tag.ToString() ?? DateTime.Today.Year.ToString();
+        }
+        return DateTime.Today.Year.ToString();
+    }
+
     private async Task LoadClosuresAsync()
     {
         try
         {
-            _allClosures = await _closureService.GetClosuresAsync();
+            if (FilterClosureDate.SelectedDate.HasValue)
+            {
+                var exactDate = FilterClosureDate.SelectedDate.Value.Date;
+                _allClosures = await _closureService.GetClosuresAsync(exactDate: exactDate);
+                ApplyClosureFilter();
+                return;
+            }
+
+            var yearTag = GetSelectedClosureYearTag();
+            if (yearTag == "ALL")
+            {
+                _allClosures = await _closureService.GetClosuresAsync(includeAllHistory: true);
+            }
+            else if (int.TryParse(yearTag, out int selectedYear))
+            {
+                var start = new DateTime(selectedYear, 1, 1);
+                var end = new DateTime(selectedYear, 12, 31);
+                _allClosures = await _closureService.GetClosuresAsync(startDate: start, endDate: end);
+            }
+            else
+            {
+                _allClosures = await _closureService.GetClosuresAsync();
+            }
+
             ApplyClosureFilter();
         }
         catch (Exception ex)
@@ -826,15 +860,47 @@ public partial class ReportsView : Page
         }
     }
 
-    private void FilterClosureDate_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+    private async void CmbClosureYear_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (!_isLoaded) return;
+        await LoadClosuresAsync();
+    }
+
+    private async void FilterClosureDate_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isLoaded) return;
+
+        if (FilterClosureDate.SelectedDate.HasValue)
+        {
+            var selectedDate = FilterClosureDate.SelectedDate.Value.Date;
+            // Seçilen tarih bellekteki listede yoksa (örn. 2025 yılına ait bir tarih seçildiyse) doğrudan veritabanından çek
+            if (!_allClosures.Any(c => c.ClosureDate.Date == selectedDate))
+            {
+                var fetched = await _closureService.GetClosuresAsync(exactDate: selectedDate);
+                if (fetched.Count > 0)
+                {
+                    foreach (var f in fetched)
+                    {
+                        if (!_allClosures.Any(x => x.Id == f.Id))
+                            _allClosures.Add(f);
+                    }
+                    _allClosures = _allClosures.OrderByDescending(c => c.ClosureDate).ThenByDescending(c => c.ClosedAt).ToList();
+                }
+            }
+        }
+        else if (_allClosures.Count <= 2)
+        {
+            await LoadClosuresAsync();
+            return;
+        }
+
         ApplyClosureFilter();
     }
 
-    private void ClearClosureFilter_Click(object sender, RoutedEventArgs e)
+    private async void ClearClosureFilter_Click(object sender, RoutedEventArgs e)
     {
         FilterClosureDate.SelectedDate = null;
-        ApplyClosureFilter();
+        await LoadClosuresAsync();
     }
 
     private void FilterOnlyIban_Click(object sender, RoutedEventArgs e)
@@ -962,10 +1028,17 @@ public partial class ReportsView : Page
         try
         {
             var targetDate = SingleDatePicker.SelectedDate ?? DateTime.Today;
+            Mouse.OverrideCursor = Cursors.Wait;
 
-            var summary = await _closureService.CalculateDailySummaryAsync(targetDate);
+            var summaryTask = _closureService.CalculateDailySummaryAsync(targetDate);
             var cashService = new CashService();
-            var cashSummary = await cashService.GetCashSummaryAsync(targetDate);
+            var cashSummaryTask = cashService.GetCashSummaryAsync(targetDate);
+
+            await Task.WhenAll(summaryTask, cashSummaryTask);
+
+            var summary = await summaryTask;
+            var cashSummary = await cashSummaryTask;
+            Mouse.OverrideCursor = null;
 
             var confirmMsg = $"📅 Seçilen Tarih: {targetDate:dd.MM.yyyy}\n\n" +
                              $"Bu gün için resmî GÜN SONU KAPANIŞI yapılacak ve Z RAPORU oluşturulacak:\n\n" +
@@ -981,21 +1054,26 @@ public partial class ReportsView : Page
             var ask = MessageBox.Show(confirmMsg, "Gün Sonu Kapanış Onayı", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (ask != MessageBoxResult.Yes) return;
 
+            Mouse.OverrideCursor = Cursors.Wait;
             bool success = await _closureService.SaveClosureAsync(summary);
             if (success)
             {
-                MessageBox.Show(
-                    $"{targetDate:dd.MM.yyyy} tarihli Gün Sonu başarıyla tamamlandı ve Z Raporu arşive kaydedildi.\n\n" +
-                    $"📡 Değişen veriler (satışlar, ciro ve kasa hareketleri) merkeze aktarılmak üzere otomatik olarak arşivlendi/gönderildi!\nKasa oturumu kapatıldı.", 
-                    "Gün Sonu & Otomatik Senkronizasyon Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
+                _allClosures.Insert(0, summary);
+                ApplyClosureFilter();
 
                 _activeCategory = "DAILY";
                 _selectedReport = "Z";
                 UpdateCategoryAndCardsUI();
                 await RefreshPreviewDataAsync();
-                await LoadClosuresAsync();
+                Mouse.OverrideCursor = null;
 
-                var askPdf = MessageBox.Show("Oluşturulan Z Raporu resmî PDF dökümünü şimdi açmak ister misiniz?", "PDF Görüntüle", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                var askPdf = MessageBox.Show(
+                    $"{targetDate:dd.MM.yyyy} tarihli Gün Sonu başarıyla tamamlandı ve Z Raporu arşive kaydedildi.\nKasa oturumu kapatıldı.\n\n" +
+                    $"Oluşturulan Z Raporu resmî PDF dökümünü şimdi açmak ister misiniz?",
+                    "Gün Sonu Tamamlandı",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
                 if (askPdf == MessageBoxResult.Yes)
                 {
                     var zData = await _dataService.GetZReportDataAsync(targetDate);
@@ -1008,11 +1086,13 @@ public partial class ReportsView : Page
             }
             else
             {
+                Mouse.OverrideCursor = null;
                 MessageBox.Show("Gün sonu kaydedilirken bir sorun oluştu.", "Hata", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
         {
+            Mouse.OverrideCursor = null;
             MessageBox.Show($"Gün sonu işlemi sırasında hata oluştu: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

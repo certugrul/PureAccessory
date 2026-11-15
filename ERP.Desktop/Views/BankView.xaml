@@ -351,11 +351,12 @@
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
                                         <TextBlock Text="Dönem:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E40AF" Margin="0,0,6,0"/>
                                         <ComboBox x:Name="CmbPosDateFilter" Width="170" Height="32" SelectionChanged="PosDateFilter_SelectionChanged">
-                                            <ComboBoxItem Content="Tüm Tarihler" IsSelected="True"/>
+                                            <ComboBoxItem Content="Tüm Tarihler (2026)" IsSelected="True"/>
                                             <ComboBoxItem Content="🛒 Bugün Yapılan Satışlar"/>
                                             <ComboBoxItem Content="⚡ Bugün Vadesi Gelenler"/>
                                             <ComboBoxItem Content="📅 Bu Hafta"/>
                                             <ComboBoxItem Content="📅 Bu Ay"/>
+                                            <ComboBoxItem Content="📆 2025 Yılı"/>
                                         </ComboBox>
                                     </StackPanel>
 

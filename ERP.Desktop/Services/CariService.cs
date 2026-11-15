@@ -216,7 +216,7 @@ public class CariService
         await _semaphore.WaitAsync();
         try
         {
-            var list = await LoadTransactionsInternalAsync();
+            var list = await LoadTransactionsInternalAsync(accountId, startDate, endDate);
             var query = list.AsQueryable();
 
             if (accountId.HasValue && accountId.Value > 0)
@@ -299,23 +299,7 @@ public class CariService
                     bankAccountId,
                     customDate);
 
-                // Yerel JSON'a da yedekle
-                await _semaphore.WaitAsync();
-                try
-                {
-                    var transactions = await LoadTransactionsInternalAsync();
-                    var accounts = await LoadAccountsInternalAsync();
-                    txResult.CariAccountName = accounts.FirstOrDefault(a => a.Id == cariAccountId)?.Name ?? $"Cari #{cariAccountId}";
-                    transactions.Insert(0, txResult);
-                    var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(TransactionsFile, json);
-                }
-                catch { }
-                finally
-                {
-                    _semaphore.Release();
-                }
-
+                txResult.CariAccountName = AppDataCache.CariAccounts.FirstOrDefault(a => a.Id == cariAccountId)?.Name ?? $"Cari #{cariAccountId}";
                 resultTx = txResult;
             }
             else
@@ -514,7 +498,10 @@ public class CariService
         await File.WriteAllTextAsync(AccountsFile, json);
     }
 
-    private async Task<List<CariTransaction>> LoadTransactionsInternalAsync()
+    private async Task<List<CariTransaction>> LoadTransactionsInternalAsync(
+        int? accountId = null,
+        DateTime? startDate = null,
+        DateTime? endDate = null)
     {
         try
         {
@@ -523,11 +510,32 @@ public class CariService
                 var list = new List<CariTransaction>();
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
-                var sql = @"SELECT ct.Id, ct.CariAccountId, COALESCE(ca.Name, 'Cari') AS AccountName, ct.CreatedAt, ct.TransactionType, ct.DocumentNo, ct.Debit, ct.Credit, ct.BalanceAfter, ct.Description, ct.InvoiceId, ct.SaleId, ct.PaymentMethod
-                            FROM CariTransactions ct
-                            LEFT JOIN CariAccounts ca ON ct.CariAccountId = ca.Id
-                            ORDER BY ct.CreatedAt DESC";
+
+                var conditions = new List<string>();
+                DateTime? minDate = startDate?.Date;
+                DateTime? maxDate = endDate?.Date.AddDays(1);
+
+                if (!minDate.HasValue && (!accountId.HasValue || accountId.Value <= 0))
+                {
+                    minDate = new DateTime(DateTime.Today.Year, 1, 1);
+                }
+
+                if (accountId.HasValue && accountId.Value > 0) conditions.Add("ct.CariAccountId = @accId");
+                if (minDate.HasValue) conditions.Add("ct.CreatedAt >= @minDate");
+                if (maxDate.HasValue) conditions.Add("ct.CreatedAt < @maxDate");
+
+                var whereSql = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
+
+                var sql = $@"SELECT ct.Id, ct.CariAccountId, COALESCE(ca.Name, 'Cari') AS AccountName, ct.CreatedAt, ct.TransactionType, ct.DocumentNo, ct.Debit, ct.Credit, ct.BalanceAfter, ct.Description, ct.InvoiceId, ct.SaleId, ct.PaymentMethod
+                             FROM CariTransactions ct
+                             LEFT JOIN CariAccounts ca ON ct.CariAccountId = ca.Id
+                             {whereSql}
+                             ORDER BY ct.CreatedAt DESC";
                 await using var cmd = conn.CreateCommand(sql);
+                if (accountId.HasValue && accountId.Value > 0) cmd.AddParam("accId", accountId.Value);
+                if (minDate.HasValue) cmd.AddParam("minDate", minDate.Value);
+                if (maxDate.HasValue) cmd.AddParam("maxDate", maxDate.Value);
+
                 await using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -548,24 +556,12 @@ public class CariService
                         PaymentMethod = reader.IsDBNull(12) ? null : reader.GetString(12)
                     });
                 }
-                if (list.Count > 0)
-                {
-                    return list;
-                }
+                return list;
             }
         }
         catch { }
 
-        if (!File.Exists(TransactionsFile)) return new List<CariTransaction>();
-        try
-        {
-            var json = await File.ReadAllTextAsync(TransactionsFile);
-            return JsonSerializer.Deserialize<List<CariTransaction>>(json) ?? new List<CariTransaction>();
-        }
-        catch
-        {
-            return new List<CariTransaction>();
-        }
+        return new List<CariTransaction>();
     }
 
     private async Task SaveTransactionsInternalAsync(List<CariTransaction> list)

@@ -483,6 +483,12 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="📆 Yıl:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CmbClosureYear" Width="115" Height="30" VerticalContentAlignment="Center" SelectionChanged="CmbClosureYear_SelectionChanged" Margin="0,0,10,0">
+                                    <ComboBoxItem Content="2026 (Bu Yıl)" Tag="2026" IsSelected="True"/>
+                                    <ComboBoxItem Content="2025 Yılı" Tag="2025"/>
+                                    <ComboBoxItem Content="Tüm Yıllar" Tag="ALL"/>
+                                </ComboBox>
                                 <TextBlock Text="📅 Tarih:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,6,0"/>
                                 <DatePicker x:Name="FilterClosureDate" Width="125" SelectedDateChanged="FilterClosureDate_SelectedDateChanged" Margin="0,0,6,0"/>
                                 <Button Content="❌ Tümü" Click="ClearClosureFilter_Click"

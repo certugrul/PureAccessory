@@ -22,22 +22,21 @@ public class ReportDataService
     public async Task<ZReportData?> GetZReportDataAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
-        var closures = await _closureService.GetClosuresAsync();
-        var closure = closures
-            .Where(c => c.ClosureDate.Date == date)
-            .OrderByDescending(c => c.ClosedAt)
-            .ThenByDescending(c => c.Id)
-            .FirstOrDefault();
 
-        if (closure == null && !targetDate.HasValue)
-        {
-            closure = closures.OrderByDescending(c => c.ClosedAt).ThenByDescending(c => c.Id).FirstOrDefault();
-        }
+        var closureTask = _closureService.GetLastClosureForDateAsync(date);
+        var cashSessionTask = _cashService.GetLatestSessionAsync(date);
+        var cashSummaryTask = _cashService.GetCashSummaryAsync(date);
+        var salesTask = _salesService.GetSalesForDateAsync(date);
+        var accountsTask = _bankService.GetAllAccountsAsync();
+        var bankSummaryTask = _bankService.GetBankSummaryAsync(date);
 
+        await Task.WhenAll(closureTask, cashSessionTask, cashSummaryTask, salesTask, accountsTask, bankSummaryTask);
+
+        var closure = await closureTask;
         var reportDate = closure?.ClosureDate.Date ?? date;
-        var cashSession = await _cashService.GetLatestSessionAsync(reportDate);
-        var cashSummary = await _cashService.GetCashSummaryAsync(reportDate);
-        var sales = await _salesService.GetSalesForDateAsync(reportDate);
+        var cashSession = await cashSessionTask;
+        var cashSummary = await cashSummaryTask;
+        var sales = await salesTask;
 
         if (closure == null)
         {
@@ -108,7 +107,7 @@ public class ReportDataService
 
         try
         {
-            var accounts = await _bankService.GetAllAccountsAsync();
+            var accounts = await accountsTask;
             foreach (var acc in accounts)
             {
                 bankAccounts.Add(new BankAccountBalanceSummary
@@ -119,7 +118,7 @@ public class ReportDataService
                 });
             }
 
-            var bankSummary = await _bankService.GetBankSummaryAsync();
+            var bankSummary = await bankSummaryTask;
             pendingPos = bankSummary.PendingGrossPos;
             settledPos = bankSummary.TodayPosInflow;
         }
@@ -169,20 +168,22 @@ public class ReportDataService
     public async Task<XReportData> GetXReportDataAsync(DateTime? targetDate = null)
     {
         var date = (targetDate ?? DateTime.Today).Date;
-        var closures = await _closureService.GetClosuresAsync();
-        var lastClosure = closures
-            .Where(c => c.ClosureDate.Date == date)
-            .OrderByDescending(c => c.ClosedAt)
-            .ThenByDescending(c => c.Id)
-            .FirstOrDefault();
 
-        var session = await _cashService.GetTodaySessionAsync(date);
-        var cashSummary = await _cashService.GetCashSummaryAsync(date);
+        var lastClosureTask = _closureService.GetLastClosureForDateAsync(date);
+        var sessionTask = _cashService.GetTodaySessionAsync(date);
+        var cashSummaryTask = _cashService.GetCashSummaryAsync(date);
+        var salesTask = _salesService.GetSalesForDateAsync(date);
+
+        await Task.WhenAll(lastClosureTask, sessionTask, cashSummaryTask, salesTask);
+
+        var lastClosure = await lastClosureTask;
+        var session = await sessionTask;
+        var cashSummary = await cashSummaryTask;
+        var allSales = await salesTask;
 
         // Gün sonu yapılmışsa:
         if (lastClosure != null)
         {
-            var allSales = await _salesService.GetSalesForDateAsync(date);
             // Son kapanıştan sonra yapılan satışlar
             var pendingSales = allSales.Where(s => s.SaleDate > lastClosure.ClosedAt).ToList();
 
@@ -233,7 +234,7 @@ public class ReportDataService
         }
 
         // Gün sonu henüz alınmamış normal durum
-        var sales = await _salesService.GetSalesForDateAsync(date);
+        var sales = allSales;
         if (session != null)
         {
             sales = sales.Where(s => s.SaleDate >= session.OpenedAt).ToList();
@@ -379,18 +380,23 @@ public class ReportDataService
         var start = startDate.Date;
         var end = endDate.Date.AddDays(1);
 
-        var periodSales = await _salesService.GetSalesBetweenDatesAsync(start, end);
+        var salesTask = _salesService.GetSalesBetweenDatesAsync(start, end);
+        var closuresTask = _closureService.GetClosuresAsync(startDate: start, endDate: endDate.Date);
+        var ledgerTask = _cashService.GetDayLedgerAsync();
+
+        await Task.WhenAll(salesTask, closuresTask, ledgerTask);
+
+        var periodSales = await salesTask;
 
         decimal grossRevenue = periodSales.Sum(s => s.GrandTotal);
         decimal vatTotal = periodSales.Sum(s => s.VatTotal);
         decimal costOfGoods = periodSales.Sum(s => s.CostTotal);
 
         // Kapanışlardaki giderler veya kasa manuel çıkışları
-        var closures = await _closureService.GetClosuresAsync();
-        var periodClosures = closures.Where(c => c.ClosureDate >= start && c.ClosureDate < end).ToList();
+        var periodClosures = await closuresTask;
         decimal operatingExpenses = periodClosures.Sum(c => c.TotalExpenses);
 
-        var ledger = await _cashService.GetDayLedgerAsync();
+        var ledger = await ledgerTask;
         var cashOuts = ledger.Where(t => t.CreatedAt >= start && t.CreatedAt < end && (t.Type == "Nakit Çıkış" || t.Type.Contains("Gider"))).Sum(t => t.Amount);
 
         // En azından kasa masrafları hesaba katılsın

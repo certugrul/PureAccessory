@@ -458,23 +458,17 @@ public partial class DashboardView : Page
         try
         {
             var summaryTask = _closureService.GetActiveDashboardMetricsAsync(DateTime.Today);
-            var closuresTask = _closureService.GetClosuresAsync();
+            var lastClosureTask = _closureService.GetLastClosureForDateAsync(DateTime.Today);
             var cashSummaryTask = new CashService().GetCashSummaryAsync(DateTime.Today);
 
-            await Task.WhenAll(summaryTask, closuresTask, cashSummaryTask);
+            await Task.WhenAll(summaryTask, lastClosureTask, cashSummaryTask);
 
             var summary = await summaryTask;
-            var closures = await closuresTask;
+            var lastClosure = await lastClosureTask;
             var cashSummary = await cashSummaryTask;
 
             CardRevenueText.Text = $"₺{summary.TotalRevenue:N2}";
             CardProfitText.Text = $"₺{summary.TotalProfit:N2}";
-
-            var lastClosure = closures
-                .Where(c => c.ClosureDate.Date == DateTime.Today)
-                .OrderByDescending(c => c.ClosedAt)
-                .ThenByDescending(c => c.Id)
-                .FirstOrDefault();
             if (cashSummary.IsOpen)
             {
                 CardCashText.Text = cashSummary.FormattedCurrentBalance;

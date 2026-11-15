@@ -165,6 +165,8 @@ public partial class BankView : Page
     {
         string? status = (CmbPosStatus.SelectedItem as ComboBoxItem)?.Content?.ToString();
         string? dateFilterText = (CmbPosDateFilter.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        bool isYear2025 = dateFilterText != null && dateFilterText.Contains("2025");
+
         string? dateMode = dateFilterText switch
         {
             var s when s != null && s.Contains("Satışlar") => "SoldToday",
@@ -174,8 +176,47 @@ public partial class BankView : Page
             _ => null
         };
 
-        _allPosTransactions = await _bankService.GetPosTransactionsAsync();
-        _posTransactions = await _bankService.GetPosTransactionsAsync(status: status, dateFilterMode: dateMode);
+        DateTime? posStart = isYear2025 ? new DateTime(2025, 1, 1) : null;
+        DateTime? posEnd = isYear2025 ? new DateTime(2025, 12, 31) : null;
+
+        _allPosTransactions = await _bankService.GetPosTransactionsAsync(startDate: posStart, endDate: posEnd);
+
+        var query = _allPosTransactions.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(status) && status != "Tümü")
+        {
+            if (status == "Gecikti")
+                query = query.Where(p => p.Status != "Ödendi" && p.ExpectedDate.Date < DateTime.Today);
+            else if (status == "Vadesi Bugün")
+                query = query.Where(p => p.Status != "Ödendi" && p.ExpectedDate.Date == DateTime.Today);
+            else
+                query = query.Where(p => p.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isYear2025)
+        {
+            query = query.Where(p => p.SaleDate.Year == 2025);
+        }
+        else if (!string.IsNullOrWhiteSpace(dateMode))
+        {
+            if (dateMode == "DueToday")
+                query = query.Where(p => p.ExpectedDate.Date == DateTime.Today);
+            else if (dateMode == "SoldToday")
+                query = query.Where(p => p.SaleDate.Date == DateTime.Today);
+            else if (dateMode == "ThisWeek")
+            {
+                var today = DateTime.Today;
+                var startOfWeek = today.AddDays(-((int)today.DayOfWeek == 0 ? 6 : (int)today.DayOfWeek - 1));
+                var endOfWeek = startOfWeek.AddDays(6);
+                query = query.Where(p => p.SaleDate.Date >= startOfWeek && p.SaleDate.Date <= endOfWeek);
+            }
+            else if (dateMode == "ThisMonth")
+            {
+                var today = DateTime.Today;
+                query = query.Where(p => p.SaleDate.Year == today.Year && p.SaleDate.Month == today.Month);
+            }
+        }
+
+        _posTransactions = query.OrderByDescending(p => p.SaleDate).ToList();
 
         PosGrid.ItemsSource = null;
         PosGrid.ItemsSource = _posTransactions;
