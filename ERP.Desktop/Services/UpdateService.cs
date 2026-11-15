@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -61,7 +62,7 @@ public static class UpdateService
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(15) };
         // GitHub API için zorunlu User-Agent başlığı
         client.DefaultRequestHeaders.Add("User-Agent", "PureAccessory-ERP-Updater/1.0");
         client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json, application/json, text/plain, */*");
@@ -126,7 +127,7 @@ public static class UpdateService
             // 1. GitHub Releases Kontrolü
             if (IsGitHubTarget(target))
             {
-                var ghUpdate = await CheckGitHubReleasesAsync(target);
+                var ghUpdate = await CheckGitHubReleasesAsync(target).ConfigureAwait(false);
                 if (ghUpdate != null && IsNewerVersion(ghUpdate.Version, CurrentVersion))
                 {
                     return ghUpdate;
@@ -135,7 +136,8 @@ public static class UpdateService
             }
 
             // 2. Standart version.json veya web sunucusu kontrolü
-            var response = await _httpClient.GetStringAsync(target);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await _httpClient.GetStringAsync(target, cts.Token).ConfigureAwait(false);
             var updateInfo = JsonSerializer.Deserialize<UpdateInfo>(response, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -206,8 +208,9 @@ public static class UpdateService
 
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var request = new HttpRequestMessage(HttpMethod.Get, apiUrl);
-            using var response = await _httpClient.SendAsync(request);
+            using var response = await _httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -215,7 +218,7 @@ public static class UpdateService
                 return null;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -339,54 +342,91 @@ public static class UpdateService
 
         var tempZip = Path.Combine(tempDir, $"update_v{update.Version}.zip");
 
-        // 1. Zip dosyasını indir
-        using (var response = await _httpClient.GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead))
+        // 1. Zip dosyasını indir (64 KB buffer + sadece yüzde değiştiğinde UI bildirimi)
+        using (var response = await _httpClient.GetAsync(update.DownloadUrl, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
         {
             response.EnsureSuccessStatusCode();
             var totalBytes = response.Content.Headers.ContentLength ?? -1L;
 
-            await using var contentStream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+            await using var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            await using var fileStream = new FileStream(tempZip, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
 
-            var buffer = new byte[8192];
+            var buffer = new byte[65536];
             long totalRead = 0;
             int read;
+            int lastPct = -1;
 
-            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer, 0, read);
+                await fileStream.WriteAsync(buffer, 0, read).ConfigureAwait(false);
                 totalRead += read;
 
                 if (totalBytes > 0 && progress != null)
                 {
                     int pct = (int)((totalRead * 100) / totalBytes);
-                    progress.Report(pct);
+                    if (pct != lastPct)
+                    {
+                        lastPct = pct;
+                        progress.Report(pct);
+                    }
                 }
             }
         }
 
-        // 2. Updater.exe'yi bul
-        var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var updaterPath = FindUpdaterPath(appDir);
+        progress?.Report(100);
 
-        if (!File.Exists(updaterPath))
+        // 2. İndirilen paketi doğrudan yerinde (in-place) uygula + Updater.exe ile yeniden başlat
+        ApplyLocalZipUpdate(tempZip);
+    }
+
+    public static void ApplyLocalZipUpdate(string zipFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(zipFilePath) || !File.Exists(zipFilePath))
         {
-            throw new FileNotFoundException($"Updater.exe güncelleyici bileşeni bulunamadı.\nAranan konum: {updaterPath}");
+            throw new FileNotFoundException("Güncelleme zip paketi bulunamadı.", zipFilePath);
         }
 
-        // 3. Updater.exe'yi çalıştır ve ERP'yi kapat
-        var currentPid = Process.GetCurrentProcess().Id;
-        var startInfo = new ProcessStartInfo
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // 1. Önce yerinde (in-place) dosya güncellemesi yap (kilitli .dll/.exe dosyalarını .old_bak olarak yeniden adlandırıp yenilerini yazar)
+        try
         {
-            FileName = updaterPath,
-            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{tempZip}\" --exe ERP.Desktop.exe",
-            UseShellExecute = true,
-            WorkingDirectory = appDir
-        };
+            ExtractZipInPlace(zipFilePath, appDir);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[UpdateService] In-place çıkarma uyarısı: {ex.Message}");
+        }
 
-        Process.Start(startInfo);
+        var updaterPath = FindUpdaterPath(appDir);
+        var currentPid = Process.GetCurrentProcess().Id;
 
-        // 4. ERP'yi kapat
+        if (File.Exists(updaterPath))
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = updaterPath,
+                Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{zipFilePath}\" --exe ERP.Desktop.exe",
+                UseShellExecute = true,
+                WorkingDirectory = appDir
+            };
+            Process.Start(startInfo);
+        }
+        else
+        {
+            // Updater.exe bulunamazsa bile in-place güncellenmiş ana uygulamayı yeniden başlat
+            var mainExe = Path.Combine(appDir, "ERP.Desktop.exe");
+            if (File.Exists(mainExe))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = mainExe,
+                    WorkingDirectory = appDir,
+                    UseShellExecute = true
+                });
+            }
+        }
+
         try
         {
             Application.Current.Dispatcher.Invoke(() =>
@@ -398,41 +438,60 @@ public static class UpdateService
         Environment.Exit(0);
     }
 
-    public static void ApplyLocalZipUpdate(string zipFilePath)
+    private static void ExtractZipInPlace(string zipPath, string appDir)
     {
-        if (string.IsNullOrWhiteSpace(zipFilePath) || !File.Exists(zipFilePath))
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
         {
-            throw new FileNotFoundException("Güncelleme zip paketi bulunamadı.", zipFilePath);
-        }
+            if (string.IsNullOrEmpty(entry.Name)) continue;
 
-        var appDir = AppDomain.CurrentDomain.BaseDirectory;
-        var updaterPath = FindUpdaterPath(appDir);
-
-        if (!File.Exists(updaterPath))
-        {
-            throw new FileNotFoundException($"Updater.exe güncelleyici bileşeni bulunamadı.\nAranan konum: {updaterPath}");
-        }
-
-        var currentPid = Process.GetCurrentProcess().Id;
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = updaterPath,
-            Arguments = $"--pid {currentPid} --appDir \"{appDir.TrimEnd('\\')}\" --zip \"{zipFilePath}\" --exe ERP.Desktop.exe",
-            UseShellExecute = true,
-            WorkingDirectory = appDir
-        };
-
-        Process.Start(startInfo);
-
-        try
-        {
-            Application.Current.Dispatcher.Invoke(() =>
+            var relativePath = entry.FullName.Replace('/', '\\');
+            if (relativePath.EndsWith("Updater.exe", StringComparison.OrdinalIgnoreCase) ||
+                relativePath.EndsWith("Updater.dll", StringComparison.OrdinalIgnoreCase))
             {
-                Application.Current.Shutdown();
-            });
+                continue;
+            }
+
+            if (relativePath.StartsWith("Data\\settings.json", StringComparison.OrdinalIgnoreCase) ||
+                relativePath.StartsWith("Data\\users.json", StringComparison.OrdinalIgnoreCase) ||
+                relativePath.EndsWith(".mdf", StringComparison.OrdinalIgnoreCase) ||
+                relativePath.EndsWith(".ldf", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetCheck = Path.Combine(appDir, relativePath);
+                if (File.Exists(targetCheck)) continue;
+            }
+
+            var destinationPath = Path.Combine(appDir, relativePath);
+            var destinationDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
+            {
+                Directory.CreateDirectory(destinationDir);
+            }
+
+            try
+            {
+                if (File.Exists(destinationPath))
+                {
+                    File.SetAttributes(destinationPath, FileAttributes.Normal);
+                }
+                entry.ExtractToFile(destinationPath, overwrite: true);
+            }
+            catch
+            {
+                // Çalışan .exe veya .dll kilitliyse .old_bak olarak yeniden adlandır ve yeni dosyayı çıkar
+                try
+                {
+                    var bakPath = destinationPath + ".old_bak";
+                    if (File.Exists(bakPath))
+                    {
+                        try { File.Delete(bakPath); } catch { }
+                    }
+                    File.Move(destinationPath, bakPath, overwrite: true);
+                    entry.ExtractToFile(destinationPath, overwrite: true);
+                }
+                catch { }
+            }
         }
-        catch { }
-        Environment.Exit(0);
     }
 
     private static string FindUpdaterPath(string appDir)

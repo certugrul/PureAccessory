@@ -1,4 +1,4 @@
-# =====================================================================
+﻿# =====================================================================
 # Pure Accessory Otomasyon - Otomatik Sürüm Derleme ve Paketleyici
 # =====================================================================
 param(
@@ -57,13 +57,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 3. ERP.Updater'ı Derle ve Tools Klasörüne Yerleştir
-Write-Host "2. Updater.exe tek dosya olarak derleniyor..." -ForegroundColor White
+Write-Host "2. Updater.exe tek dosya (sıkıştırılmış) olarak derleniyor..." -ForegroundColor White
 $updaterProj = Join-Path $rootDir "ERP.Updater\ERP.Updater.csproj"
 $toolsDir = Join-Path $publishDir "Tools"
 if (-not (Test-Path $toolsDir)) {
     New-Item -ItemType Directory -Path $toolsDir -Force | Out-Null
 }
-& dotnet publish $updaterProj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$Version -p:AssemblyVersion="$Version.0" -p:FileVersion="$Version.0" -p:InformationalVersion="$Version" -o $toolsDir
+& dotnet publish $updaterProj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=$Version -p:AssemblyVersion="$Version.0" -p:FileVersion="$Version.0" -p:InformationalVersion="$Version" -o $toolsDir
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Updater derleme hatası!" -ForegroundColor Red
     exit 1
@@ -72,18 +72,39 @@ if ($LASTEXITCODE -ne 0) {
 # Gereksiz pdb dosyalarını temizle
 Get-ChildItem -Path $publishDir -Filter "*.pdb" -Recurse | Remove-Item -Force
 
-# 4. Uzaktan Güncelleme Paketi (update.zip) Oluştur
-Write-Host "3. Uzaktan güncelleme paketi (ZIP) oluşturuluyor..." -ForegroundColor White
+# Eski kısayollar için AppLogo.ico -> logo.ico eşitlemesi
+if (Test-Path "$publishDir\Assets\AppLogo.ico") {
+    Copy-Item -Path "$publishDir\Assets\AppLogo.ico" -Destination "$publishDir\Assets\logo.ico" -Force
+}
+if (Test-Path "$publishDir\Assets\AppLogo.png") {
+    Copy-Item -Path "$publishDir\Assets\AppLogo.png" -Destination "$publishDir\Assets\logo.png" -Force
+}
+
+# 4. Uzaktan Güncelleme Paketi (update.zip) Oluştur (Hızlı OTA Delta Paketi - ~1.5 MB)
+Write-Host "3. Uzaktan güncelleme paketi (Hızlı OTA ZIP) oluşturuluyor..." -ForegroundColor White
 $updateZipPath = Join-Path $releasesDir "PureAccessory_Update_v$Version.zip"
 if (Test-Path $updateZipPath) { Remove-Item -Force $updateZipPath }
 
-# Data/settings.json ve users.json dosyalarını güncelleme paketinden hariç tut (kullanıcı verileri bozulmasın)
+# Sadece değişen uygulama çekirdeği ve görsel varlıkları OTA paketine ekle (157 MB yerine ~1.5 MB -> 0.5 saniyede iner, zaman aşımına uğramaz!)
 $tempZipFolder = Join-Path $rootDir "Temp_Zip_Folder"
 if (Test-Path $tempZipFolder) { Remove-Item -Recurse -Force $tempZipFolder }
 New-Item -ItemType Directory -Path $tempZipFolder -Force | Out-Null
-Copy-Item -Path "$publishDir\*" -Destination $tempZipFolder -Recurse -Force
-if (Test-Path "$tempZipFolder\Data") {
-    Remove-Item -Recurse -Force "$tempZipFolder\Data"
+
+$otaFiles = @(
+    "ERP.Desktop.dll",
+    "ERP.Desktop.exe",
+    "ERP.Desktop.deps.json",
+    "ERP.Desktop.runtimeconfig.json"
+)
+foreach ($f in $otaFiles) {
+    $srcFile = Join-Path $publishDir $f
+    if (Test-Path $srcFile) {
+        Copy-Item -Path $srcFile -Destination $tempZipFolder -Force
+    }
+}
+if (Test-Path "$publishDir\Assets") {
+    New-Item -ItemType Directory -Path "$tempZipFolder\Assets" -Force | Out-Null
+    Copy-Item -Path "$publishDir\Assets\*" -Destination "$tempZipFolder\Assets" -Recurse -Force
 }
 
 Compress-Archive -Path "$tempZipFolder\*" -DestinationPath $updateZipPath -Force

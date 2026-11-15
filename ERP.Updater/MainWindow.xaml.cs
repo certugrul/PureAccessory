@@ -231,6 +231,19 @@ public partial class MainWindow : Window
                         }
                         catch (IOException)
                         {
+                            // Kilitli dosyayı .old_bak olarak yeniden adlandırmayı dene
+                            try
+                            {
+                                var bakPath = destinationPath + ".old_bak";
+                                if (File.Exists(bakPath)) File.Delete(bakPath);
+                                File.Move(destinationPath, bakPath, overwrite: true);
+                                entry.ExtractToFile(destinationPath, overwrite: true);
+                                written = true;
+                                extractedCount++;
+                                break;
+                            }
+                            catch { }
+
                             if (attempt < 5)
                             {
                                 Thread.Sleep(300);

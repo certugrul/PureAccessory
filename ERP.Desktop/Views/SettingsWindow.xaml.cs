@@ -378,6 +378,22 @@ public partial class SettingsWindow : Window
 
             if (success)
             {
+                // Test başarılıysa e-posta ayarlarını otomatik olarak kaydet ve buluta senkronize et
+                if (ThemeService.Current != null)
+                {
+                    ThemeService.Current.EmailRecipient = recipient;
+                    ThemeService.Current.EmailSender = recipient;
+                    ThemeService.Current.EmailSenderName = string.IsNullOrWhiteSpace(senderName) ? "Pure Accessory ERP" : senderName;
+                    ThemeService.Current.EmailSmtpHost = host;
+                    ThemeService.Current.EmailSmtpPort = port;
+                    ThemeService.Current.EmailEnableSsl = ssl;
+                    ThemeService.Current.EmailSmtpUser = user;
+                    if (!string.IsNullOrWhiteSpace(pass))
+                    {
+                        ThemeService.Current.EmailSmtpPasswordEncrypted = SecurityHelper.EncryptString(pass);
+                    }
+                    ThemeService.Save(ThemeService.Current);
+                }
                 MessageBox.Show(message, "Test Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else

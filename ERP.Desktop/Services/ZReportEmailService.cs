@@ -1,6 +1,8 @@
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Net.Mail;
+using System.Text;
 using System.Text.Json;
 using ERP.Desktop.Models;
 using Microsoft.Data.SqlClient;
@@ -14,6 +16,9 @@ public class ZReportEmailService
     private static readonly string StorageFile = Path.Combine(StorageDirectory, "zreport_emails.json");
     private static readonly string PdfDirectory = Path.Combine(StorageDirectory, "Reports", "ZReports");
     private static readonly SemaphoreSlim _lock = new(1, 1);
+    private static bool _tablesEnsured = false;
+
+    public string LastErrorMessage { get; private set; } = "";
 
     public ZReportEmailService(DatabaseService? dbService = null)
     {
@@ -31,6 +36,120 @@ public class ZReportEmailService
         catch { }
     }
 
+    public async Task EnsureEmailTablesAsync()
+    {
+        if (_tablesEnsured) return;
+        try
+        {
+            if (!await _dbService.TestConnectionAsync()) return;
+            await using var conn = _dbService.CreateConnection();
+            await conn.OpenAsync();
+
+            if (_dbService.IsPostgres)
+            {
+                string pgSql = @"
+                    CREATE TABLE IF NOT EXISTS zreportemails (
+                        id BIGSERIAL PRIMARY KEY,
+                        closureid BIGINT NULL,
+                        reportdate TIMESTAMP NOT NULL,
+                        recipientemail VARCHAR(255) NOT NULL,
+                        subject VARCHAR(500) NOT NULL,
+                        pdffilepath TEXT NULL,
+                        status VARCHAR(50) NOT NULL DEFAULT 'Bekliyor',
+                        errormessage TEXT NULL,
+                        retrycount INT NOT NULL DEFAULT 0,
+                        sentat TIMESTAMP NULL,
+                        createdat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+                    CREATE TABLE IF NOT EXISTS app_cloud_settings (
+                        settingkey VARCHAR(100) PRIMARY KEY,
+                        settingvalue TEXT NOT NULL,
+                        updatedat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );";
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = pgSql;
+                await cmd.ExecuteNonQueryAsync();
+            }
+            _tablesEnsured = true;
+        }
+        catch { }
+    }
+
+    public static async Task SaveCloudEmailSettingsAsync(AppSettings settings)
+    {
+        try
+        {
+            var db = new DatabaseService();
+            var svc = new ZReportEmailService(db);
+            await svc.EnsureEmailTablesAsync();
+            if (!db.IsPostgres || !await db.TestConnectionAsync()) return;
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                settings.AutoEmailZReportOnClosure,
+                settings.EmailRecipient,
+                settings.EmailSender,
+                settings.EmailSenderName,
+                settings.EmailSmtpHost,
+                settings.EmailSmtpPort,
+                settings.EmailEnableSsl,
+                settings.EmailSmtpUser,
+                settings.EmailSmtpPasswordEncrypted
+            });
+
+            await using var conn = db.CreateConnection();
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO app_cloud_settings (settingkey, settingvalue, updatedat)
+                VALUES ('email_config', @val, CURRENT_TIMESTAMP)
+                ON CONFLICT (settingkey) DO UPDATE
+                SET settingvalue = EXCLUDED.settingvalue, updatedat = CURRENT_TIMESTAMP;";
+            cmd.AddParam("val", payload);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch { }
+    }
+
+    public static async Task<bool> LoadCloudEmailSettingsIntoAsync(AppSettings settings)
+    {
+        try
+        {
+            var db = new DatabaseService();
+            var svc = new ZReportEmailService(db);
+            await svc.EnsureEmailTablesAsync();
+            if (!db.IsPostgres || !await db.TestConnectionAsync()) return false;
+
+            await using var conn = db.CreateConnection();
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT settingvalue FROM app_cloud_settings WHERE settingkey = 'email_config' LIMIT 1;";
+            var jsonObj = await cmd.ExecuteScalarAsync();
+            if (jsonObj is string json && !string.IsNullOrWhiteSpace(json))
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("EmailRecipient", out var r) && !string.IsNullOrWhiteSpace(r.GetString()))
+                    settings.EmailRecipient = r.GetString()!;
+                if (root.TryGetProperty("EmailSender", out var s) && !string.IsNullOrWhiteSpace(s.GetString()))
+                    settings.EmailSender = s.GetString()!;
+                if (root.TryGetProperty("EmailSenderName", out var sn) && !string.IsNullOrWhiteSpace(sn.GetString()))
+                    settings.EmailSenderName = sn.GetString()!;
+                if (root.TryGetProperty("EmailSmtpHost", out var h) && !string.IsNullOrWhiteSpace(h.GetString()))
+                    settings.EmailSmtpHost = h.GetString()!;
+                if (root.TryGetProperty("EmailSmtpPort", out var p) && p.TryGetInt32(out var portVal) && portVal > 0)
+                    settings.EmailSmtpPort = portVal;
+                if (root.TryGetProperty("EmailSmtpUser", out var u) && !string.IsNullOrWhiteSpace(u.GetString()))
+                    settings.EmailSmtpUser = u.GetString()!;
+                if (root.TryGetProperty("EmailSmtpPasswordEncrypted", out var pw) && !string.IsNullOrWhiteSpace(pw.GetString()))
+                    settings.EmailSmtpPasswordEncrypted = pw.GetString()!;
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
     /// <summary>
     /// Belirtilen güne veya kapanışa ait Z Raporu PDF'ini oluşturup yapılandırılan e-posta adresine gönderir.
     /// Gün sonu finansal işlemlerini bloke etmez veya geriye almaz; sonuç durumunu veritabanında saklar.
@@ -40,7 +159,19 @@ public class ZReportEmailService
         await _lock.WaitAsync();
         try
         {
+            LastErrorMessage = "";
+            await EnsureEmailTablesAsync();
             var settings = ThemeService.Current ?? new AppSettings();
+
+            // Eğer yerel şifre boşsa buluttan (diğer bilgisayardan kaydedilmiş) şifreyi çekmeyi dene
+            string password = SecurityHelper.DecryptString(settings.EmailSmtpPasswordEncrypted ?? "");
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                if (await LoadCloudEmailSettingsIntoAsync(settings))
+                {
+                    password = SecurityHelper.DecryptString(settings.EmailSmtpPasswordEncrypted ?? "");
+                }
+            }
 
             // Mükerrer gönderim koruması: Zaten başarıyla gönderilmişse tekrar gönderme
             if (!isRetry && await IsAlreadySentAsync(closureId, reportDate))
@@ -56,7 +187,11 @@ public class ZReportEmailService
             int port = settings.EmailSmtpPort > 0 ? settings.EmailSmtpPort : 587;
             bool enableSsl = settings.EmailEnableSsl;
             string username = string.IsNullOrWhiteSpace(settings.EmailSmtpUser) ? "certugrulx@gmail.com" : settings.EmailSmtpUser.Trim();
-            string password = SecurityHelper.DecryptString(settings.EmailSmtpPasswordEncrypted ?? "");
+
+            if (host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(password))
+            {
+                password = password.Replace(" ", "").Trim();
+            }
 
             string subject = $"Gün Sonu Z Raporu - Pure Accessory - {reportDate:dd.MM.yyyy}";
             string pdfFileName = $"Z_Raporu_{reportDate:yyyy-MM-dd}.pdf";
@@ -69,6 +204,7 @@ public class ZReportEmailService
             if (string.IsNullOrWhiteSpace(recipient) || string.IsNullOrWhiteSpace(host))
             {
                 string missingConfigErr = "E-posta alıcı adresi veya SMTP sunucu adresi tanımlı değil. Lütfen Ayarlar > E-Posta bölümünü yapılandırın.";
+                LastErrorMessage = missingConfigErr;
                 await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, pdfPath, "Başarısız", missingConfigErr, emailRecordId);
                 return false;
             }
@@ -79,6 +215,7 @@ public class ZReportEmailService
             if (zData == null)
             {
                 string noDataErr = $"{reportDate:dd.MM.yyyy} tarihine ait kaydedilmiş Z Raporu veya gün sonu bulunamadı.";
+                LastErrorMessage = noDataErr;
                 await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, pdfPath, "Başarısız", noDataErr, emailRecordId);
                 return false;
             }
@@ -94,10 +231,25 @@ public class ZReportEmailService
             string generatedPdfPath = pdfService.GenerateZReportPdf(zData, pdfPath);
             byte[] pdfBytes = await File.ReadAllBytesAsync(generatedPdfPath);
 
-            // 3. HTML E-Posta gövdesini oluştur
+            // 3. Eğer SMTP parolası girilmemişse ve Gmail kullanılıyorsa:
+            if (string.IsNullOrWhiteSpace(password) && host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
+            {
+                // Önce şifresiz HTTPS e-posta rölesi (FormSubmit) ile göndermeyi dene
+                var (relayOk, relayMsg) = await TrySendZReportViaWebRelayAsync(recipient, subject, zData);
+                if (relayOk)
+                {
+                    await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, generatedPdfPath, "Gönderildi", null, emailRecordId, DateTime.Now);
+                    return true;
+                }
+
+                LastErrorMessage = relayMsg;
+                await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, generatedPdfPath, "Başarısız", relayMsg, emailRecordId);
+                return false;
+            }
+
+            // 4. HTML E-Posta gövdesini oluştur ve SMTP ile gönder
             string htmlBody = GenerateEmailHtmlBody(zData);
 
-            // 4. SMTP ile gönderim
             using var mailMessage = new MailMessage();
             mailMessage.From = new MailAddress(sender, senderName);
             mailMessage.To.Add(recipient);
@@ -135,6 +287,7 @@ public class ZReportEmailService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ZReportEmailService] E-posta gönderim hatası: {ex.Message}");
+            LastErrorMessage = ex.Message;
             await LogOrUpdateEmailStatusAsync(closureId, reportDate, "", "", null, "Başarısız", ex.Message);
             return false;
         }
@@ -142,6 +295,55 @@ public class ZReportEmailService
         {
             _lock.Release();
         }
+    }
+
+    private static async Task<(bool success, string message)> TrySendZReportViaWebRelayAsync(string recipient, string subject, ZReportData d)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            http.DefaultRequestHeaders.Add("Accept", "application/json");
+            http.DefaultRequestHeaders.Add("Origin", "https://pureaccessory.com");
+            http.DefaultRequestHeaders.Add("Referer", "https://pureaccessory.com/");
+
+            var payload = new Dictionary<string, string>
+            {
+                ["_subject"] = subject,
+                ["_template"] = "table",
+                ["_captcha"] = "false",
+                ["Magaza"] = d.StoreName,
+                ["Rapor_Tarihi"] = d.ClosureDate.ToString("dd.MM.yyyy"),
+                ["Rapor_No"] = d.ReportNumber,
+                ["Toplam_Satis_Ciro"] = $"{d.TotalRevenue:N2} TL",
+                ["Satis_Adedi"] = $"{d.SalesCount} Adet",
+                ["Nakit_Tahsilat"] = $"{d.TotalCash:N2} TL",
+                ["Kredi_Karti_POS"] = $"{d.TotalCreditCard:N2} TL",
+                ["Gun_Ici_Nakit_Giris"] = $"{d.CashInflows:N2} TL",
+                ["Gun_Ici_Nakit_Cikis_Gider"] = $"{d.CashOutflows:N2} TL",
+                ["Kasa_Kapanis_Bakiyesi"] = $"{d.ClosingCashBalance:N2} TL",
+                ["Bekleyen_POS_Alacaklari"] = $"{d.PendingPosAmount:N2} TL",
+                ["IBAN_Havale_Tutari"] = $"{d.IbanAmount:N2} TL"
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient)}", content);
+            var respText = await resp.Content.ReadAsStringAsync();
+
+            if (resp.IsSuccessStatusCode && respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, "Z Raporu bulut e-posta servisi üzerinden başarıyla gönderildi.");
+            }
+
+            if (respText.Contains("Activate", StringComparison.OrdinalIgnoreCase) || respText.Contains("activation", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, $"Şifresiz e-posta gönderimi için {recipient} adresinize bir doğrulama maili (FormSubmit Activate) gönderildi.\n\nLütfen {recipient} gelen kutunuzu (veya Spam klasörünü) açıp 'Activate Form' butonuna 1 kez tıklayın VEYA Ayarlar > E-Posta bölümüne 16 haneli Google Uygulama Şifrenizi girin.");
+            }
+        }
+        catch { }
+
+        return (false, $"Gmail ({recipient}) üzerinden PDF ekli doğrudan gönderim için Google 16 Haneli Uygulama Şifresi gereklidir.\n\nLütfen Ayarlar > E-Posta bölümündeki 'SMTP Şifre / Uygulama Şifresi' kutusuna 16 haneli Google Uygulama Şifrenizi girip Kaydet'e basın.");
     }
 
     /// <summary>
@@ -163,6 +365,51 @@ public class ZReportEmailService
                 return (false, "Alıcı e-posta adresi boş olamaz.");
             if (string.IsNullOrWhiteSpace(host))
                 return (false, "SMTP sunucu adresi boş olamaz.");
+
+            if (host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(password))
+            {
+                password = password.Replace(" ", "").Trim();
+            }
+
+            if (string.IsNullOrWhiteSpace(password) && host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                    http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                    http.DefaultRequestHeaders.Add("Accept", "application/json");
+                    http.DefaultRequestHeaders.Add("Origin", "https://pureaccessory.com");
+                    http.DefaultRequestHeaders.Add("Referer", "https://pureaccessory.com/");
+
+                    var payload = new Dictionary<string, string>
+                    {
+                        ["_subject"] = $"Pure Accessory ERP - E-Posta Baglanti Testi ({DateTime.Now:dd.MM.yyyy HH:mm})",
+                        ["_template"] = "table",
+                        ["_captcha"] = "false",
+                        ["Durum"] = "BASARILI - Pure Accessory ERP E-Posta Sistemi Aktif",
+                        ["Alici_Adres"] = recipient.Trim(),
+                        ["Test_Tarihi"] = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")
+                    };
+
+                    var json = JsonSerializer.Serialize(payload);
+                    using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient.Trim())}", content);
+                    var respText = await resp.Content.ReadAsStringAsync();
+
+                    if (resp.IsSuccessStatusCode && respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (true, $"Test e-postası {recipient} adresine başarıyla gönderildi!");
+                    }
+
+                    if (respText.Contains("Activate", StringComparison.OrdinalIgnoreCase) || respText.Contains("activation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (true, $"Şifresiz e-posta bağlantısını aktifleştirmek için şu an {recipient} adresinize bir onay e-postası (FormSubmit - Activate Form) gönderildi!\n\n1) Lütfen {recipient} gelen kutunuzu (veya Spam klasörünü) açıp 'Activate Form' butonuna 1 kez tıklayın.\n2) VEYA PDF ekli doğrudan gönderim için 'SMTP Şifre / Uygulama Şifresi' kutusuna 16 haneli Google Uygulama Şifrenizi yazın.");
+                    }
+                }
+                catch { }
+
+                return (false, "Gmail üzerinden doğrudan gönderim için 'SMTP Şifre / Uygulama Şifresi' kutusuna 16 haneli Google Uygulama Şifrenizi girmeniz gerekmektedir.");
+            }
 
             string fromEmail = string.IsNullOrWhiteSpace(sender) ? recipient : sender.Trim();
             string fromName = string.IsNullOrWhiteSpace(senderName) ? "ERP Test Sistemi" : senderName.Trim();

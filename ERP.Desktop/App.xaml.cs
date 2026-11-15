@@ -101,6 +101,16 @@ public partial class App : Application
 
         try
         {
+            // Önceki güncellemelerden kalan .old_bak yedek dosyalarını temizle
+            try
+            {
+                foreach (var bakFile in Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.old_bak", SearchOption.AllDirectories))
+                {
+                    try { File.Delete(bakFile); } catch { }
+                }
+            }
+            catch { }
+
             // Tema ve ayarları yükle
             try
             {
@@ -108,16 +118,16 @@ public partial class App : Application
             }
             catch { }
 
-            // Uygulamayı açmadan önce güncellemeleri denetle
+            // Uygulamayı açmadan önce güncellemeleri denetle (UI thread deadlock olmadan arka plan iş parçacığında)
             bool shouldCheckUpdates = !e.Args.Contains("--no-update-check") && Services.ThemeService.Current?.AutoCheckUpdates != false;
             if (shouldCheckUpdates)
             {
                 try
                 {
-                    var checkTask = Services.UpdateService.CheckForUpdatesAsync();
-                    if (Task.WhenAny(checkTask, Task.Delay(6000)).Result == checkTask)
+                    var checkTask = Task.Run(() => Services.UpdateService.CheckForUpdatesAsync());
+                    if (Task.WhenAny(checkTask, Task.Delay(8000)).GetAwaiter().GetResult() == checkTask)
                     {
-                        var update = checkTask.Result;
+                        var update = checkTask.GetAwaiter().GetResult();
                         if (update != null)
                         {
                             var updateWin = new Views.UpdateWindow(update);

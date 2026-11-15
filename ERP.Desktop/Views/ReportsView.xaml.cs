@@ -906,12 +906,15 @@ public partial class ReportsView : Page
             if (success)
             {
                 var settings = ThemeService.Current;
-                string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "belirtilen adrese";
+                string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "certugrulx@gmail.com";
                 MessageBox.Show($"{date:dd.MM.yyyy} tarihli Z Raporu başarıyla {to} e-posta adresine gönderildi.", "E-Posta Gönderildi", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show($"{date:dd.MM.yyyy} tarihli Z Raporu gönderilemedi.\nLütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.", "Gönderim Başarısız", MessageBoxButton.OK, MessageBoxImage.Warning);
+                string detail = !string.IsNullOrWhiteSpace(emailService.LastErrorMessage)
+                    ? emailService.LastErrorMessage
+                    : "Lütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.";
+                MessageBox.Show($"{date:dd.MM.yyyy} tarihli Z Raporu gönderilemedi:\n\n{detail}", "Gönderim Durumu", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
@@ -935,12 +938,15 @@ public partial class ReportsView : Page
                 if (success)
                 {
                     var settings = ThemeService.Current;
-                    string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "belirtilen adrese";
+                    string to = !string.IsNullOrWhiteSpace(settings?.EmailRecipient) ? settings.EmailRecipient : "certugrulx@gmail.com";
                     MessageBox.Show($"{closure.ClosureDate:dd.MM.yyyy} tarihli Z Raporu başarıyla {to} e-posta adresine iletildi.", "E-Posta Gönderildi", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
-                    MessageBox.Show($"{closure.ClosureDate:dd.MM.yyyy} tarihli Z Raporu gönderilemedi.\nLütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.", "Gönderim Başarısız", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    string detail = !string.IsNullOrWhiteSpace(emailService.LastErrorMessage)
+                        ? emailService.LastErrorMessage
+                        : "Lütfen Ayarlar > E-Posta bölümündeki SMTP ve alıcı adres yapılandırmasını kontrol edin.";
+                    MessageBox.Show($"{closure.ClosureDate:dd.MM.yyyy} tarihli Z Raporu gönderilemedi:\n\n{detail}", "Gönderim Durumu", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)

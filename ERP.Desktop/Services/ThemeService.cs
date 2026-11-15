@@ -50,6 +50,14 @@ public static class ThemeService
             _currentSettings.AutoEmailZReportOnClosure = true;
         }
         ApplyTheme(_currentSettings);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ZReportEmailService.LoadCloudEmailSettingsIntoAsync(_currentSettings);
+            }
+            catch { }
+        });
     }
 
     public static void Save(AppSettings settings)
@@ -66,6 +74,15 @@ public static class ThemeService
             File.WriteAllText(SettingsFile, json);
         }
         catch { }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ZReportEmailService.SaveCloudEmailSettingsAsync(settings);
+            }
+            catch { }
+        });
 
         ApplyTheme(settings);
         ThemeChanged?.Invoke(settings);

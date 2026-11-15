@@ -46,11 +46,8 @@ public partial class UpdateWindow : Window
 
         var progress = new Progress<int>(pct =>
         {
-            Dispatcher.Invoke(() =>
-            {
-                ProgressBarDownload.Value = pct;
-                TxtProgressPct.Text = $"%{pct}";
-            });
+            ProgressBarDownload.Value = pct;
+            TxtProgressPct.Text = $"%{pct}";
         });
 
         try

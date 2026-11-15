@@ -34,11 +34,37 @@ public class ReportDataService
             closure = closures.OrderByDescending(c => c.ClosedAt).ThenByDescending(c => c.Id).FirstOrDefault();
         }
 
-        if (closure == null) return null;
+        var reportDate = closure?.ClosureDate.Date ?? date;
+        var cashSession = await _cashService.GetLatestSessionAsync(reportDate);
+        var cashSummary = await _cashService.GetCashSummaryAsync(reportDate);
+        var sales = await _salesService.GetSalesForDateAsync(reportDate);
 
-        var cashSession = await _cashService.GetLatestSessionAsync(closure.ClosureDate);
-        var cashSummary = await _cashService.GetCashSummaryAsync(closure.ClosureDate);
-        var sales = await _salesService.GetSalesForDateAsync(closure.ClosureDate);
+        if (closure == null)
+        {
+            decimal liveCash = sales.Sum(s => s.GetEffectiveCashAmount());
+            decimal liveCard = sales.Sum(s => s.GetEffectiveCardAmount());
+            decimal liveOnAcc = sales.Sum(s => s.GetEffectiveOnAccountAmount());
+            decimal liveRev = sales.Sum(s => s.GrandTotal);
+            decimal liveCost = sales.Sum(s => s.CostTotal);
+
+            closure = new DailyClosure
+            {
+                Id = 0,
+                ClosureDate = reportDate,
+                ClosedAt = DateTime.Now,
+                SalesCount = sales.Count,
+                TotalRevenue = liveRev,
+                TotalCash = liveCash,
+                TotalCreditCard = liveCard,
+                TotalOnAccount = liveOnAcc,
+                TotalCost = liveCost,
+                TotalExpenses = cashSummary.CashOut,
+                TotalProfit = liveRev - liveCost - cashSummary.CashOut,
+                ZReportCash = liveCash,
+                ZReportCredit = liveCard,
+                Notes = "Canlı Gün Özeti (Henüz resmi gün sonu kapanışı yapılmadı)"
+            };
+        }
 
         var settings = ThemeService.Current;
         var storeName = settings?.StoreName ?? "Pure Accessory";

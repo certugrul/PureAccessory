@@ -97,7 +97,8 @@ public static class DbHelper
             "Expenses", "Closures", "CariAccounts", "CariTransactions", "BankAccounts",
             "BankTransactions", "PosTransactions", "Invoices", "InvoiceItems",
             "GeneralExpenses", "FinancialDebts", "FinancialReminders", "InterestRates",
-            "DebtTransactions", "InterestAccruals", "Payments", "PaymentAllocations", "FinancialAuditLogs"
+            "DebtTransactions", "InterestAccruals", "Payments", "PaymentAllocations", "FinancialAuditLogs",
+            "ZReportEmails"
         };
 
         foreach (var t in tables)

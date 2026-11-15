@@ -212,7 +212,8 @@ public class DatabaseService
             "Sales", "SaleItems", "CashSessions", "CashAccounts", "CashTransactions",
             "Expenses", "Closures", "CariAccounts", "CariTransactions", "BankAccounts",
             "BankTransactions", "PosTransactions", "Invoices", "InvoiceItems",
-            "GeneralExpenses", "FinancialDebts", "FinancialReminders", "InterestRates"
+            "GeneralExpenses", "FinancialDebts", "FinancialReminders", "InterestRates",
+            "ZReportEmails"
         };
 
         foreach (var t in tables)
