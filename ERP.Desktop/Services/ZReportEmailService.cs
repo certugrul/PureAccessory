@@ -231,10 +231,56 @@ public class ZReportEmailService
             string generatedPdfPath = pdfService.GenerateZReportPdf(zData, pdfPath);
             byte[] pdfBytes = await File.ReadAllBytesAsync(generatedPdfPath);
 
-            // 3. Eğer SMTP parolası girilmemişse ve Gmail kullanılıyorsa:
-            if (string.IsNullOrWhiteSpace(password) && host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
+            // 3. Eğer SMTP parolası girilmişse önce doğrudan PDF ekli SMTP gönderimini dene;
+            // parola boşsa veya SMTP hata verirse otomatik olarak aktif bulut e-posta rölesi (FormSubmit) ile gönder!
+            bool smtpSent = false;
+            string? smtpErr = null;
+
+            if (!string.IsNullOrWhiteSpace(password) || !host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
             {
-                // Önce şifresiz HTTPS e-posta rölesi (FormSubmit) ile göndermeyi dene
+                try
+                {
+                    string htmlBody = GenerateEmailHtmlBody(zData);
+
+                    using var mailMessage = new MailMessage();
+                    mailMessage.From = new MailAddress(sender, senderName);
+                    mailMessage.To.Add(recipient);
+                    mailMessage.Subject = subject;
+                    mailMessage.Body = htmlBody;
+                    mailMessage.IsBodyHtml = true;
+
+                    using var pdfStream = new MemoryStream(pdfBytes);
+                    using var attachment = new Attachment(pdfStream, pdfFileName, "application/pdf");
+                    mailMessage.Attachments.Add(attachment);
+
+                    using var smtpClient = new SmtpClient(host, port)
+                    {
+                        EnableSsl = enableSsl,
+                        Timeout = 25000
+                    };
+
+                    if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+                    {
+                        smtpClient.UseDefaultCredentials = false;
+                        smtpClient.Credentials = new NetworkCredential(username, password);
+                    }
+                    else
+                    {
+                        smtpClient.UseDefaultCredentials = true;
+                    }
+
+                    await smtpClient.SendMailAsync(mailMessage);
+                    smtpSent = true;
+                }
+                catch (Exception exSmtp)
+                {
+                    smtpErr = exSmtp.Message;
+                    System.Diagnostics.Debug.WriteLine($"[ZReportEmailService] SMTP denemesi başarısız, Web Rölesine geçiliyor: {exSmtp.Message}");
+                }
+            }
+
+            if (!smtpSent)
+            {
                 var (relayOk, relayMsg) = await TrySendZReportViaWebRelayAsync(recipient, subject, zData);
                 if (relayOk)
                 {
@@ -242,42 +288,10 @@ public class ZReportEmailService
                     return true;
                 }
 
-                LastErrorMessage = relayMsg;
-                await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, generatedPdfPath, "Başarısız", relayMsg, emailRecordId);
+                LastErrorMessage = !string.IsNullOrWhiteSpace(smtpErr) ? $"{relayMsg}\n(SMTP Detayı: {smtpErr})" : relayMsg;
+                await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, generatedPdfPath, "Başarısız", LastErrorMessage, emailRecordId);
                 return false;
             }
-
-            // 4. HTML E-Posta gövdesini oluştur ve SMTP ile gönder
-            string htmlBody = GenerateEmailHtmlBody(zData);
-
-            using var mailMessage = new MailMessage();
-            mailMessage.From = new MailAddress(sender, senderName);
-            mailMessage.To.Add(recipient);
-            mailMessage.Subject = subject;
-            mailMessage.Body = htmlBody;
-            mailMessage.IsBodyHtml = true;
-
-            using var pdfStream = new MemoryStream(pdfBytes);
-            using var attachment = new Attachment(pdfStream, pdfFileName, "application/pdf");
-            mailMessage.Attachments.Add(attachment);
-
-            using var smtpClient = new SmtpClient(host, port)
-            {
-                EnableSsl = enableSsl,
-                Timeout = 30000 // 30 saniye
-            };
-
-            if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
-            {
-                smtpClient.UseDefaultCredentials = false;
-                smtpClient.Credentials = new NetworkCredential(username, password);
-            }
-            else
-            {
-                smtpClient.UseDefaultCredentials = true;
-            }
-
-            await smtpClient.SendMailAsync(mailMessage);
 
             // 5. Başarılı gönderim olarak kaydet
             await LogOrUpdateEmailStatusAsync(closureId, reportDate, recipient, subject, generatedPdfPath, "Gönderildi", null, emailRecordId, DateTime.Now);
@@ -301,7 +315,7 @@ public class ZReportEmailService
     {
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
             http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
             http.DefaultRequestHeaders.Add("Accept", "application/json");
             http.DefaultRequestHeaders.Add("Origin", "https://pureaccessory.com");
@@ -319,19 +333,25 @@ public class ZReportEmailService
                 ["Satis_Adedi"] = $"{d.SalesCount} Adet",
                 ["Nakit_Tahsilat"] = $"{d.TotalCash:N2} TL",
                 ["Kredi_Karti_POS"] = $"{d.TotalCreditCard:N2} TL",
+                ["Acik_Hesap_Veresiye"] = $"{d.TotalOnAccount:N2} TL",
+                ["Kasa_Acilis_Tutari"] = $"{d.OpeningCash:N2} TL",
                 ["Gun_Ici_Nakit_Giris"] = $"{d.CashInflows:N2} TL",
                 ["Gun_Ici_Nakit_Cikis_Gider"] = $"{d.CashOutflows:N2} TL",
                 ["Kasa_Kapanis_Bakiyesi"] = $"{d.ClosingCashBalance:N2} TL",
                 ["Bekleyen_POS_Alacaklari"] = $"{d.PendingPosAmount:N2} TL",
-                ["IBAN_Havale_Tutari"] = $"{d.IbanAmount:N2} TL"
+                ["IBAN_Havale_Tutari"] = $"{d.IbanAmount:N2} TL",
+                ["Net_Kar_Ozeti"] = $"{d.TotalProfit:N2} TL"
             };
 
             var json = JsonSerializer.Serialize(payload);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient)}", content);
+            using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient.Trim())}", content);
             var respText = await resp.Content.ReadAsStringAsync();
 
-            if (resp.IsSuccessStatusCode && respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase))
+            if (resp.IsSuccessStatusCode &&
+                (respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase) ||
+                 respText.Contains("\"success\":true", StringComparison.OrdinalIgnoreCase) ||
+                 respText.Contains("\"success\": true", StringComparison.OrdinalIgnoreCase)))
             {
                 return (true, "Z Raporu bulut e-posta servisi üzerinden başarıyla gönderildi.");
             }
@@ -371,55 +391,19 @@ public class ZReportEmailService
                 password = password.Replace(" ", "").Trim();
             }
 
-            if (string.IsNullOrWhiteSpace(password) && host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(password) || !host.Contains("gmail.com", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
-                    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-                    http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                    http.DefaultRequestHeaders.Add("Accept", "application/json");
-                    http.DefaultRequestHeaders.Add("Origin", "https://pureaccessory.com");
-                    http.DefaultRequestHeaders.Add("Referer", "https://pureaccessory.com/");
+                    string fromEmail = string.IsNullOrWhiteSpace(sender) ? recipient : sender.Trim();
+                    string fromName = string.IsNullOrWhiteSpace(senderName) ? "ERP Test Sistemi" : senderName.Trim();
 
-                    var payload = new Dictionary<string, string>
-                    {
-                        ["_subject"] = $"Pure Accessory ERP - E-Posta Baglanti Testi ({DateTime.Now:dd.MM.yyyy HH:mm})",
-                        ["_template"] = "table",
-                        ["_captcha"] = "false",
-                        ["Durum"] = "BASARILI - Pure Accessory ERP E-Posta Sistemi Aktif",
-                        ["Alici_Adres"] = recipient.Trim(),
-                        ["Test_Tarihi"] = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")
-                    };
-
-                    var json = JsonSerializer.Serialize(payload);
-                    using var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient.Trim())}", content);
-                    var respText = await resp.Content.ReadAsStringAsync();
-
-                    if (resp.IsSuccessStatusCode && respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return (true, $"Test e-postası {recipient} adresine başarıyla gönderildi!");
-                    }
-
-                    if (respText.Contains("Activate", StringComparison.OrdinalIgnoreCase) || respText.Contains("activation", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return (true, $"Şifresiz e-posta bağlantısını aktifleştirmek için şu an {recipient} adresinize bir onay e-postası (FormSubmit - Activate Form) gönderildi!\n\n1) Lütfen {recipient} gelen kutunuzu (veya Spam klasörünü) açıp 'Activate Form' butonuna 1 kez tıklayın.\n2) VEYA PDF ekli doğrudan gönderim için 'SMTP Şifre / Uygulama Şifresi' kutusuna 16 haneli Google Uygulama Şifrenizi yazın.");
-                    }
-                }
-                catch { }
-
-                return (false, "Gmail üzerinden doğrudan gönderim için 'SMTP Şifre / Uygulama Şifresi' kutusuna 16 haneli Google Uygulama Şifrenizi girmeniz gerekmektedir.");
-            }
-
-            string fromEmail = string.IsNullOrWhiteSpace(sender) ? recipient : sender.Trim();
-            string fromName = string.IsNullOrWhiteSpace(senderName) ? "ERP Test Sistemi" : senderName.Trim();
-
-            using var mailMessage = new MailMessage();
-            mailMessage.From = new MailAddress(fromEmail, fromName);
-            mailMessage.To.Add(recipient.Trim());
-            mailMessage.Subject = $"ERP Z Raporu E-Posta Test Bildirimi - {DateTime.Now:dd.MM.yyyy HH:mm}";
-            mailMessage.IsBodyHtml = true;
-            mailMessage.Body = $@"
+                    using var mailMessage = new MailMessage();
+                    mailMessage.From = new MailAddress(fromEmail, fromName);
+                    mailMessage.To.Add(recipient.Trim());
+                    mailMessage.Subject = $"ERP Z Raporu E-Posta Test Bildirimi - {DateTime.Now:dd.MM.yyyy HH:mm}";
+                    mailMessage.IsBodyHtml = true;
+                    mailMessage.Body = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -447,24 +431,71 @@ public class ZReportEmailService
 </body>
 </html>";
 
-            using var smtpClient = new SmtpClient(host.Trim(), port)
-            {
-                EnableSsl = enableSsl,
-                Timeout = 20000
-            };
+                    using var smtpClient = new SmtpClient(host.Trim(), port)
+                    {
+                        EnableSsl = enableSsl,
+                        Timeout = 20000
+                    };
 
-            if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
-            {
-                smtpClient.UseDefaultCredentials = false;
-                smtpClient.Credentials = new NetworkCredential(username.Trim(), password);
-            }
-            else
-            {
-                smtpClient.UseDefaultCredentials = true;
+                    if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+                    {
+                        smtpClient.UseDefaultCredentials = false;
+                        smtpClient.Credentials = new NetworkCredential(username.Trim(), password);
+                    }
+                    else
+                    {
+                        smtpClient.UseDefaultCredentials = true;
+                    }
+
+                    await smtpClient.SendMailAsync(mailMessage);
+                    return (true, "Test e-postası doğrudan SMTP üzerinden başarıyla gönderildi!");
+                }
+                catch { }
             }
 
-            await smtpClient.SendMailAsync(mailMessage);
-            return (true, "Test e-postası başarıyla gönderildi!");
+            // Şifresiz veya SMTP yedek bulut e-posta rölesi (FormSubmit)
+            try
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
+                http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                http.DefaultRequestHeaders.Add("Accept", "application/json");
+                http.DefaultRequestHeaders.Add("Origin", "https://pureaccessory.com");
+                http.DefaultRequestHeaders.Add("Referer", "https://pureaccessory.com/");
+
+                var payload = new Dictionary<string, string>
+                {
+                    ["_subject"] = $"Pure Accessory ERP - E-Posta Baglanti Testi ({DateTime.Now:dd.MM.yyyy HH:mm})",
+                    ["_template"] = "table",
+                    ["_captcha"] = "false",
+                    ["Durum"] = "BASARILI - Pure Accessory ERP E-Posta Sistemi Aktif",
+                    ["Alici_Adres"] = recipient.Trim(),
+                    ["Test_Tarihi"] = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")
+                };
+
+                var json = JsonSerializer.Serialize(payload);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var resp = await http.PostAsync($"https://formsubmit.co/ajax/{Uri.EscapeDataString(recipient.Trim())}", content);
+                var respText = await resp.Content.ReadAsStringAsync();
+
+                if (resp.IsSuccessStatusCode &&
+                    (respText.Contains("\"success\":\"true\"", StringComparison.OrdinalIgnoreCase) ||
+                     respText.Contains("\"success\":true", StringComparison.OrdinalIgnoreCase) ||
+                     respText.Contains("\"success\": true", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, $"Test e-postası {recipient} adresine başarıyla gönderildi!");
+                }
+
+                if (respText.Contains("Activate", StringComparison.OrdinalIgnoreCase) || respText.Contains("activation", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (true, $"Şifresiz e-posta bağlantısını aktifleştirmek için şu an {recipient} adresinize bir onay e-postası (FormSubmit - Activate Form) gönderildi!\n\nLütfen {recipient} gelen kutunuzu (veya Spam klasörünü) açıp 'Activate Form' butonuna 1 kez tıklayın.");
+                }
+            }
+            catch (Exception exRelay)
+            {
+                return (false, $"Test gönderimi başarısız oldu: {exRelay.Message}");
+            }
+
+            return (false, "E-posta gönderilemedi. Lütfen internet bağlantınızı kontrol edin.");
         }
         catch (Exception ex)
         {
@@ -501,14 +532,15 @@ public class ZReportEmailService
                 await using var conn = _dbService.CreateConnection();
                 await conn.OpenAsync();
 
-                string sql = @"
-                    SELECT COUNT(1) 
-                    FROM ZReportEmails 
-                    WHERE (ClosureId = @ClosureId OR ReportDate = @ReportDate) 
-                      AND Status = 'Gönderildi'";
+                string sql = closureId.HasValue
+                    ? @"SELECT COUNT(1) FROM ZReportEmails WHERE (ClosureId = @ClosureId OR ReportDate = @ReportDate) AND Status = 'Gönderildi'"
+                    : @"SELECT COUNT(1) FROM ZReportEmails WHERE ReportDate = @ReportDate AND Status = 'Gönderildi'";
 
                 await using var cmd = conn.CreateCommand(sql);
-                cmd.AddParam("ClosureId", closureId ?? (object)DBNull.Value);
+                if (closureId.HasValue)
+                {
+                    cmd.AddParam("ClosureId", closureId.Value);
+                }
                 cmd.AddParam("ReportDate", reportDate.Date);
 
                 int count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
@@ -537,7 +569,7 @@ public class ZReportEmailService
     {
         long recordId = existingRecordId;
 
-        // 1. SQL Server Kaydı
+        // 1. Veritabanı Kaydı (PostgreSQL & SQL Server Uyumlu)
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
@@ -553,16 +585,19 @@ public class ZReportEmailService
                         SET Status = @Status, 
                             ErrorMessage = @ErrorMessage, 
                             SentAt = @SentAt,
-                            PdfFilePath = COALESCE(@PdfFilePath, PdfFilePath),
+                            PdfFilePath = @PdfFilePath,
                             RetryCount = RetryCount + CASE WHEN @Status = 'Başarısız' THEN 1 ELSE 0 END
                         WHERE Id = @Id";
 
                     await using var cmd = conn.CreateCommand(updateSql);
                     cmd.AddParam("Id", recordId);
                     cmd.AddParam("Status", status);
-                    cmd.AddParam("ErrorMessage", errorMessage ?? (object)DBNull.Value);
-                    cmd.AddParam("SentAt", sentAt ?? (object)DBNull.Value);
-                    cmd.AddParam("PdfFilePath", pdfPath ?? (object)DBNull.Value);
+                    var pErr = cmd.AddParam("ErrorMessage", errorMessage);
+                    pErr.DbType = System.Data.DbType.String;
+                    var pSent = cmd.AddParam("SentAt", sentAt);
+                    pSent.DbType = System.Data.DbType.DateTime;
+                    var pPdf = cmd.AddParam("PdfFilePath", pdfPath);
+                    pPdf.DbType = System.Data.DbType.String;
                     await cmd.ExecuteNonQueryAsync();
                 }
                 else
@@ -573,14 +608,18 @@ public class ZReportEmailService
                         SELECT SCOPE_IDENTITY();";
 
                     await using var cmd = conn.CreateCommand(insertSql);
-                    cmd.AddParam("ClosureId", closureId ?? (object)DBNull.Value);
+                    var pCid = cmd.AddParam("ClosureId", closureId);
+                    pCid.DbType = System.Data.DbType.Int64;
                     cmd.AddParam("ReportDate", reportDate.Date);
                     cmd.AddParam("RecipientEmail", recipient);
                     cmd.AddParam("Subject", subject);
-                    cmd.AddParam("PdfFilePath", pdfPath ?? (object)DBNull.Value);
+                    var pPdf = cmd.AddParam("PdfFilePath", pdfPath);
+                    pPdf.DbType = System.Data.DbType.String;
                     cmd.AddParam("Status", status);
-                    cmd.AddParam("ErrorMessage", errorMessage ?? (object)DBNull.Value);
-                    cmd.AddParam("SentAt", sentAt ?? (object)DBNull.Value);
+                    var pErr = cmd.AddParam("ErrorMessage", errorMessage);
+                    pErr.DbType = System.Data.DbType.String;
+                    var pSent = cmd.AddParam("SentAt", sentAt);
+                    pSent.DbType = System.Data.DbType.DateTime;
 
                     var idObj = await cmd.ExecuteScalarAsync();
                     if (idObj != null && idObj != DBNull.Value)
