@@ -183,12 +183,13 @@ public class WarehouseService
                 }
             }
 
+            var newItems = new List<WarehouseStock>();
             // Eğer depolarda henüz yer almayan ürün varsa, varsayılan depoya ekle
             foreach (var prod in products)
             {
                 if (!stocks.Any(s => s.ProductId == prod.Id))
                 {
-                    stocks.Add(new WarehouseStock
+                    var newItem = new WarehouseStock
                     {
                         Id = stocks.Count > 0 ? stocks.Max(s => s.Id) + 1 : 1,
                         WarehouseId = defaultWh?.Id ?? 1,
@@ -200,14 +201,26 @@ public class WarehouseService
                         Quantity = prod.Stock,
                         PurchasePrice = prod.PurchasePrice,
                         SalePrice = prod.SalePrice
-                    });
+                    };
+                    stocks.Add(newItem);
+                    newItems.Add(newItem);
                     modified = true;
                 }
             }
 
             if (modified)
             {
-                await SaveStocksInternalAsync(stocks);
+                var stocksSnapshot = stocks.ToList();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await SaveStocksInternalAsync(newItems);
+                        var json = JsonSerializer.Serialize(stocksSnapshot, new JsonSerializerOptions { WriteIndented = true });
+                        await File.WriteAllTextAsync(WarehouseStocksFile, json);
+                    }
+                    catch { }
+                });
             }
 
             var query = stocks.AsQueryable();
@@ -546,6 +559,19 @@ public class WarehouseService
     private async Task EnsureWarehouseStocksInitializedAsync()
     {
         if (File.Exists(WarehouseStocksFile)) return;
+
+        // Önce veritabanında mevcut depo stokları var mı kontrol et (gereksiz yüzlerce tekil INSERT/UPDATE sorgusunu önler)
+        var existingDbStocks = await LoadStocksInternalAsync();
+        if (existingDbStocks.Count > 0)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(existingDbStocks, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(WarehouseStocksFile, json);
+            }
+            catch { }
+            return;
+        }
 
         var defaultWh = await GetDefaultWarehouseAsync();
         var products = await _productService.GetAllProductsAsync();

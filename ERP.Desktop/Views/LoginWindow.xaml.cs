@@ -54,6 +54,8 @@ public partial class LoginWindow : Window
 
         TxtPassword.Focus();
         _ = RefreshDbStatusAsync();
+        // Kullanıcı şifresini girerken arka planda tüm verileri sessizce önbelleğe ısıt
+        _ = Task.Run(() => AppDataCache.PreloadAllAsync());
     }
 
     private async Task RefreshDbStatusAsync()
@@ -196,23 +198,25 @@ public partial class LoginWindow : Window
         {
             TxtError.Visibility = Visibility.Collapsed;
 
-            // Giriş başarılı: Uygulamaya girmeden önce tüm operasyonel verileri DB'den önbelleğe al
-            BtnLogin.IsEnabled = false;
-            BtnExit.IsEnabled = false;
-            TxtPassword.IsEnabled = false;
-            LoadingPanel.Visibility = Visibility.Visible;
-
-            var progress = new Progress<string>(status =>
+            if (!AppDataCache.IsLoaded)
             {
-                TxtLoadingStatus.Text = status;
-            });
+                BtnLogin.IsEnabled = false;
+                BtnExit.IsEnabled = false;
+                TxtPassword.IsEnabled = false;
+                LoadingPanel.Visibility = Visibility.Visible;
 
-            try
-            {
-                var preloadTask = AppDataCache.PreloadAllAsync(progress);
-                await Task.WhenAny(preloadTask, Task.Delay(3500));
+                var progress = new Progress<string>(status =>
+                {
+                    TxtLoadingStatus.Text = status;
+                });
+
+                try
+                {
+                    var preloadTask = AppDataCache.PreloadAllAsync(progress);
+                    await Task.WhenAny(preloadTask, Task.Delay(800));
+                }
+                catch { }
             }
-            catch { }
 
             DialogResult = true;
         }

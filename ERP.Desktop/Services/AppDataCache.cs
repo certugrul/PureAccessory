@@ -13,6 +13,7 @@ namespace ERP.Desktop.Services;
 public static class AppDataCache
 {
     private static readonly SemaphoreSlim _lock = new(1, 1);
+    private static Task? _activePreloadTask;
     public static bool IsLoaded { get; private set; } = false;
 
     // Önbellekteki temel operasyonel veriler
@@ -30,11 +31,25 @@ public static class AppDataCache
     /// Veritabanındaki tüm operasyonel tabloları tek seferde ön yükler.
     /// İlerleme durumunu UI'a (IProgress) aktarır.
     /// </summary>
-    public static async Task PreloadAllAsync(IProgress<string>? progress = null)
+    public static Task PreloadAllAsync(IProgress<string>? progress = null)
+    {
+        if (IsLoaded) return Task.CompletedTask;
+        if (_activePreloadTask != null && !_activePreloadTask.IsCompleted)
+        {
+            return _activePreloadTask;
+        }
+
+        _activePreloadTask = ExecutePreloadInternalAsync(progress);
+        return _activePreloadTask;
+    }
+
+    private static async Task ExecutePreloadInternalAsync(IProgress<string>? progress = null)
     {
         await _lock.WaitAsync();
         try
         {
+            if (IsLoaded) return;
+
             var dbService = new DatabaseService();
             var coordinator = new FinancialTransactionCoordinator(dbService);
             var productService = new ProductService(dbService);
@@ -44,27 +59,18 @@ public static class AppDataCache
             var cashService = new CashService(dbService, new SalesService(dbService), coordinator);
 
             progress?.Report("Veritabanı bağlantısı doğrulanıyor...");
-            bool isConnected = await dbService.TestConnectionAsync();
+            bool isConnected = await dbService.TestConnectionAsync().ConfigureAwait(false);
 
-            progress?.Report("1/6: Ürünler ve stok kartları veritabanından çekiliyor...");
+            progress?.Report("Veriler paralel olarak yükleniyor...");
             var productsTask = productService.GetAllProductsAsync();
-
-            progress?.Report("2/6: Depolar ve depo stokları yükleniyor...");
             var warehousesTask = warehouseService.GetAllWarehousesAsync();
-
-            progress?.Report("3/6: Cari hesap kartları ve bakiyeler alınıyor...");
             var cariTask = cariService.GetAllAccountsAsync();
-
-            progress?.Report("4/6: Banka hesapları ve POS durumu alınıyor...");
             var bankTask = bankService.GetAllAccountsAsync();
             var bankSummaryTask = bankService.GetBankSummaryAsync();
-
-            progress?.Report("5/6: Kasa durumu ve merkezi nakit hesaplanıyor...");
             var cashSessionTask = cashService.GetTodaySessionAsync(DateTime.Today);
             var cashSummaryTask = cashService.GetCashSummaryAsync(DateTime.Today);
             var cashBalanceTask = coordinator.GetCentralCashBalanceAsync();
 
-            // Tüm sorguları paralel ve güvenli şekilde tamamla (zaman aşımı korumalı)
             var allTasks = Task.WhenAll(
                 productsTask,
                 warehousesTask,
@@ -76,35 +82,34 @@ public static class AppDataCache
                 cashBalanceTask
             );
 
-            if (await Task.WhenAny(allTasks, Task.Delay(4000)) == allTasks)
+            if (await Task.WhenAny(allTasks, Task.Delay(3500)).ConfigureAwait(false) == allTasks)
             {
-                Products = await productsTask;
-                Warehouses = await warehousesTask;
-                CariAccounts = await cariTask;
-                BankAccounts = await bankTask;
-                BankSummary = await bankSummaryTask;
-                TodayCashSession = await cashSessionTask;
-                TodayCashSummary = await cashSummaryTask;
-                CentralCashBalance = await cashBalanceTask;
-            }
-
-            progress?.Report("6/6: Depo ürün dağılımları senkronize ediliyor...");
-            try
-            {
-                WarehouseStocks = await warehouseService.GetWarehouseStocksAsync();
-            }
-            catch
-            {
-                WarehouseStocks = new List<WarehouseStock>();
+                Products = await productsTask.ConfigureAwait(false);
+                Warehouses = await warehousesTask.ConfigureAwait(false);
+                CariAccounts = await cariTask.ConfigureAwait(false);
+                BankAccounts = await bankTask.ConfigureAwait(false);
+                BankSummary = await bankSummaryTask.ConfigureAwait(false);
+                TodayCashSession = await cashSessionTask.ConfigureAwait(false);
+                TodayCashSummary = await cashSummaryTask.ConfigureAwait(false);
+                CentralCashBalance = await cashBalanceTask.ConfigureAwait(false);
             }
 
             IsLoaded = true;
             progress?.Report("Tüm veriler hazırlandı. Sisteme giriş yapılıyor...");
+
+            // Depo stok dağılımlarını giriş sonrasında arka planda sessizce hazırla
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    WarehouseStocks = await warehouseService.GetWarehouseStocksAsync().ConfigureAwait(false);
+                }
+                catch { }
+            });
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AppDataCache] Preload error: {ex.Message}");
-            // Hata olsa dahi devam edebilmek için IsLoaded = true işaretlenir
             IsLoaded = true;
         }
         finally

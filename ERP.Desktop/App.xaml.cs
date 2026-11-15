@@ -101,63 +101,63 @@ public partial class App : Application
 
         try
         {
-            // Önceki güncellemelerden kalan .old_bak yedek dosyalarını temizle
-            try
-            {
-                foreach (var bakFile in Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.old_bak", SearchOption.AllDirectories))
-                {
-                    try { File.Delete(bakFile); } catch { }
-                }
-            }
-            catch { }
-
-            // Tema ve ayarları yükle
+            // 1. Tema ve ayarları anında yükle (~2 ms)
             try
             {
                 Services.ThemeService.Load();
             }
             catch { }
 
-            // Uygulamayı açmadan önce güncellemeleri denetle (UI thread deadlock olmadan arka plan iş parçacığında)
+            // 2. Arka planda: .old_bak temizliği, veritabanı ısındırma ve güncelleme kontrolü (UI'ı hiç bekletmeden!)
             bool shouldCheckUpdates = !e.Args.Contains("--no-update-check") && Services.ThemeService.Current?.AutoCheckUpdates != false;
-            if (shouldCheckUpdates)
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    var checkTask = Task.Run(() => Services.UpdateService.CheckForUpdatesAsync());
-                    if (Task.WhenAny(checkTask, Task.Delay(8000)).GetAwaiter().GetResult() == checkTask)
+                    foreach (var bakFile in Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "*.old_bak", SearchOption.TopDirectoryOnly))
                     {
-                        var update = checkTask.GetAwaiter().GetResult();
-                        if (update != null)
-                        {
-                            var updateWin = new Views.UpdateWindow(update);
-                            bool? dialogResult = updateWin.ShowDialog();
-                            
-                            // Eğer güncelleme zorunluysa ve kullanıcı güncellemeden kapattıysa uygulamayı açma
-                            if (update.Mandatory && dialogResult != true)
-                            {
-                                Shutdown(0);
-                                return;
-                            }
-                        }
+                        try { File.Delete(bakFile); } catch { }
                     }
                 }
-                catch (Exception ex)
+                catch { }
+
+                if (shouldCheckUpdates)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[App] Açılış öncesi güncelleme kontrolü: {ex.Message}");
+                    try
+                    {
+                        var update = await Services.UpdateService.CheckForUpdatesAsync().ConfigureAwait(false);
+                        if (update != null)
+                        {
+                            await Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                try
+                                {
+                                    var updateWin = new Views.UpdateWindow(update);
+                                    if (Current.Windows.Count > 0)
+                                    {
+                                        foreach (Window win in Current.Windows)
+                                        {
+                                            if (win.IsVisible) { updateWin.Owner = win; break; }
+                                        }
+                                    }
+                                    bool? dialogResult = updateWin.ShowDialog();
+                                    if (update.Mandatory && dialogResult != true)
+                                    {
+                                        Shutdown(0);
+                                    }
+                                }
+                                catch { }
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[App] Arka plan güncelleme kontrolü: {ex.Message}");
+                    }
                 }
-            }
+            });
 
-            // SQL Server ERPSystem veritabanı tablolarını ve JSON senkronizasyonunu başlat
-            try
-            {
-                Task.Run(async () => await Services.DatabaseSyncService.InitializeAndMigrateAsync()).Wait();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[App] DB Init hatası: {ex.Message}");
-            }
-
+            // 3. Login ekranını ANINDA (0 saniye bekleme ile) aç
             var loginWin = new Views.LoginWindow();
             bool? result = loginWin.ShowDialog();
 

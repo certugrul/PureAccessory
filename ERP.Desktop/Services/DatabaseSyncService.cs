@@ -31,6 +31,14 @@ public class DatabaseSyncService
         {
             if (_initialized) return;
 
+            var activeDb = new DatabaseService();
+            if (activeDb.IsPostgres)
+            {
+                // Bulut PostgreSQL (Supabase) aktifken yerel SQL Server örneklerini tarama (30+ sn gecikmeyi önler)
+                _initialized = true;
+                return;
+            }
+
             var service = new DatabaseSyncService(new DatabaseService(DatabaseService.DefaultSqlServerConnectionString));
             bool connected = await service._dbService.TestConnectionAsync();
             if (!connected)
