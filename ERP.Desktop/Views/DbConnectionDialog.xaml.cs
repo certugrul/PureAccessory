@@ -108,7 +108,7 @@ public partial class DbConnectionDialog : Window
         catch { }
     }
 
-    private async void SaveAndApply_Click(object sender, RoutedEventArgs e)
+    private void SaveAndApply_Click(object sender, RoutedEventArgs e)
     {
         var connStr = TxtConnStr.Text.Trim();
 
@@ -116,14 +116,6 @@ public partial class DbConnectionDialog : Window
         var settings = ThemeService.Current ?? new AppSettings();
         settings.CustomDbConnectionString = string.IsNullOrWhiteSpace(connStr) ? null : connStr;
         ThemeService.Save(settings);
-
-        // Tabloları hemen garantiye al
-        try
-        {
-            var syncService = new DatabaseSyncService(new DatabaseService(settings.CustomDbConnectionString));
-            await syncService.EnsureTablesCreatedAsync();
-        }
-        catch { }
 
         DialogResult = true;
         Close();

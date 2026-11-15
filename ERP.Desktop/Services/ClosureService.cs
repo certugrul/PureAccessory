@@ -258,19 +258,7 @@ public class ClosureService
         var cashService = new CashService();
         await cashService.CloseTodaySessionAsync(closure.ClosureDate, closure.ClosedAt);
 
-        // 4. Gün sonu otomatik veri gönderimi (Değişen verileri paketle ve merkeze ilet)
-        try
-        {
-            var settings = ThemeService.Current;
-            if (settings == null || settings.AutoSyncOnClosure)
-            {
-                var syncService = new BranchSyncService(_dbService);
-                await syncService.AutoDispatchClosureDataAsync(closure.ClosureDate, closure);
-            }
-        }
-        catch { }
-
-        // 5. Ekranları gün sonu hakkında haberdar et
+        // 4. Ekranları gün sonu hakkında haberdar et
         FinancialSyncBus.Notify(FinancialChangeType.DayClosure, closure);
 
         // 6. Otomatik Gün Sonu Z Raporu PDF ve E-Posta Gönderimi

@@ -51,54 +51,6 @@ public partial class App : Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        if (e.Args.Contains("--import-historical"))
-        {
-            try
-            {
-                var importer = new Services.HistoricalDataImportService();
-                var result = Task.Run(async () => await importer.ExecuteImportAsync()).Result;
-                Console.WriteLine("=================================================");
-                Console.WriteLine("Import tamamlandı.");
-                Console.WriteLine($"Başlangıç tarihi: {result.StartDate:dd.MM.yyyy}");
-                Console.WriteLine($"Bitiş tarihi: {result.EndDate:dd.MM.yyyy}");
-                Console.WriteLine($"Aktarılan gün: {result.ImportedDays}");
-                Console.WriteLine($"Aktarılan satış: {result.TotalRevenue:N2} TL");
-                Console.WriteLine($"Aktarılan gider: {result.TotalExpenses:N2} TL");
-                Console.WriteLine($"Aktarılan ciro: {result.TotalRevenue:N2} TL");
-                Console.WriteLine($"Aktarılan IBAN kapanışı: {result.TotalIbanClosures:N2} TL");
-                Console.WriteLine($"Uyarı sayısı: {result.WarningCount}");
-                Console.WriteLine($"Hata sayısı: {result.ErrorCount}");
-                Console.WriteLine("=================================================");
-                Console.WriteLine($"IBAN KAPANIŞ RAPORU ({result.IbanClosures.Count} Gün):");
-                foreach (var iban in result.IbanClosures)
-                {
-                    Console.WriteLine($"  {iban.Date:dd.MM.yyyy} | Kredi Satış: {iban.KrediSatis:N2} TL | Z Raporu Kredi: {iban.ZRaporuKredi:N2} TL | IBAN: {iban.IbanTutari:N2} TL");
-                }
-                Console.WriteLine("=================================================");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"IMPORT_FAILED: {ex}");
-            }
-            Shutdown(0);
-            return;
-        }
-
-        if (e.Args.Contains("--migrate"))
-        {
-            try
-            {
-                Task.Run(async () => await Services.DatabaseSyncService.InitializeAndMigrateAsync()).Wait();
-                Console.WriteLine("MIGRATION_COMPLETED_SUCCESSFULLY");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"MIGRATION_FAILED: {ex.Message}");
-            }
-            Shutdown(0);
-            return;
-        }
-
         try
         {
             // 1. Tema ve ayarları anında yükle (~2 ms)

@@ -31,6 +31,9 @@ if (Test-Path $publishDir) {
 }
 if (-not (Test-Path $releasesDir)) {
     New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
+} else {
+    Write-Host "Eski sürüm arşivleri temizleniyor..." -ForegroundColor Gray
+    Get-ChildItem -Path $releasesDir -Filter "PureAccessory_*.zip" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 # 1.1 Visual Studio .csproj dosyalarındaki sürüm numarasını güncelle

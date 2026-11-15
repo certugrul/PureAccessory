@@ -584,14 +584,6 @@ public partial class SettingsWindow : Window
 
                 if (ask == MessageBoxResult.Yes)
                 {
-                    // Tabloların eksiksiz var olduğundan emin ol
-                    try
-                    {
-                        var dbSync = new DatabaseSyncService();
-                        await dbSync.EnsureTablesCreatedAsync();
-                    }
-                    catch { }
-
                     var result = await syncService.ApplyPackageToDatabaseAsync(package);
                     if (result.Success)
                     {
