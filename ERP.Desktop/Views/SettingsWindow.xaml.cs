@@ -43,9 +43,6 @@ public partial class SettingsWindow : Window
         TxtUpdateUrl.Text = settings.UpdateCheckUrl ?? "";
         ChkAutoUpdate.IsChecked = settings.AutoCheckUpdates;
 
-        ChkAutoSyncOnClosure.IsChecked = settings.AutoSyncOnClosure;
-        TxtAutoSyncTargetDir.Text = settings.AutoSyncTargetDirectory ?? "";
-
         // E-Posta Yapılandırması
         ChkAutoEmailZReport.IsChecked = settings.AutoEmailZReportOnClosure;
         TxtEmailRecipient.Text = string.IsNullOrWhiteSpace(settings.EmailRecipient) ? "certugrulx@gmail.com" : settings.EmailRecipient;
@@ -326,9 +323,6 @@ public partial class SettingsWindow : Window
             CashBalanceStartDate = current?.CashBalanceStartDate ?? new DateTime(2026, 10, 8),
             UpdateCheckUrl = TxtUpdateUrl.Text.Trim(),
             AutoCheckUpdates = ChkAutoUpdate.IsChecked ?? true,
-            CustomDbConnectionString = current?.CustomDbConnectionString,
-            AutoSyncOnClosure = ChkAutoSyncOnClosure.IsChecked ?? true,
-            AutoSyncTargetDirectory = string.IsNullOrWhiteSpace(TxtAutoSyncTargetDir.Text) ? null : TxtAutoSyncTargetDir.Text.Trim(),
 
             // E-Posta Ayarları
             AutoEmailZReportOnClosure = ChkAutoEmailZReport.IsChecked ?? false,
@@ -408,25 +402,6 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void SelectAutoSyncDir_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var dialog = new Microsoft.Win32.OpenFolderDialog
-            {
-                Title = "Gün Sonu Paketlerinin Otomatik Kaydedileceği Klasörü Seçin"
-            };
-            if (dialog.ShowDialog() == true)
-            {
-                TxtAutoSyncTargetDir.Text = dialog.FolderName;
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Klasör seçimi hatası: {ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
     private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
     {
         var url = TxtUpdateUrl.Text.Trim();
@@ -453,165 +428,6 @@ public partial class SettingsWindow : Window
         {
             MessageBox.Show($"Güncelleme kontrolü başarısız:\n{ex.Message}", "Bağlantı Hatası", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-    }
-
-    private async void ExportBranchData_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var saveDialog = new Microsoft.Win32.SaveFileDialog
-            {
-                Title = "Mağaza Senkronizasyon Paketini Kaydet",
-                Filter = "Pure Accessory Senkronizasyon Paketi (*.sync)|*.sync",
-                FileName = $"PureAccessory_Magaza_{DateTime.Now:yyyyMMdd_HHmm}.sync"
-            };
-
-            if (saveDialog.ShowDialog() == true)
-            {
-                var syncService = new BranchSyncService();
-                var package = await syncService.CreateSyncPackageAsync(DateTime.Today.AddDays(-30), DateTime.Today, TxtStoreName.Text.Trim());
-                await syncService.ExportPackageToFileAsync(package, saveDialog.FileName);
-
-                MessageBox.Show(
-                    $"Mağaza verileri başarıyla paketlendi ve kaydedildi!\n\n" +
-                    $"📁 Dosya: {saveDialog.FileName}\n" +
-                    $"💰 Toplam Ciro: {package.FormattedTotalRevenue}\n" +
-                    $"🧾 Satış Adedi: {package.SalesCount}\n\n" +
-                    $"Bu dosyayı flash bellek ile veya internet üzerinden merkeze iletebilirsiniz.",
-                    "Veri Paketi Hazır", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Paketleme sırasında hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async void ApplyCorrectionPackage_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var openDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Merkezden Gelen Düzeltme Paketini Seçin",
-                Filter = "Düzeltme Paketi (*.sync;*.json)|*.sync;*.json|Tüm Dosyalar (*.*)|*.*"
-            };
-
-            if (openDialog.ShowDialog() == true)
-            {
-                var syncService = new BranchSyncService();
-                var package = await syncService.LoadPackageFromFileAsync(openDialog.FileName);
-
-                if (!package.IsCorrectionPackage || package.Corrections.Count == 0)
-                {
-                    MessageBox.Show("Seçilen paket bir düzeltme paketi değil veya düzeltme kaydı içermiyor.", "Uyarı", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                int applied = await syncService.ApplyCorrectionsAsync(package.Corrections);
-                MessageBox.Show(
-                    $"Merkezden gelen düzeltmeler başarıyla mağaza veritabanına uygulandı!\n\n" +
-                    $"• Güncellenen / Düzeltilen Kayıt Sayısı: {applied}",
-                    "Düzeltmeler Uygulandı", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Düzeltme paketi uygulanırken hata:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async void ExportFullDatabase_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var saveDialog = new Microsoft.Win32.SaveFileDialog
-            {
-                Title = "Tüm Veritabanı Yedek / Senkronizasyon Paketini Kaydet",
-                Filter = "Pure Accessory Tam Veri Paketi (*.sync)|*.sync|JSON Paketi (*.json)|*.json",
-                FileName = $"PureAccessory_TumVeritabani_{DateTime.Now:yyyyMMdd_HHmm}.sync"
-            };
-
-            if (saveDialog.ShowDialog() == true)
-            {
-                var syncService = new BranchSyncService();
-                // 2020 yılından bugüne kadar olan TÜM verileri kapsayacak şekilde dışa aktar
-                var package = await syncService.CreateSyncPackageAsync(new DateTime(2020, 1, 1), DateTime.Today.AddDays(1), TxtStoreName.Text.Trim());
-                await syncService.ExportPackageToFileAsync(package, saveDialog.FileName);
-
-                MessageBox.Show(
-                    $"Tüm veritabanı başarıyla paketlendi ve kaydedildi!\n\n" +
-                    $"📁 Dosya: {saveDialog.FileName}\n" +
-                    $"💰 Toplam Ciro: {package.FormattedTotalRevenue}\n" +
-                    $"🧾 Toplam Fiş: {package.SalesCount}\n" +
-                    $"💵 Kasa Hareketi: {package.CashTransactions.Count}\n" +
-                    $"📆 Kapanış Kaydı: {package.Closures.Count}\n\n" +
-                    $"Bu dosyayı USB bellek ile veya ağ üzerinden diğer bilgisayara götürüp 'Veri Paketini İçeri Aktar' butonuyla yükleyebilirsiniz.",
-                    "Tam Veri Paketi Hazır", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Tüm veritabanı paketlenirken hata oluştu:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async void ImportFullDatabase_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var openDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "İçeri Aktarılacak Veri Paketini Seçin (.sync veya .json)",
-                Filter = "Pure Accessory Veri Paketi (*.sync;*.json)|*.sync;*.json|Tüm Dosyalar (*.*)|*.*"
-            };
-
-            if (openDialog.ShowDialog() == true)
-            {
-                var syncService = new BranchSyncService();
-                var package = await syncService.LoadPackageFromFileAsync(openDialog.FileName);
-
-                var ask = MessageBox.Show(
-                    $"Seçilen veri paketindeki kayıtlar bu bilgisayara aktarılacaktır:\n\n" +
-                    $"• Satış Sayısı: {package.Sales.Count}\n" +
-                    $"• Toplam Ciro: {package.FormattedTotalRevenue}\n" +
-                    $"• Kasa Hareketleri: {package.CashTransactions.Count}\n" +
-                    $"• Kapanış Sayısı: {package.Closures.Count}\n\n" +
-                    $"Var olan kayıtlar güncellenecek, eksik kayıtlar eklenecektir.\n\nİşlemi onaylıyor musunuz?",
-                    "Veritabanına Aktar Onayı",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (ask == MessageBoxResult.Yes)
-                {
-                    var result = await syncService.ApplyPackageToDatabaseAsync(package);
-                    if (result.Success)
-                    {
-                        MessageBox.Show(
-                            $"Veritabanı aktarımı BAŞARIYLA tamamlandı!\n\n" +
-                            $"• Eklenen Yeni Satış: {result.SalesImported}\n" +
-                            $"• Güncellenen Satış: {result.SalesUpdated}\n" +
-                            $"• Aktarılan Kasa Hareketi: {result.TransactionsImported}\n" +
-                            $"• Aktarılan Gün Sonu Kapanışı: {result.ClosuresImported}",
-                            "Aktarım Başarılı", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Aktarım sırasında hata:\n{result.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Veri paketi yüklenirken hata:\n{ex.Message}", "Hata", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void OpenSyncReview_Click(object sender, RoutedEventArgs e)
-    {
-        var syncWin = new BranchSyncWindow { Owner = this };
-        syncWin.ShowDialog();
     }
 
     private void InstallLocalZipUpdate_Click(object sender, RoutedEventArgs e)

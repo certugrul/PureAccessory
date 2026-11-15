@@ -147,20 +147,10 @@
             <StackPanel Grid.Row="5" VerticalAlignment="Bottom">
                 <!-- DB Bağlantı Çubuğu -->
                 <Border Background="#1E293B" CornerRadius="8" Padding="10,7" Margin="0,0,0,6" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse x:Name="DotDbStatus" Width="9" Height="9" Fill="#EAB308" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="TxtDbStatus" Text="Veritabanı: Kontrol ediliyor..." FontSize="11" Foreground="#94A3B8" FontWeight="SemiBold"/>
-                        </StackPanel>
-
-                        <Button Grid.Column="1" Content="⚙️ DB Ayarla" Click="ConfigureDb_Click"
-                                Background="Transparent" Foreground="#60A5FA" FontSize="11" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Padding="6,2"/>
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Ellipse x:Name="DotDbStatus" Width="9" Height="9" Fill="#EAB308" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="TxtDbStatus" Text="Veritabanı: Kontrol ediliyor..." FontSize="11" Foreground="#94A3B8" FontWeight="SemiBold"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- İpucu -->

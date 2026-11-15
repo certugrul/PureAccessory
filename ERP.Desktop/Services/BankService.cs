@@ -1,7 +1,6 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -1256,61 +1255,6 @@ public class BankService
         {
             System.Diagnostics.Debug.WriteLine($"[BankService] SyncHistoricalCreditCardSalesAsync ERROR: {ex.Message}");
         }
-
-        try
-        {
-            var posList = new List<PosTransaction>();
-            if (File.Exists(PosFile))
-            {
-                var existingJson = await File.ReadAllTextAsync(PosFile);
-                posList = JsonSerializer.Deserialize<List<PosTransaction>>(existingJson) ?? new List<PosTransaction>();
-            }
-
-            // Sales.json'dan sadece son 7 günün kredi kartı satışlarını tara
-            var salesFile = Path.Combine(StorageDirectory, "sales.json");
-            if (File.Exists(salesFile))
-            {
-                var salesJson = await File.ReadAllTextAsync(salesFile);
-                var sales = JsonSerializer.Deserialize<List<Sale>>(salesJson) ?? new List<Sale>();
-
-                bool modified = false;
-                var minDate = DateTime.Today.AddDays(-7);
-                foreach (var s in sales.Where(x => (x.PaymentType == "Kredi Kartı" || x.CardAmount > 0) && x.SaleDate >= minDate))
-                {
-                    if (!posList.Any(p => p.SaleId == s.Id))
-                    {
-                        decimal gross = s.CardAmount > 0 ? s.CardAmount : s.GrandTotal;
-                        decimal rate = 3.99m;
-                        decimal comm = Math.Round(gross * rate / 100m, 2);
-                        decimal net = gross - comm;
-
-                        posList.Add(new PosTransaction
-                        {
-                            Id = posList.Count > 0 ? posList.Max(p => p.Id) + 1 : 1,
-                            SaleId = s.Id,
-                            SaleDate = s.SaleDate,
-                            GrossAmount = gross,
-                            CommissionRate = rate,
-                            CommissionAmount = comm,
-                            NetAmount = net,
-                            ExpectedDate = s.SaleDate.AddDays(2),
-                            BankAccountId = 1,
-                            BankAccountName = "Ziraat Bankası - Ana Ticari Hesap",
-                            Status = "Bekliyor",
-                            Description = $"Fiş #{s.Id} Kredi Kartı Satışı"
-                        });
-                        modified = true;
-                    }
-                }
-
-                if (modified || !File.Exists(PosFile))
-                {
-                    var json = JsonSerializer.Serialize(posList, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(PosFile, json);
-                }
-            }
-        }
-        catch { }
     }
 
     private async Task<List<BankAccount>> LoadAccountsInternalAsync()
@@ -1358,28 +1302,13 @@ public class BankService
                 }
                 if (list.Count > 0)
                 {
-                    try
-                    {
-                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-                        await File.WriteAllTextAsync(AccountsFile, json);
-                        AppDataCache.UpdateBankAccounts(list);
-                    }
-                    catch { }
+                    try { AppDataCache.UpdateBankAccounts(list); } catch { }
                     return list;
                 }
             }
         }
         catch { }
 
-        try
-        {
-            if (File.Exists(AccountsFile))
-            {
-                var json = await File.ReadAllTextAsync(AccountsFile);
-                return JsonSerializer.Deserialize<List<BankAccount>>(json) ?? new List<BankAccount>();
-            }
-        }
-        catch { }
         return new List<BankAccount>();
     }
 
@@ -1607,31 +1536,13 @@ public class BankService
                 }
                 if (list.Count > 0)
                 {
-                    try
-                    {
-                        EnsureStorageDirectory();
-                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-                        _ = Task.Run(async () =>
-                        {
-                            try { await File.WriteAllTextAsync(PosFile, json); } catch { }
-                        });
-                    }
-                    catch { }
                     return list;
                 }
+                return list;
             }
         }
         catch { }
 
-        try
-        {
-            if (File.Exists(PosFile))
-            {
-                var json = await File.ReadAllTextAsync(PosFile);
-                return JsonSerializer.Deserialize<List<PosTransaction>>(json) ?? new List<PosTransaction>();
-            }
-        }
-        catch { }
         return new List<PosTransaction>();
     }
 

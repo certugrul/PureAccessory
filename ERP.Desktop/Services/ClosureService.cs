@@ -1,7 +1,6 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -204,10 +203,7 @@ public class ClosureService
     {
         closure.ClosedAt = DateTime.Now;
 
-        // 1. Yerel JSON dosyasına kaydet
-        await SaveToLocalJsonAsync(closure);
-
-        // 2. Veritabanı bağlıysa veritabanına ekle
+        // 1. Veritabanı bağlıysa veritabanına ekle
         bool dbConnected = await _dbService.TestConnectionAsync();
         if (dbConnected)
         {
@@ -345,49 +341,12 @@ public class ClosureService
                     });
                 }
 
-                if (closures.Count > 0)
-                {
-                    return closures;
-                }
+                return closures;
             }
             catch { }
         }
 
-        return await LoadFromLocalJsonAsync();
-    }
-
-    private static async Task SaveToLocalJsonAsync(DailyClosure closure)
-    {
-        try
-        {
-            EnsureStorageDirectory();
-            var list = await LoadFromLocalJsonAsync();
-            if (closure.Id == 0)
-            {
-                closure.Id = list.Count > 0 ? list.Max(x => x.Id) + 1 : 1;
-            }
-            list.Insert(0, closure);
-
-            var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(StorageFile, json);
-        }
-        catch { }
-    }
-
-    private static async Task<List<DailyClosure>> LoadFromLocalJsonAsync()
-    {
-        try
-        {
-            if (File.Exists(StorageFile))
-            {
-                var json = await File.ReadAllTextAsync(StorageFile);
-                var list = JsonSerializer.Deserialize<List<DailyClosure>>(json);
-                if (list != null) return list;
-            }
-        }
-        catch { }
-
-        return new List<DailyClosure>();
+        return closures;
     }
 
     /// <summary>
@@ -413,19 +372,6 @@ public class ClosureService
                     System.Diagnostics.Debug.WriteLine($"[ClosureService] DB Gün sonu silme hatası: {ex.Message}");
                 }
             }
-
-            // Yerel JSON'dan da sil
-            try
-            {
-                if (File.Exists(StorageFile))
-                {
-                    var list = await LoadFromLocalJsonAsync();
-                    list.RemoveAll(c => c.Id == closureId);
-                    var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(StorageFile, json);
-                }
-            }
-            catch { }
 
             return true;
         }
@@ -456,22 +402,6 @@ public class ClosureService
                 }
                 catch { }
             }
-
-            try
-            {
-                if (File.Exists(StorageFile))
-                {
-                    var list = await LoadFromLocalJsonAsync();
-                    var item = list.FirstOrDefault(c => c.Id == closureId);
-                    if (item != null)
-                    {
-                        item.Notes = notes;
-                        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-                        await File.WriteAllTextAsync(StorageFile, json);
-                    }
-                }
-            }
-            catch { }
 
             return true;
         }

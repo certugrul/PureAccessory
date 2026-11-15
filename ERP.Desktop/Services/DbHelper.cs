@@ -1,7 +1,6 @@
 using System.Data;
 using System.Data.Common;
 using System.Text.RegularExpressions;
-using Microsoft.Data.SqlClient;
 using Npgsql;
 
 namespace ERP.Desktop.Services;

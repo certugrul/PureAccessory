@@ -33,14 +33,6 @@ public class AppSettings
     public string UpdateCheckUrl { get; set; } = "https://github.com/certugrul/PureAccessory";
     public bool AutoCheckUpdates { get; set; } = true;
 
-    // Özel Veritabanı Bağlantısı (Uzak SQL Server için)
-    public string? CustomDbConnectionString { get; set; }
-
-    // Gün Sonu Otomatik Veri Gönderimi Ayarları
-    public bool AutoSyncOnClosure { get; set; } = true;
-    public string? AutoSyncTargetDirectory { get; set; }
-    public string? AutoSyncWebhookUrl { get; set; }
-
     // Gün Sonu Z Raporu Otomatik E-Posta Ayarları
     public bool AutoEmailZReportOnClosure { get; set; } = true;
     public string? EmailRecipient { get; set; } = "certugrulx@gmail.com";

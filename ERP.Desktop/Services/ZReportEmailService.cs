@@ -1,11 +1,10 @@
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 

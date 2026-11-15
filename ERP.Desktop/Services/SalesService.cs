@@ -1,7 +1,6 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using ERP.Desktop.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ERP.Desktop.Services;
 
@@ -238,9 +237,6 @@ public class SalesService
             catch { }
         }
 
-        // Yerel JSON'a gerçek/son SaleId ile kaydet
-        await SaveSaleToLocalJsonAsync(sale);
-
         _lastSaleFingerprint = currentFingerprint;
         _lastSaleCompletedTime = DateTime.Now;
         _lastCompletedSale = sale;
@@ -365,8 +361,7 @@ public class SalesService
             System.Diagnostics.Debug.WriteLine($"[SalesService] GetSalesBetweenDatesAsync hatası: {ex.Message}");
         }
 
-        var localSales = await LoadSalesFromLocalJsonAsync();
-        return localSales.Where(s => s.SaleDate >= startDate && s.SaleDate < endDate).ToList();
+        return new List<Sale>();
     }
 
     public async Task<DailyReceiptBreakdownData> GetDailyReceiptBreakdownAsync(DateTime date)
@@ -527,46 +522,13 @@ public class SalesService
 
                     return sales;
                 }
+                return sales;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[SalesService] SQL Server satışları okunamadı: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[SalesService] Satışlar okunamadı: {ex.Message}");
         }
-
-        return await LoadSalesFromLocalJsonAsync();
-    }
-
-    private static async Task SaveSaleToLocalJsonAsync(Sale sale)
-    {
-        try
-        {
-            EnsureStorageDirectory();
-            var list = await LoadSalesFromLocalJsonAsync();
-            if (sale.Id == 0)
-            {
-                sale.Id = list.Count > 0 ? list.Max(x => x.Id) + 1 : 1;
-            }
-            list.Insert(0, sale);
-
-            var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(StorageFile, json);
-        }
-        catch { }
-    }
-
-    private static async Task<List<Sale>> LoadSalesFromLocalJsonAsync()
-    {
-        try
-        {
-            if (File.Exists(StorageFile))
-            {
-                var json = await File.ReadAllTextAsync(StorageFile);
-                var list = JsonSerializer.Deserialize<List<Sale>>(json);
-                if (list != null) return list;
-            }
-        }
-        catch { }
 
         return new List<Sale>();
     }
@@ -575,7 +537,7 @@ public class SalesService
     /// Fişi/satışı kalıcı olarak iptal eder ve siler:
     /// 1. Satıştaki ürün adetlerini depoya ve stoklara geri iade eder.
     /// 2. Kasa ve POS/banka finansal kayıtlarını temizler/dengeler.
-    /// 3. Satış ve satış kalemlerini hem SQL Server'dan hem yerel JSON'dan siler.
+    /// 3. Satış ve satış kalemlerini veritabanından siler.
     /// </summary>
     public async Task<bool> DeleteSaleAsync(long saleId)
     {
@@ -663,19 +625,6 @@ public class SalesService
                     System.Diagnostics.Debug.WriteLine($"[SalesService] DB satış silme hatası: {ex.Message}");
                 }
             }
-
-            // 3. Yerel JSON'dan sil
-            try
-            {
-                if (File.Exists(StorageFile))
-                {
-                    var list = await LoadSalesFromLocalJsonAsync();
-                    list.RemoveAll(s => s.Id == saleId);
-                    var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(StorageFile, json);
-                }
-            }
-            catch { }
 
             return true;
         }

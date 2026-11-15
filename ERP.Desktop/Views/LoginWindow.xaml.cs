@@ -71,15 +71,8 @@ public partial class LoginWindow : Window
             if (isConnected)
             {
                 DotDbStatus.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
-                if (dbService.IsPostgres)
-                {
-                    TxtDbStatus.Text = "Bulut DB: Supabase (Aktif & Ortak)";
-                }
-                else
-                {
-                    TxtDbStatus.Text = "Yerel DB: SQL Server (Bağlı)";
-                }
-                TxtDbStatus.ToolTip = dbService.ConnectionString;
+                TxtDbStatus.Text = "Bulut DB: Supabase (Aktif & Ortak)";
+                TxtDbStatus.ToolTip = "Supabase Bulut Veritabanı Bağlantısı Aktif";
             }
             else
             {
@@ -89,15 +82,6 @@ public partial class LoginWindow : Window
             }
         }
         catch { }
-    }
-
-    private void ConfigureDb_Click(object sender, RoutedEventArgs e)
-    {
-        var dbDialog = new DbConnectionDialog { Owner = this };
-        if (dbDialog.ShowDialog() == true)
-        {
-            _ = RefreshDbStatusAsync();
-        }
     }
 
     private void UserCard_Click(object sender, MouseButtonEventArgs e)

@@ -7,13 +7,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ERP.Desktop</RootNamespace>
     <ApplicationIcon>Assets\AppLogo.ico</ApplicationIcon>
-    <Version>1.0.45</Version>
-    <AssemblyVersion>1.0.45.0</AssemblyVersion>
-    <FileVersion>1.0.45.0</FileVersion>
+    <Version>1.0.46</Version>
+    <AssemblyVersion>1.0.46.0</AssemblyVersion>
+    <FileVersion>1.0.46.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.89" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.2" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
@@ -23,8 +21,5 @@
     <Content Include="Assets\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="Tools\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 </Project> 

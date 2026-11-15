@@ -128,8 +128,7 @@ $versionJsonPath = Join-Path $releasesDir "version.json"
 $versionJsonObj | ConvertTo-Json -Depth 4 | Set-Content -Path $versionJsonPath -Encoding UTF8
 Write-Host "   -> version.json: $versionJsonPath" -ForegroundColor Green
 
-# 6. Inno Setup veya Standalone Kurulum Paketi Oluştur
-Write-Host "5. Kurulum paketi (Setup) hazırlanıyor..." -ForegroundColor White
+# 6. Inno Setup varsa Kurulum Paketi (Setup.exe) Oluştur
 $isccCandidates = @(
     "ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
@@ -142,34 +141,10 @@ foreach ($cand in $isccCandidates) {
 }
 
 if ($isccPath) {
-    Write-Host "   Inno Setup bulundu ($isccPath). Setup.exe derleniyor..." -ForegroundColor Cyan
+    Write-Host "5. Inno Setup bulundu ($isccPath). Setup.exe derleniyor..." -ForegroundColor Cyan
     $issFile = Join-Path $rootDir "Installer\Setup_Script.iss"
     & "$isccPath" "/DMyAppVersion=$Version" "$issFile"
     Write-Host "   -> PureAccessory_Setup_v$Version.exe başarıyla oluşturuldu!" -ForegroundColor Green
-} else {
-    Write-Host "   Inno Setup bulunamadı. Tek tıkla otomatik kurulabilir paket hazırlanıyor..." -ForegroundColor Yellow
-    $setupFolder = Join-Path $releasesDir "PureAccessory_KurulumPaketi_v$Version"
-    if (Test-Path $setupFolder) { Remove-Item -Recurse -Force $setupFolder }
-    New-Item -ItemType Directory -Path $setupFolder -Force | Out-Null
-    
-    # AppFiles klasörüne yayın dosyalarını koy
-    $appFilesTarget = Join-Path $setupFolder "AppFiles"
-    New-Item -ItemType Directory -Path $appFilesTarget -Force | Out-Null
-    Copy-Item -Path "$publishDir\*" -Destination $appFilesTarget -Recurse -Force
-    
-    # Kurulum betiklerini ekle
-    Copy-Item -Path (Join-Path $rootDir "Installer\Install_PureAccessory.ps1") -Destination $setupFolder -Force
-    Copy-Item -Path (Join-Path $rootDir "Installer\Kurulum_Yap.bat") -Destination $setupFolder -Force
-    Copy-Item -Path (Join-Path $rootDir "Installer\SQL_Kontrol_Ve_Onar.ps1") -Destination $setupFolder -Force
-    Copy-Item -Path (Join-Path $rootDir "Installer\SQL_Kontrol_Ve_Onar.bat") -Destination $setupFolder -Force
-    Copy-Item -Path (Join-Path $rootDir "Installer\SQL_Kontrol_Ve_Onar.bat") -Destination $appFilesTarget -Force
-    
-    # Zip haline getir
-    $setupZipPath = Join-Path $releasesDir "PureAccessory_KurulumPaketi_v$Version.zip"
-    if (Test-Path $setupZipPath) { Remove-Item -Force $setupZipPath }
-    Compress-Archive -Path "$setupFolder\*" -DestinationPath $setupZipPath -Force
-    Remove-Item -Recurse -Force $setupFolder
-    Write-Host "   -> Taşınabilir Kurulum Paketi: $setupZipPath" -ForegroundColor Green
 }
 
 Write-Host ""
